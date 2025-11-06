@@ -1,0 +1,718 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id               String   @id @default(cuid())
+  name             String
+  appName          String   @default("BuildFlow CRM")
+  logo             String?
+  website          String?
+  phone            String?
+  email            String?
+  address          String?
+  city             String?
+  state            String?
+  zipCode          String?
+  country          String?
+  currency         String   @default("USD")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  users            User[]
+  stages           Stage[]
+  cards            Card[]
+  estimateItems    EstimateItem[]
+  bidRequests      BidRequest[]
+  teamInvites      TeamInvite[]
+  projectTemplates ProjectTemplate[]
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String
+  firstName        String
+  lastName         String
+  phone            String?
+  avatar           String?
+  role             Role     @default(STAFF)
+  isActive         Boolean  @default(true)
+  lastLogin        DateTime?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cards            Card[]   @relation("CardOwner")
+  assignedCards    Card[]   @relation("AssignedUsers")
+  tasks            Task[]   @relation("TaskAssignee")
+  createdTasks     Task[]   @relation("TaskCreator")
+  activities       Activity[]
+  documents        Document[]
+  messages         Message[]
+  notifications    Notification[]
+  bidRequests      BidRequest[]
+  bidDocuments     BidDocument[]
+  notificationPreference NotificationPreference?
+  teamInvites      TeamInvite[]
+  
+  @@index([email])
+  @@index([companyId])
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  SUBCONTRACTOR
+  CLIENT
+}
+
+model Stage {
+  id               String   @id @default(cuid())
+  name             String
+  color            String
+  order            Int
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cards            Card[]
+  
+  @@unique([companyId, order])
+  @@index([companyId])
+}
+
+model Card {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  projectAddress   String?
+  projectCity      String?
+  projectState     String?
+  projectZipCode   String?
+  projectSize      Float?
+  projectSizeUnit  String?
+  budget           Float?
+  timeline         String?
+  startDate        DateTime?
+  endDate          DateTime?
+  priority         Priority @default(MEDIUM)
+  status           CardStatus @default(ACTIVE)
+  customFields     String?  // JSON string for flexible fields
+  stageId          String
+  companyId        String
+  ownerId          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  stage            Stage    @relation(fields: [stageId], references: [id])
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner            User?    @relation("CardOwner", fields: [ownerId], references: [id])
+  assignedUsers    User[]   @relation("AssignedUsers")
+  tasks            Task[]
+  taskCategories   TaskCategory[]
+  folders          Folder[]
+  documents        Document[]
+  budgetItems      BudgetItem[]
+  estimates        Estimate[]
+  activities       Activity[]
+  messages         Message[]
+  feedback         Feedback[]
+  
+  @@index([stageId])
+  @@index([companyId])
+  @@index([ownerId])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CardStatus {
+  ACTIVE
+  ARCHIVED
+  COMPLETED
+  CANCELLED
+}
+
+model TaskCategory {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  color            String   @default("#6366f1")
+  order            Int      @default(0)
+  cardId           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  tasks            Task[]
+  
+  @@index([cardId])
+  @@unique([cardId, name])
+}
+
+model Task {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  dueDate          DateTime?
+  status           TaskStatus @default(TODO)
+  priority         Priority @default(MEDIUM)
+  isRecurring      Boolean  @default(false)
+  recurringPattern String?  // JSON for recurring settings
+  cardId           String
+  categoryId       String?
+  assigneeId       String?
+  creatorId        String
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  // Sharing fields
+  shareToken       String?  @unique
+  isShareable      Boolean  @default(false)
+  sharedAt         DateTime?
+  sharedBy         String?
+  
+  card             Card         @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  category         TaskCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  assignee         User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  creator          User         @relation("TaskCreator", fields: [creatorId], references: [id])
+  interactions     TaskInteraction[]
+  
+  @@index([cardId])
+  @@index([categoryId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([shareToken])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  OVERDUE
+  COMPLETED
+  CANCELLED
+}
+
+model Folder {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  color            String   @default("#6366f1")
+  parentId         String?
+  cardId           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  parent           Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children         Folder[] @relation("FolderHierarchy")
+  documents        Document[]
+  
+  @@index([cardId])
+  @@index([parentId])
+  @@unique([cardId, name, parentId])
+}
+
+model Document {
+  id               String   @id @default(cuid())
+  name             String
+  fileName         String
+  fileSize         Int
+  mimeType         String
+  url              String
+  folderId         String?
+  isShared         Boolean  @default(false)
+  shareLink        String?  @unique
+  shareLinkExpiry  DateTime?
+  cardId           String
+  uploaderId       String
+  version          Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  folder           Folder?  @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader         User     @relation(fields: [uploaderId], references: [id])
+  
+  @@index([cardId])
+  @@index([folderId])
+  @@index([shareLink])
+}
+
+model BudgetItem {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  category         String
+  amount           Float
+  quantity         Float    @default(1)
+  unit             String?
+  isExpense        Boolean  @default(true)
+  isPaid           Boolean  @default(false)
+  paidAt           DateTime?
+  cardId           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  @@index([cardId])
+}
+
+model Estimate {
+  id               String   @id @default(cuid())
+  estimateNumber   String   @unique
+  title            String
+  description      String?
+  subtotal         Float
+  tax              Float    @default(0)
+  discount         Float    @default(0)
+  total            Float
+  status           EstimateStatus @default(DRAFT)
+  validUntil       DateTime?
+  sentAt           DateTime?
+  viewedAt         DateTime?
+  acceptedAt       DateTime?
+  rejectedAt       DateTime?
+  signature        String?
+  signedBy         String?
+  notes            String?
+  terms            String?
+  cardId           String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  items            EstimateLineItem[]
+  
+  @@index([cardId])
+  @@index([estimateNumber])
+}
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model EstimateLineItem {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  quantity         Float
+  unit             String?
+  unitPrice        Float
+  total            Float
+  order            Int
+  estimateId       String
+  itemTemplateId   String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  estimate         Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  template         EstimateItem? @relation(fields: [itemTemplateId], references: [id])
+  
+  @@index([estimateId])
+}
+
+model EstimateItem {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  category         String
+  unitPrice        Float
+  unit             String?
+  companyId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  lineItems        EstimateLineItem[]
+  
+  @@index([companyId])
+}
+
+model Activity {
+  id               String   @id @default(cuid())
+  type             String
+  description      String
+  metadata         String?  // JSON for additional data
+  cardId           String
+  userId           String
+  createdAt        DateTime @default(now())
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id])
+  
+  @@index([cardId])
+  @@index([userId])
+}
+
+model Message {
+  id               String   @id @default(cuid())
+  content          String
+  isInternal       Boolean  @default(false)
+  isFromClient     Boolean  @default(false)
+  isRead           Boolean  @default(false)
+  readAt           DateTime?
+  clientName       String?  // For messages from clients who aren't users
+  clientEmail      String?  // For messages from clients who aren't users
+  cardId           String
+  senderId         String?  // Nullable for client messages
+  parentId         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  sender           User?    @relation(fields: [senderId], references: [id])
+  parent           Message? @relation("MessageReplies", fields: [parentId], references: [id])
+  replies          Message[] @relation("MessageReplies")
+  
+  @@index([cardId])
+  @@index([senderId])
+  @@index([isFromClient])
+  @@index([isRead])
+}
+
+model Feedback {
+  id               String   @id @default(cuid())
+  rating           Int?
+  comment          String?
+  cardId           String
+  submittedBy      String
+  submittedAt      DateTime @default(now())
+  
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  
+  @@index([cardId])
+}
+
+model Notification {
+  id               String   @id @default(cuid())
+  type             String
+  title            String
+  message          String
+  isRead           Boolean  @default(false)
+  metadata         String?  // JSON for action links, etc.
+  userId           String
+  createdAt        DateTime @default(now())
+  
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([isRead])
+}
+
+model SubcontractorAccess {
+  id               String   @id @default(cuid())
+  email            String
+  phone            String?
+  accessCode       String   @unique
+  otpCode          String?
+  otpExpiry        DateTime?
+  qrCode           String   @unique
+  isActive         Boolean  @default(true)
+  lastAccess       DateTime?
+  projectIds       String   // JSON array of card IDs
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([email])
+  @@index([accessCode])
+}
+
+model TaskInteraction {
+  id               String   @id @default(cuid())
+  taskId           String
+  action           TaskInteractionAction
+  ipAddress        String?
+  userAgent        String?
+  metadata         String?  // JSON for additional data
+  timestamp        DateTime @default(now())
+  
+  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  @@index([taskId])
+  @@index([action])
+  @@index([timestamp])
+}
+
+enum TaskInteractionAction {
+  OPENED
+  STARTED
+  COMPLETED
+  UPDATED
+}
+
+model BidRequest {
+  id               String   @id @default(cuid())
+  title            String
+  description      String
+  location         String?
+  timeline         String?
+  requirements     String?
+  deadline         DateTime?
+  budget           Float?
+  shareToken       String   @unique
+  isActive         Boolean  @default(true)
+  companyId        String
+  creatorId        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  creator          User     @relation(fields: [creatorId], references: [id])
+  bids             Bid[]
+  documents        BidDocument[]
+  views            BidView[]
+  
+  @@index([companyId])
+  @@index([creatorId])
+  @@index([shareToken])
+  @@index([deadline])
+}
+
+model Bid {
+  id               String   @id @default(cuid())
+  bidRequestId     String
+  companyName      String
+  contactName      String
+  contactEmail     String
+  contactPhone     String?
+  licenseNumber    String?
+  insuranceInfo    String?
+  totalAmount      Float?
+  notes            String?
+  timeline         String?
+  warranty         String?
+  paymentTerms     String?
+  lineItems        String?  // JSON for line items
+  hasUploadedFile  Boolean  @default(false)
+  fileName         String?
+  fileUrl          String?
+  ipAddress        String?
+  userAgent        String?
+  status           BidStatus @default(SUBMITTED)
+  submittedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  bidRequest       BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
+  
+  @@index([bidRequestId])
+  @@index([status])
+  @@index([submittedAt])
+}
+
+model BidDocument {
+  id               String   @id @default(cuid())
+  bidRequestId     String
+  name             String
+  fileName         String
+  fileSize         Int
+  mimeType         String
+  url              String
+  uploadedById     String
+  createdAt        DateTime @default(now())
+  
+  bidRequest       BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
+  uploadedBy       User     @relation(fields: [uploadedById], references: [id])
+  
+  @@index([bidRequestId])
+}
+
+model BidView {
+  id               String   @id @default(cuid())
+  bidRequestId     String
+  ipAddress        String?
+  userAgent        String?
+  viewedAt         DateTime @default(now())
+  
+  bidRequest       BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
+  
+  @@index([bidRequestId])
+  @@index([viewedAt])
+}
+
+enum BidStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+model NotificationPreference {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  
+  // Email notifications
+  emailNewLead         Boolean  @default(true)
+  emailProjectUpdate   Boolean  @default(true)
+  emailTaskAssigned    Boolean  @default(true)
+  emailTaskCompleted   Boolean  @default(true)
+  emailBidReceived     Boolean  @default(true)
+  emailBidStatusChange Boolean  @default(true)
+  
+  // Push notifications
+  pushNewLead          Boolean  @default(false)
+  pushProjectUpdate    Boolean  @default(true)
+  pushTaskAssigned     Boolean  @default(true)
+  pushTaskCompleted    Boolean  @default(false)
+  pushBidReceived      Boolean  @default(true)
+  pushBidStatusChange  Boolean  @default(true)
+  
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model TeamInvite {
+  id               String   @id @default(cuid())
+  email            String
+  firstName        String
+  lastName         String
+  role             Role     @default(STAFF)
+  token            String   @unique
+  companyId        String
+  invitedById      String
+  expiresAt        DateTime
+  isAccepted       Boolean  @default(false)
+  acceptedAt       DateTime?
+  createdAt        DateTime @default(now())
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  invitedBy        User     @relation(fields: [invitedById], references: [id])
+  
+  @@index([token])
+  @@index([email])
+  @@index([companyId])
+}
+
+model ProjectTemplate {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  icon             String?  // emoji or icon identifier
+  
+  // Template fields that map to Card model
+  title            String?
+  projectDescription String?
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  projectAddress   String?
+  projectCity      String?
+  projectState     String?
+  projectZipCode   String?
+  projectSize      Float?
+  projectSizeUnit  String?
+  budget           Float?
+  timeline         String?
+  priority         Priority @default(MEDIUM)
+  customFields     String?  // JSON string for flexible fields
+  
+  // Company association
+  companyId        String
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taskCategories   ProjectTemplateCategory[]
+  folders          ProjectTemplateFolder[]
+  budgetItems      ProjectTemplateBudget[]
+  
+  @@index([companyId])
+  @@unique([companyId, name])
+}
+
+model ProjectTemplateCategory {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  color            String   @default("#6366f1")
+  order            Int      @default(0)
+  templateId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  template         ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  tasks            ProjectTemplateTask[]
+  
+  @@index([templateId])
+  @@unique([templateId, name])
+}
+
+model ProjectTemplateTask {
+  id               String   @id @default(cuid())
+  title            String
+  description      String?
+  priority         Priority @default(MEDIUM)
+  daysFromStart    Int?     // Number of days from project start date
+  categoryId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  category         ProjectTemplateCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  
+  @@index([categoryId])
+}
+
+model ProjectTemplateFolder {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  color            String   @default("#6366f1")
+  parentId         String?
+  templateId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  template         ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  parent           ProjectTemplateFolder? @relation("TemplateFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children         ProjectTemplateFolder[] @relation("TemplateFolderHierarchy")
+  
+  @@index([templateId])
+  @@index([parentId])
+}
+
+model ProjectTemplateBudget {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  category         String
+  amount           Float
+  quantity         Float    @default(1)
+  unit             String?
+  isExpense        Boolean  @default(true)
+  templateId       String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  template         ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@index([templateId])
+}
