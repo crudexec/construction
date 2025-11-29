@@ -19,7 +19,9 @@ import {
   Eye,
   Copy,
   MessageSquare,
-  Edit3
+  Edit3,
+  ChevronDown,
+  Settings
 } from 'lucide-react'
 import Link from 'next/link'
 import { ProjectOverview } from '@/components/projects/project-overview'
@@ -29,6 +31,9 @@ import { ProjectEstimates } from '@/components/projects/project-estimates'
 import { ProjectCalendar } from '@/components/projects/project-calendar'
 import { ProjectMessages } from '@/components/projects/project-messages'
 import { ProjectEditModal } from '@/components/projects/project-edit-modal'
+import { ProjectTeamModal } from '@/components/projects/project-team-modal'
+import { PortalSettingsModal } from '@/components/projects/portal-settings-modal'
+import { useModal } from '@/components/ui/modal-provider'
 
 async function fetchProject(id: string) {
   const token = document.cookie
@@ -51,6 +56,7 @@ export default function ProjectDetailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = params.id as string
+  const { showAlert } = useModal()
   
   // Initialize tab from URL or default to overview
   const tabFromUrl = searchParams.get('tab')
@@ -63,6 +69,8 @@ export default function ProjectDetailPage() {
   const [showAddEstimate, setShowAddEstimate] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showClientPortalModal, setShowClientPortalModal] = useState(false)
+  const [showPortalSettingsModal, setShowPortalSettingsModal] = useState(false)
+  const [showPortalDropdown, setShowPortalDropdown] = useState(false)
   const [clientAccessData, setClientAccessData] = useState<any>(null)
   const [isGeneratingAccess, setIsGeneratingAccess] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
@@ -84,6 +92,21 @@ export default function ProjectDetailPage() {
     router.push(newUrl.pathname + newUrl.search, { scroll: false })
   }
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement
+      if (!target.closest('.portal-dropdown')) {
+        setShowPortalDropdown(false)
+      }
+    }
+
+    if (showPortalDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showPortalDropdown])
+
   // Handle Add Task button click
   const handleAddTask = () => {
     handleTabChange('tasks')
@@ -102,15 +125,7 @@ export default function ProjectDetailPage() {
 
   // Handle Team button click
   const handleTeamClick = () => {
-    // For now, just show team members in overview
-    handleTabChange('overview')
-    // Scroll to team section
-    setTimeout(() => {
-      const teamSection = document.getElementById('team-members')
-      if (teamSection) {
-        teamSection.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-    }, 100)
+    setShowTeamModal(true)
   }
 
   // Handle Client Portal button click
@@ -155,11 +170,11 @@ export default function ProjectDetailPage() {
         // Refresh project data to show updated status
         window.location.reload()
       } else {
-        alert('Failed to generate client access')
+        showAlert('Failed to generate client access', 'error')
       }
     } catch (error) {
       console.error('Error generating client access:', error)
-      alert('Failed to generate client access')
+      showAlert('Failed to generate client access', 'error')
     } finally {
       setIsGeneratingAccess(false)
     }
@@ -187,11 +202,11 @@ export default function ProjectDetailPage() {
         // Refresh project data to show updated status
         window.location.reload()
       } else {
-        alert('Failed to disable client access')
+        showAlert('Failed to disable client access', 'error')
       }
     } catch (error) {
       console.error('Error disabling client access:', error)
-      alert('Failed to disable client access')
+      showAlert('Failed to disable client access', 'error')
     }
   }
 
@@ -199,10 +214,10 @@ export default function ProjectDetailPage() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      alert('Link copied to clipboard!')
+      showAlert('Link copied to clipboard!', 'success')
     } catch (error) {
       console.error('Failed to copy:', error)
-      alert('Failed to copy link')
+      showAlert('Failed to copy link', 'error')
     }
   }
 
@@ -374,18 +389,49 @@ export default function ProjectDetailPage() {
               <Users className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
               <span>Team</span>
             </button>
-            <button 
-              onClick={handleClientPortal}
-              disabled={isGeneratingAccess}
-              className="bg-orange-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-orange-700 disabled:bg-orange-400 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
-              {isGeneratingAccess ? (
-                <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
-              ) : (
-                <ExternalLink className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+            {/* Client Portal Dropdown */}
+            <div className="relative portal-dropdown">
+              <button 
+                onClick={() => setShowPortalDropdown(!showPortalDropdown)}
+                disabled={isGeneratingAccess}
+                className="bg-orange-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-orange-700 disabled:bg-orange-400 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
+                {isGeneratingAccess ? (
+                  <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
+                ) : (
+                  <ExternalLink className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+                )}
+                <span className="hidden sm:inline">Client Portal</span>
+                <span className="sm:hidden">Portal</span>
+                <ChevronDown className="h-3 w-3 ml-1" />
+              </button>
+              
+              {showPortalDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                  <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setShowPortalDropdown(false)
+                        handleClientPortal()
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>Open Client Portal</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowPortalDropdown(false)
+                        setShowPortalSettingsModal(true)
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      <span>Portal Settings</span>
+                    </button>
+                  </div>
+                </div>
               )}
-              <span className="hidden sm:inline">Client Portal</span>
-              <span className="sm:hidden">Portal</span>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -522,6 +568,26 @@ export default function ProjectDetailPage() {
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           onSave={handleProjectUpdate}
+        />
+      )}
+
+      {/* Project Team Modal */}
+      {showTeamModal && (
+        <ProjectTeamModal
+          projectId={projectId}
+          isOpen={showTeamModal}
+          onClose={() => setShowTeamModal(false)}
+          onTeamUpdate={() => refetch()}
+        />
+      )}
+
+      {/* Portal Settings Modal */}
+      {showPortalSettingsModal && (
+        <PortalSettingsModal
+          projectId={projectId}
+          isOpen={showPortalSettingsModal}
+          onClose={() => setShowPortalSettingsModal(false)}
+          onSettingsUpdate={() => refetch()}
         />
       )}
     </div>

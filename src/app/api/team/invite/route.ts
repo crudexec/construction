@@ -17,7 +17,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
     }
 
-    const { email, firstName, lastName, role } = await request.json()
+    const body = await request.json()
+    const { email, firstName, lastName, role } = body
+    
+    console.log('Creating invite for:', { email, firstName, lastName, role, companyId: user.companyId })
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -41,7 +44,23 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingInvite) {
-      return NextResponse.json({ error: 'An active invitation already exists for this email' }, { status: 400 })
+      // Return the existing invite URL instead of error
+      const host = request.headers.get('host') || 'localhost:3000'
+      const protocol = host.includes('localhost') ? 'http' : 'https'
+      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${existingInvite.token}`
+      
+      return NextResponse.json({
+        invite: {
+          id: existingInvite.id,
+          email: existingInvite.email,
+          firstName: existingInvite.firstName,
+          lastName: existingInvite.lastName,
+          role: existingInvite.role,
+          token: existingInvite.token,
+          expiresAt: existingInvite.expiresAt
+        },
+        inviteUrl
+      })
     }
 
     // Generate unique invite token
@@ -65,8 +84,10 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Generate invite URL
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/${inviteToken}`
+    // Generate invite URL - using the host from the request if NEXT_PUBLIC_APP_URL is not set
+    const host = request.headers.get('host') || 'localhost:3000'
+    const protocol = host.includes('localhost') ? 'http' : 'https'
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${inviteToken}`
 
     return NextResponse.json({
       invite: {
@@ -83,7 +104,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating team invite:', error)
     return NextResponse.json(
-      { error: 'Failed to create team invite' },
+      { error: error instanceof Error ? error.message : 'Failed to create team invite' },
       { status: 500 }
     )
   }

@@ -26,7 +26,8 @@ export async function GET(request: NextRequest) {
         firstName: true,
         lastName: true,
         email: true,
-        role: true
+        role: true,
+        avatar: true
       },
       orderBy: [
         { firstName: 'asc' },
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    return NextResponse.json(users)
+    return NextResponse.json({ users })
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(

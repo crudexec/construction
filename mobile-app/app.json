@@ -1,0 +1,54 @@
+{
+  "expo": {
+    "name": "Contractor CRM",
+    "slug": "contractor-crm-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.contractorcrm.mobile",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to capture project photos during walkarounds.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone to record voice notes during project walkarounds.",
+        "NSLocationWhenInUseUsageDescription": "This app uses your location to tag photos and recordings with GPS coordinates.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to save photos to your library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.contractorcrm.mobile",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-av",
+      "expo-location",
+      "expo-secure-store",
+      "expo-file-system",
+      "expo-media-library"
+    ]
+  }
+}

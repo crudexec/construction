@@ -141,7 +141,7 @@ export async function DELETE(
     }
 
     // Delete estimate items first, then estimate
-    await prisma.estimateItem.deleteMany({
+    await prisma.estimateLineItem.deleteMany({
       where: { estimateId }
     })
 

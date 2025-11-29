@@ -8,12 +8,7 @@ import {
   Eye, 
   Edit, 
   Trash2,
-  Calendar,
-  DollarSign,
   Users,
-  CheckCircle,
-  Clock,
-  AlertCircle,
   Building,
   MapPin
 } from 'lucide-react'
@@ -157,50 +152,6 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Compact Stats */}
-        <div className="bg-white p-3 rounded-lg shadow">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center space-x-2">
-              <Building className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="text-xs text-gray-500">Total</p>
-                <p className="text-sm font-semibold text-gray-900">{projects.length}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-green-500" />
-              <div>
-                <p className="text-xs text-gray-500">Active</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {projects.filter((p: Project) => p.status === 'ACTIVE').length}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <DollarSign className="h-5 w-5 text-purple-500" />
-              <div>
-                <p className="text-xs text-gray-500">Total Value</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  ${Math.round(projects.reduce((sum: number, p: Project) => sum + (p.metrics?.totalBudget || 0), 0) / 1000)}k
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <AlertCircle className="h-5 w-5 text-orange-500" />
-              <div>
-                <p className="text-xs text-gray-500">Behind</p>
-                <p className="text-sm font-semibold text-gray-900">
-                  {projects.filter((p: Project) => {
-                    if (!p.endDate) return false
-                    const endDate = new Date(p.endDate)
-                    const now = new Date()
-                    return endDate < now && p.status === 'ACTIVE'
-                  }).length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Compact Filters */}
         <CompactFilters

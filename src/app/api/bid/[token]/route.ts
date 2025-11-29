@@ -42,7 +42,7 @@ export async function GET(
     await prisma.bidView.create({
       data: {
         bidRequestId: bidRequest.id,
-        ipAddress: request.ip || 'unknown',
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
         userAgent: request.headers.get('user-agent') || 'unknown'
       }
     })
@@ -111,6 +111,9 @@ export async function POST(
       contactPhone,
       licenseNumber,
       insuranceInfo,
+      subtotal,
+      tax,
+      discount,
       totalAmount,
       notes,
       timeline,
@@ -128,6 +131,7 @@ export async function POST(
       }, { status: 400 })
     }
 
+    // Create bid with line items if provided
     const bid = await prisma.bid.create({
       data: {
         bidRequestId: bidRequest.id,
@@ -137,6 +141,9 @@ export async function POST(
         contactPhone: contactPhone?.trim(),
         licenseNumber: licenseNumber?.trim(),
         insuranceInfo: insuranceInfo?.trim(),
+        subtotal: subtotal ? parseFloat(subtotal) : null,
+        tax: tax ? parseFloat(tax) : null,
+        discount: discount ? parseFloat(discount) : null,
         totalAmount: totalAmount ? parseFloat(totalAmount) : null,
         notes: notes?.trim(),
         timeline: timeline?.trim(),
@@ -146,8 +153,26 @@ export async function POST(
         hasUploadedFile: hasUploadedFile || false,
         fileName: fileName?.trim(),
         fileUrl: fileUrl?.trim(),
-        ipAddress: request.ip || 'unknown',
-        userAgent: request.headers.get('user-agent') || 'unknown'
+        ipAddress: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+        items: lineItems && Array.isArray(lineItems) ? {
+          create: lineItems.map((item: any, index: number) => ({
+            name: item.name,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            total: item.quantity * item.unitPrice,
+            order: index
+          }))
+        } : undefined
+      },
+      include: {
+        items: {
+          orderBy: {
+            order: 'asc'
+          }
+        }
       }
     })
 

@@ -63,6 +63,7 @@ model User {
   bidDocuments     BidDocument[]
   notificationPreference NotificationPreference?
   teamInvites      TeamInvite[]
+  walkarounds      Walkaround[]
   
   @@index([email])
   @@index([companyId])
@@ -130,6 +131,8 @@ model Card {
   activities       Activity[]
   messages         Message[]
   feedback         Feedback[]
+  walkarounds      Walkaround[]
+  clientPortalSettings ClientPortalSettings?
   
   @@index([stageId])
   @@index([companyId])
@@ -181,6 +184,8 @@ model Task {
   assigneeId       String?
   creatorId        String
   completedAt      DateTime?
+  archivedAt       DateTime?
+  isArchived       Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   
@@ -503,12 +508,15 @@ model Bid {
   contactPhone     String?
   licenseNumber    String?
   insuranceInfo    String?
+  subtotal         Float?
+  tax              Float?
+  discount         Float?
   totalAmount      Float?
   notes            String?
   timeline         String?
   warranty         String?
   paymentTerms     String?
-  lineItems        String?  // JSON for line items
+  lineItems        String?  // JSON for line items (temporary - will migrate to BidItem)
   hasUploadedFile  Boolean  @default(false)
   fileName         String?
   fileUrl          String?
@@ -519,10 +527,29 @@ model Bid {
   updatedAt        DateTime @updatedAt
   
   bidRequest       BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
+  items            BidItem[]
   
   @@index([bidRequestId])
   @@index([status])
   @@index([submittedAt])
+}
+
+model BidItem {
+  id               String   @id @default(cuid())
+  bidId            String
+  name             String
+  description      String?
+  quantity         Float
+  unit             String
+  unitPrice        Float
+  total            Float
+  order            Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  bid              Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  
+  @@index([bidId])
 }
 
 model BidDocument {
@@ -715,4 +742,99 @@ model ProjectTemplateBudget {
   template         ProjectTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   
   @@index([templateId])
+}
+
+model Walkaround {
+  id          String          @id @default(cuid())
+  projectId   String
+  userId      String
+  startTime   DateTime
+  endTime     DateTime?
+  audioUrl    String?
+  transcript  String?
+  summary     String?
+  reportUrl   String?
+  status      WalkaroundStatus @default(IN_PROGRESS)
+  metadata    String?         // JSON for additional data
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  project     Card            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id])
+  photos      WalkaroundPhoto[]
+  
+  @@index([projectId])
+  @@index([userId])
+  @@index([status])
+}
+
+model WalkaroundPhoto {
+  id           String      @id @default(cuid())
+  walkaroundId String
+  url          String
+  thumbnailUrl String?
+  timestamp    DateTime
+  location     String?     // JSON {lat, lng, accuracy}
+  caption      String?
+  order        Int         @default(0)
+  createdAt    DateTime    @default(now())
+  
+  walkaround   Walkaround  @relation(fields: [walkaroundId], references: [id], onDelete: Cascade)
+  
+  @@index([walkaroundId])
+}
+
+enum WalkaroundStatus {
+  IN_PROGRESS
+  UPLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+model ClientPortalSettings {
+  id                    String   @id @default(cuid())
+  projectId             String   @unique
+  
+  // Project Overview Settings
+  showProgress          Boolean  @default(true)
+  showTimeline          Boolean  @default(true)
+  showBudgetSummary     Boolean  @default(false)
+  showProjectDescription Boolean @default(true)
+  showTeamMembers       Boolean  @default(true)
+  
+  // Tasks Settings
+  showTasks             Boolean  @default(true)
+  showTaskAssignees     Boolean  @default(false)
+  showTaskDueDates      Boolean  @default(true)
+  showCompletedTasks    Boolean  @default(true)
+  hideInternalTasks     Boolean  @default(true)
+  
+  // Documents & Files Settings
+  showDocuments         Boolean  @default(true)
+  allowedFileTypes      String?  // JSON array of allowed file extensions
+  hideInternalDocuments Boolean  @default(true)
+  
+  // Estimates & Financial Settings
+  showEstimates         Boolean  @default(true)
+  showEstimateDetails   Boolean  @default(false)
+  showInvoices          Boolean  @default(false)
+  showPayments          Boolean  @default(false)
+  
+  // Communication Settings
+  showMessages          Boolean  @default(true)
+  showActivityFeed      Boolean  @default(true)
+  hideInternalMessages  Boolean  @default(true)
+  
+  // Additional Settings
+  showPhotos            Boolean  @default(true)
+  showWalkarounds       Boolean  @default(false)
+  customWelcomeMessage  String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  project               Card     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  @@index([projectId])
 }

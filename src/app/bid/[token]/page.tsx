@@ -15,7 +15,10 @@ import {
   X,
   Download,
   Phone,
-  Mail
+  Mail,
+  Plus,
+  Trash2,
+  Calculator
 } from 'lucide-react'
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik'
 import * as Yup from 'yup'
@@ -57,7 +60,16 @@ const bidSchema = Yup.object().shape({
   notes: Yup.string(),
   timeline: Yup.string(),
   warranty: Yup.string(),
-  paymentTerms: Yup.string()
+  paymentTerms: Yup.string(),
+  lineItems: Yup.array().of(
+    Yup.object().shape({
+      name: Yup.string().required('Item name is required'),
+      description: Yup.string(),
+      quantity: Yup.number().positive('Quantity must be positive').required('Quantity is required'),
+      unit: Yup.string().required('Unit is required'),
+      unitPrice: Yup.number().positive('Unit price must be positive').required('Unit price is required')
+    })
+  )
 })
 
 export default function PublicBidPage() {
@@ -67,7 +79,7 @@ export default function PublicBidPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [bidType, setBidType] = useState<'form' | 'upload'>('form')
+  // Removed bidType state - only using detailed estimates now
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   useEffect(() => {
@@ -111,17 +123,19 @@ export default function PublicBidPage() {
 
   const submitBid = async (values: any) => {
     try {
-      let finalValues = { ...values }
-
-      if (bidType === 'upload' && uploadedFile) {
-        // In a real app, you'd upload the file to cloud storage first
-        // For now, we'll just include the file info
-        finalValues = {
-          ...values,
-          hasUploadedFile: true,
-          fileName: uploadedFile.name,
-          fileUrl: '/placeholder-file-url' // This would be the actual file URL
-        }
+      // Calculate totals from line items
+      const subtotal = values.lineItems.reduce((sum: number, item: any) => 
+        sum + (item.quantity * item.unitPrice), 0
+      )
+      const tax = values.tax || 0
+      const discount = values.discount || 0
+      const total = subtotal + tax - discount
+      
+      const finalValues = {
+        ...values,
+        subtotal,
+        totalAmount: total,
+        lineItems: JSON.stringify(values.lineItems) // Store as JSON for now
       }
 
       const response = await fetch(`/api/bid/${token}`, {
@@ -189,10 +203,10 @@ export default function PublicBidPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+            <div className="flex-1">
+              <div className="flex items-center space-x-4 mb-4">
                 {bidRequest.company.logo ? (
                   <img src={bidRequest.company.logo} alt={bidRequest.company.name} className="h-12 w-12 rounded-lg object-cover" />
                 ) : (
@@ -205,26 +219,49 @@ export default function PublicBidPage() {
                   <p className="text-sm text-gray-600">Request for Quote</p>
                 </div>
               </div>
-              {bidRequest.daysRemaining !== null && (
-                <div className={`text-right ${bidRequest.daysRemaining < 0 ? 'text-red-600' : bidRequest.daysRemaining <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
-                  <p className="text-sm font-medium">
-                    {bidRequest.daysRemaining < 0 ? 'Expired' : 
-                     bidRequest.daysRemaining === 0 ? 'Due Today' : 
-                     `${bidRequest.daysRemaining} days remaining`}
-                  </p>
-                  {bidRequest.deadline && (
-                    <p className="text-xs">
-                      Due: {new Date(bidRequest.deadline).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-              )}
+              
+              {/* Contact and Deadline Info */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                {bidRequest.company.email && (
+                  <a 
+                    href={`mailto:${bidRequest.company.email}`}
+                    className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {bidRequest.company.email}
+                  </a>
+                )}
+                {bidRequest.company.phone && (
+                  <a 
+                    href={`tel:${bidRequest.company.phone}`}
+                    className="flex items-center text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    <Phone className="h-4 w-4 mr-2" />
+                    {bidRequest.company.phone}
+                  </a>
+                )}
+                {bidRequest.deadline && (
+                  <div className="flex items-center text-sm">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <div>
+                      <span className={`font-medium ${bidRequest.daysRemaining !== null && bidRequest.daysRemaining < 0 ? 'text-red-600' : bidRequest.daysRemaining !== null && bidRequest.daysRemaining <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {bidRequest.daysRemaining !== null && bidRequest.daysRemaining < 0 ? 'Expired' : 
+                         bidRequest.daysRemaining === 0 ? 'Due Today' : 
+                         bidRequest.daysRemaining !== null ? `${bidRequest.daysRemaining} days remaining` : 'Due: ' + new Date(bidRequest.deadline).toLocaleDateString()}
+                      </span>
+                      <span className="text-gray-500 ml-2">
+                        ({new Date(bidRequest.deadline).toLocaleDateString()})
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isExpired && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex">
@@ -241,9 +278,9 @@ export default function PublicBidPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="max-w-6xl mx-auto">
           {/* Project Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="space-y-6">
             {/* Project Info */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">{bidRequest.title}</h2>
@@ -315,31 +352,7 @@ export default function PublicBidPage() {
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Bid</h3>
                 
-                {/* Bid Type Selection */}
-                <div className="mb-6">
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={() => setBidType('form')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium ${
-                        bidType === 'form' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Fill Out Form
-                    </button>
-                    <button
-                      onClick={() => setBidType('upload')}
-                      className={`px-4 py-2 rounded-md text-sm font-medium ${
-                        bidType === 'upload' 
-                          ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                    >
-                      Upload Document
-                    </button>
-                  </div>
-                </div>
+                {/* Removed bid type selection - only using detailed estimates */}
 
                 <Formik
                   initialValues={{
@@ -354,7 +367,17 @@ export default function PublicBidPage() {
                     timeline: '',
                     warranty: '',
                     paymentTerms: '',
-                    lineItems: []
+                    tax: 0,
+                    discount: 0,
+                    lineItems: [
+                      {
+                        name: '',
+                        description: '',
+                        quantity: 1,
+                        unit: 'each',
+                        unitPrice: 0
+                      }
+                    ]
                   }}
                   validationSchema={bidSchema}
                   onSubmit={submitBid}
@@ -442,27 +465,149 @@ export default function PublicBidPage() {
                         </div>
                       </div>
 
-                      {bidType === 'form' && (
-                        <>
-                          {/* Pricing */}
+                      {/* Line Items Section - Always shown */}
+                      <>
+                          {/* Line Items Section */}
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Total Bid Amount
-                            </label>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-gray-500 sm:text-sm">$</span>
-                              </div>
-                              <Field
-                                name="totalAmount"
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                className="w-full rounded-md border border-gray-300 pl-7 pr-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                placeholder="0.00"
-                              />
+                            <div className="flex items-center justify-between mb-4">
+                              <label className="text-sm font-medium text-gray-700 flex items-center">
+                                <Calculator className="h-4 w-4 mr-2" />
+                                Line Items
+                              </label>
                             </div>
-                            <ErrorMessage name="totalAmount" component="p" className="mt-1 text-sm text-red-600" />
+                            <FieldArray name="lineItems">
+                              {({ push, remove }) => (
+                                <div className="space-y-3">
+                                  {values.lineItems?.map((_: any, index: number) => (
+                                    <div key={index} className="bg-gray-50 p-4 rounded-lg">
+                                      <div className="grid grid-cols-12 gap-2 items-start">
+                                        <div className="col-span-4">
+                                          <Field
+                                            name={`lineItems[${index}].name`}
+                                            placeholder="Item name"
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <ErrorMessage name={`lineItems[${index}].name`} component="p" className="mt-1 text-xs text-red-600" />
+                                        </div>
+                                        <div className="col-span-2">
+                                          <Field
+                                            name={`lineItems[${index}].quantity`}
+                                            type="number"
+                                            placeholder="Qty"
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <ErrorMessage name={`lineItems[${index}].quantity`} component="p" className="mt-1 text-xs text-red-600" />
+                                        </div>
+                                        <div className="col-span-2">
+                                          <Field
+                                            name={`lineItems[${index}].unit`}
+                                            placeholder="Unit"
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <ErrorMessage name={`lineItems[${index}].unit`} component="p" className="mt-1 text-xs text-red-600" />
+                                        </div>
+                                        <div className="col-span-2">
+                                          <Field
+                                            name={`lineItems[${index}].unitPrice`}
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="Price"
+                                            className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                          />
+                                          <ErrorMessage name={`lineItems[${index}].unitPrice`} component="p" className="mt-1 text-xs text-red-600" />
+                                        </div>
+                                        <div className="col-span-1">
+                                          <div className="px-3 py-2 text-sm text-gray-900 font-medium">
+                                            ${((values.lineItems?.[index]?.quantity || 0) * (values.lineItems?.[index]?.unitPrice || 0)).toFixed(2)}
+                                          </div>
+                                        </div>
+                                        <div className="col-span-1">
+                                          {values.lineItems && values.lineItems.length > 1 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => remove(index)}
+                                              className="text-red-400 hover:text-red-600 p-2"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="mt-2">
+                                        <Field
+                                          name={`lineItems[${index}].description`}
+                                          placeholder="Description (optional)"
+                                          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))}
+                                  
+                                  <button
+                                    type="button"
+                                    onClick={() => push({ name: '', description: '', quantity: 1, unit: 'each', unitPrice: 0 })}
+                                    className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    <span>Add Item</span>
+                                  </button>
+                                </div>
+                              )}
+                            </FieldArray>
+                          </div>
+
+                          {/* Totals Section */}
+                          <div className="border-t pt-4">
+                            <div className="grid grid-cols-2 gap-4 max-w-md ml-auto">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Tax Amount
+                                </label>
+                                <Field
+                                  name="tax"
+                                  type="number"
+                                  step="0.01"
+                                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder="0.00"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                  Discount Amount
+                                </label>
+                                <Field
+                                  name="discount"
+                                  type="number"
+                                  step="0.01"
+                                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="mt-4 text-right space-y-1">
+                              <div className="text-sm text-gray-600">
+                                Subtotal: ${values.lineItems?.reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0).toFixed(2) || '0.00'}
+                              </div>
+                              {values.tax > 0 && (
+                                <div className="text-sm text-gray-600">
+                                  Tax: ${(values.tax || 0).toFixed(2)}
+                                </div>
+                              )}
+                              {values.discount > 0 && (
+                                <div className="text-sm text-green-600">
+                                  Discount: -${(values.discount || 0).toFixed(2)}
+                                </div>
+                              )}
+                              <div className="text-lg font-semibold text-gray-900 pt-2 border-t">
+                                Total: ${(
+                                  (values.lineItems?.reduce((sum: number, item: any) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0) || 0) +
+                                  (values.tax || 0) -
+                                  (values.discount || 0)
+                                ).toFixed(2)}
+                              </div>
+                            </div>
                           </div>
 
                           {/* Additional Details */}
@@ -504,49 +649,8 @@ export default function PublicBidPage() {
                             </div>
                           </div>
                         </>
-                      )}
 
-                      {bidType === 'upload' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Upload Bid Document
-                          </label>
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
-                            <div className="text-center">
-                              <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                              <div className="text-sm text-gray-600">
-                                <label htmlFor="file-upload" className="cursor-pointer text-blue-600 hover:text-blue-700">
-                                  Click to upload
-                                </label>
-                                <span> or drag and drop</span>
-                              </div>
-                              <p className="text-xs text-gray-500 mt-1">PDF or Word documents up to 10MB</p>
-                              <input
-                                id="file-upload"
-                                type="file"
-                                className="hidden"
-                                accept=".pdf,.doc,.docx"
-                                onChange={handleFileUpload}
-                              />
-                            </div>
-                            {uploadedFile && (
-                              <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg">
-                                <div className="flex items-center">
-                                  <FileText className="h-5 w-5 text-blue-600 mr-2" />
-                                  <span className="text-sm text-blue-900">{uploadedFile.name}</span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => setUploadedFile(null)}
-                                  className="text-blue-600 hover:text-blue-700"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                      {/* Removed upload section - only using detailed estimates */}
 
                       {/* Notes */}
                       <div>
@@ -566,7 +670,7 @@ export default function PublicBidPage() {
                       <div>
                         <button
                           type="submit"
-                          disabled={isSubmitting || (bidType === 'upload' && !uploadedFile)}
+                          disabled={isSubmitting}
                           className="w-full bg-blue-600 text-white py-3 px-4 rounded-md hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed font-medium"
                         >
                           {isSubmitting ? 'Submitting...' : 'Submit Bid'}
@@ -579,52 +683,7 @@ export default function PublicBidPage() {
             )}
           </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Company Contact */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
-              <div className="space-y-3">
-                {bidRequest.company.email && (
-                  <a 
-                    href={`mailto:${bidRequest.company.email}`}
-                    className="flex items-center text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    {bidRequest.company.email}
-                  </a>
-                )}
-                {bidRequest.company.phone && (
-                  <a 
-                    href={`tel:${bidRequest.company.phone}`}
-                    className="flex items-center text-sm text-blue-600 hover:text-blue-700"
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    {bidRequest.company.phone}
-                  </a>
-                )}
-              </div>
-            </div>
-
-            {/* Deadline Info */}
-            {bidRequest.deadline && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Deadline</h3>
-                <div className="flex items-center text-sm text-gray-600">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <div>
-                    <p>{new Date(bidRequest.deadline).toLocaleDateString()}</p>
-                    <p className="text-xs">
-                      {new Date(bidRequest.deadline).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Removed sidebar - contact info moved to header */}
         </div>
       </div>
     </div>

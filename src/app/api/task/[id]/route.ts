@@ -43,7 +43,7 @@ export async function PATCH(
     }
 
     // If assigneeId is provided, verify the assignee exists and belongs to the same company
-    if (body.assigneeId) {
+    if (body.assigneeId && body.assigneeId.trim() !== '') {
       const assignee = await prisma.user.findFirst({
         where: {
           id: body.assigneeId,
@@ -64,8 +64,8 @@ export async function PATCH(
         status: body.status,
         priority: body.priority,
         dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
-        categoryId: body.categoryId,
-        assigneeId: body.assigneeId,
+        categoryId: body.categoryId || null,
+        assigneeId: body.assigneeId || null,
         completedAt: body.completedAt ? new Date(body.completedAt) : body.status === 'COMPLETED' ? new Date() : null,
         updatedAt: new Date()
       },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { Building2, Users, CheckCircle, XCircle, Loader } from 'lucide-react'
@@ -33,15 +33,21 @@ const passwordSchema = Yup.object().shape({
     .required('Please confirm your password')
 })
 
-export default function InviteAcceptPage() {
-  const params = useParams()
+export default function InviteAcceptPage({ params }: { params: Promise<{ token: string }> }) {
   const router = useRouter()
   const [invite, setInvite] = useState<Invite | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accepting, setAccepting] = useState(false)
+  const [token, setToken] = useState<string>('')
 
-  const token = params.token as string
+  useEffect(() => {
+    const getToken = async () => {
+      const resolvedParams = await params
+      setToken(resolvedParams.token)
+    }
+    getToken()
+  }, [params])
 
   useEffect(() => {
     async function fetchInvite() {

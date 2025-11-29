@@ -18,9 +18,13 @@ import {
   Mail,
   Smartphone,
   Check,
-  FileText
+  FileText,
+  Key,
+  Copy,
+  Link2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useModal } from '@/components/ui/modal-provider'
 import { useAuthStore } from '@/store/auth'
 import { TemplateManager } from '@/components/templates/template-manager'
 
@@ -45,7 +49,7 @@ interface User {
   email: string
   firstName: string
   lastName: string
-  role: 'ADMIN' | 'USER' | 'MANAGER' | 'STAFF'
+  role: 'ADMIN' | 'STAFF' | 'SUBCONTRACTOR' | 'CLIENT'
   isActive?: boolean
 }
 
@@ -151,14 +155,18 @@ async function inviteTeamMember(data: { email: string; firstName: string; lastNa
     },
     body: JSON.stringify(data),
   })
+  
+  const responseData = await response.json()
+  
   if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to invite team member')
+    console.error('Invite error:', responseData)
+    throw new Error(responseData.error || 'Failed to invite team member')
   }
-  return response.json()
+  
+  return responseData
 }
 
-async function updateTeamMember(id: string, data: { role?: string; isActive?: boolean }) {
+async function updateTeamMember(id: string, data: { role?: string; isActive?: boolean; newPassword?: string }) {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
@@ -234,8 +242,12 @@ export default function SettingsPage() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
+  const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
+  const [selectedMemberId, setSelectedMemberId] = useState<string>('')
+  const [selectedMemberName, setSelectedMemberName] = useState<string>('')
   const { user, updateUser } = useAuthStore()
   const queryClient = useQueryClient()
+  const { showConfirm } = useModal()
 
   const { data: companyData, isLoading: companyLoading } = useQuery({
     queryKey: ['company-settings'],
@@ -288,9 +300,14 @@ export default function SettingsPage() {
   })
 
   const updateTeamMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; role?: string; isActive?: boolean }) => updateTeamMember(id, data),
-    onSuccess: () => {
-      toast.success('Team member updated successfully!')
+    mutationFn: ({ id, ...data }: { id: string; role?: string; isActive?: boolean; newPassword?: string }) => updateTeamMember(id, data),
+    onSuccess: (_, variables) => {
+      if (variables.newPassword) {
+        toast.success('Password reset successfully!')
+        setShowPasswordResetModal(false)
+      } else {
+        toast.success('Team member updated successfully!')
+      }
       queryClient.invalidateQueries({ queryKey: ['team-members'] })
     },
     onError: (error) => {
@@ -644,9 +661,9 @@ export default function SettingsPage() {
                             disabled={member.id === user?.id}
                           >
                             <option value="ADMIN">Admin</option>
-                            <option value="MANAGER">Manager</option>
                             <option value="STAFF">Staff</option>
-                            <option value="USER">User</option>
+                            <option value="SUBCONTRACTOR">Subcontractor</option>
+                            <option value="CLIENT">Client</option>
                           </select>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -658,16 +675,34 @@ export default function SettingsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           {member.id !== user?.id && (
-                            <button
-                              onClick={() => {
-                                if (confirm('Are you sure you want to remove this team member?')) {
-                                  deleteTeamMutation.mutate(member.id)
-                                }
-                              }}
-                              className="text-red-600 hover:text-red-900"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => {
+                                  setSelectedMemberId(member.id)
+                                  setSelectedMemberName(`${member.firstName} ${member.lastName}`)
+                                  setShowPasswordResetModal(true)
+                                }}
+                                className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                                title="Reset Password"
+                              >
+                                <Key className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const confirmed = await showConfirm(
+                                    'Are you sure you want to remove this team member?',
+                                    'Remove Team Member'
+                                  )
+                                  if (confirmed) {
+                                    deleteTeamMutation.mutate(member.id)
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                                title="Remove Member"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -759,9 +794,9 @@ export default function SettingsPage() {
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           >
                             <option value="ADMIN">Admin</option>
-                            <option value="MANAGER">Manager</option>
                             <option value="STAFF">Staff</option>
-                            <option value="USER">User</option>
+                            <option value="SUBCONTRACTOR">Subcontractor</option>
+                            <option value="CLIENT">Client</option>
                           </Field>
                           <ErrorMessage name="role" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
@@ -817,10 +852,19 @@ export default function SettingsPage() {
                             toast.error('Failed to copy link')
                           }
                         }}
-                        className="px-3 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm"
+                        className="px-3 py-2 bg-primary-600 text-white rounded hover:bg-primary-700 text-sm flex items-center"
                       >
+                        <Copy className="h-4 w-4 mr-1" />
                         Copy
                       </button>
+                    </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-4">
+                    <div className="flex items-start">
+                      <Link2 className="h-4 w-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                      <div className="text-sm text-blue-800">
+                        <strong>Tip:</strong> You can also send this link via email or any messaging app. The recipient will be able to create their account using this link.
+                      </div>
                     </div>
                   </div>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
@@ -836,6 +880,103 @@ export default function SettingsPage() {
                       Close
                     </button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Password Reset Modal */}
+            {showPasswordResetModal && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Reset Password</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Reset password for <strong>{selectedMemberName}</strong>
+                  </p>
+                  <Formik
+                    initialValues={{
+                      newPassword: '',
+                      confirmPassword: ''
+                    }}
+                    validationSchema={Yup.object().shape({
+                      newPassword: Yup.string()
+                        .min(8, 'Password must be at least 8 characters')
+                        .required('Password is required'),
+                      confirmPassword: Yup.string()
+                        .oneOf([Yup.ref('newPassword')], 'Passwords must match')
+                        .required('Please confirm the password')
+                    })}
+                    onSubmit={(values) => {
+                      updateTeamMutation.mutate({
+                        id: selectedMemberId,
+                        newPassword: values.newPassword
+                      })
+                    }}
+                  >
+                    {({ isSubmitting, values }) => (
+                      <Form className="space-y-4">
+                        <div>
+                          <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
+                            New Password
+                          </label>
+                          <Field
+                            id="newPassword"
+                            name="newPassword"
+                            type="password"
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            placeholder="Enter new password"
+                          />
+                          <ErrorMessage name="newPassword" component="p" className="mt-1 text-sm text-red-600" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                            Confirm Password
+                          </label>
+                          <Field
+                            id="confirmPassword"
+                            name="confirmPassword"
+                            type="password"
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            placeholder="Confirm new password"
+                          />
+                          <ErrorMessage name="confirmPassword" component="p" className="mt-1 text-sm text-red-600" />
+                        </div>
+
+                        {values.newPassword && (
+                          <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                            <div className="flex items-start">
+                              <Key className="h-4 w-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                              <div className="text-sm text-blue-800">
+                                The user will be able to log in with this new password immediately.
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex justify-end space-x-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPasswordResetModal(false)
+                              setSelectedMemberId('')
+                              setSelectedMemberName('')
+                            }}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSubmitting || updateTeamMutation.isPending}
+                            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+                          >
+                            <Key className="h-4 w-4 mr-2" />
+                            {updateTeamMutation.isPending ? 'Resetting...' : 'Reset Password'}
+                          </button>
+                        </div>
+                      </Form>
+                    )}
+                  </Formik>
                 </div>
               </div>
             )}

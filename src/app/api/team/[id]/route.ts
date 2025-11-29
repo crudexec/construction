@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import bcrypt from 'bcryptjs'
 
 export async function PATCH(
   request: NextRequest,
@@ -20,7 +21,7 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const { role, isActive } = await request.json()
+    const { role, isActive, newPassword } = await request.json()
 
     // Prevent self-demotion
     if (id === user.id && role !== 'ADMIN') {
@@ -32,6 +33,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Cannot deactivate your own account' }, { status: 400 })
     }
 
+    // Handle password reset if provided
+    let hashedPassword
+    if (newPassword) {
+      if (newPassword.length < 8) {
+        return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+      }
+      hashedPassword = await bcrypt.hash(newPassword, 10)
+    }
+
     const updatedUser = await prisma.user.update({
       where: { 
         id,
@@ -39,7 +49,8 @@ export async function PATCH(
       },
       data: {
         ...(role !== undefined && { role }),
-        ...(isActive !== undefined && { isActive })
+        ...(isActive !== undefined && { isActive }),
+        ...(hashedPassword && { password: hashedPassword })
       },
       select: {
         id: true,

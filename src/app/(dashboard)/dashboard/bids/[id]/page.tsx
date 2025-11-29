@@ -389,7 +389,7 @@ export default function BidRequestDetailPage() {
               <Users className="inline h-4 w-4 mr-2" />
               All Bids ({bidRequest.bids.length})
             </button>
-            {bidRequest.bids.filter(bid => bid.status === 'SUBMITTED' || bid.status === 'UNDER_REVIEW').length >= 2 && (
+            {bidRequest.bids.filter((bid: any) => bid.status === 'SUBMITTED' || bid.status === 'UNDER_REVIEW').length >= 2 && (
               <>
                 <button
                   onClick={() => setActiveTab('comparison')}
@@ -435,7 +435,7 @@ export default function BidRequestDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-medium text-gray-900">Submitted Bids</h3>
-                {bidRequest.bids.filter(bid => bid.status === 'SUBMITTED' || bid.status === 'UNDER_REVIEW').length >= 2 && (
+                {bidRequest.bids.filter((bid: any) => bid.status === 'SUBMITTED' || bid.status === 'UNDER_REVIEW').length >= 2 && (
                   <button
                     onClick={() => setShowComparisonModal(true)}
                     className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
@@ -461,7 +461,7 @@ export default function BidRequestDetailPage() {
                 </div>
               ) : (
                 <div className="divide-y divide-gray-200">
-                  {bidRequest.bids.map((bid) => (
+                  {bidRequest.bids.map((bid: any) => (
                     <div key={bid.id} className="py-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">

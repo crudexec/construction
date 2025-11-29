@@ -27,6 +27,7 @@ import {
 import toast from 'react-hot-toast'
 import { TaskAnalytics } from '@/components/admin/task-analytics'
 import { CompactFilters } from '@/components/ui/compact-filters'
+import { useModal } from '@/components/ui/modal-provider'
 
 interface ProjectTasksProps {
   projectId: string
@@ -224,6 +225,33 @@ async function fetchTeamMembers() {
   return response.json()
 }
 
+async function fetchProjectTeamMembers(projectId: string) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+    
+  const response = await fetch(`/api/project/${projectId}/team`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    }
+  })
+  if (!response.ok) throw new Error('Failed to fetch project team members')
+  const data = await response.json()
+  
+  // The API returns { owner, teamMembers }, we want to combine them for the dropdown
+  const allMembers = []
+  if (data.owner) {
+    allMembers.push(data.owner)
+  }
+  if (data.teamMembers && Array.isArray(data.teamMembers)) {
+    allMembers.push(...data.teamMembers)
+  }
+  
+  return allMembers
+}
+
 export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -239,6 +267,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const queryClient = useQueryClient()
+  const { showConfirm } = useModal()
 
   // Open modal when shouldOpenAddModal prop is true
   useEffect(() => {
@@ -260,8 +289,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   })
 
   const { data: teamMembers = [] } = useQuery({
-    queryKey: ['team-members'],
-    queryFn: fetchTeamMembers
+    queryKey: ['project-team', projectId],
+    queryFn: () => fetchProjectTeamMembers(projectId),
+    enabled: !!projectId
   })
 
   const createMutation = useMutation({
@@ -375,6 +405,30 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
       ...(newStatus === 'COMPLETED' ? { completedAt: new Date() } : {})
     }
     updateMutation.mutate({ taskId, data: updateData })
+  }
+
+  const handleEditTask = (task: Task, event: React.MouseEvent) => {
+    event.stopPropagation()
+    setSelectedTask(task)
+    setIsEditModalOpen(true)
+  }
+
+  const handleArchiveTask = async (task: Task, event: React.MouseEvent) => {
+    event.stopPropagation()
+    try {
+      const confirmed = await showConfirm({
+        title: 'Delete Task',
+        message: `Are you sure you want to delete "${task.title}"? This action cannot be undone.`,
+        confirmText: 'Delete',
+        variant: 'error'
+      })
+
+      if (confirmed) {
+        deleteMutation.mutate(task.id)
+      }
+    } catch (error) {
+      toast.error('Failed to delete task')
+    }
   }
 
   const toggleCategoryCollapse = (categoryId: string) => {
@@ -615,6 +669,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </button>
                         
                         <button
+                          onClick={(e) => handleEditTask(task, e)}
                           className="text-gray-400 hover:text-gray-600 p-1"
                           title="Edit"
                         >
@@ -622,6 +677,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </button>
                         
                         <button
+                          onClick={(e) => handleArchiveTask(task, e)}
                           className="text-gray-400 hover:text-red-600 p-1"
                           title="Delete"
                         >
@@ -732,6 +788,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           </button>
                           
                           <button
+                            onClick={(e) => handleEditTask(task, e)}
                             className="text-gray-400 hover:text-gray-600 p-1"
                             title="Edit"
                           >
@@ -739,8 +796,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           </button>
                           
                           <button
+                            onClick={(e) => handleArchiveTask(task, e)}
                             className="text-gray-400 hover:text-red-600 p-1"
-                            title="Delete"
+                            title="Archive"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -903,11 +961,11 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           >
                             <option value="">Uncategorized</option>
-                            {categories.map((category: TaskCategory) => (
+                            {Array.isArray(categories) ? categories.map((category: TaskCategory) => (
                               <option key={category.id} value={category.id}>
                                 {category.name}
                               </option>
-                            ))}
+                            )) : []}
                           </Field>
                           <ErrorMessage name="categoryId" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
@@ -923,11 +981,11 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           >
                             <option value="">Unassigned</option>
-                            {teamMembers.map((member: any) => (
+                            {Array.isArray(teamMembers) ? teamMembers.map((member: any) => (
                               <option key={member.id} value={member.id}>
                                 {member.firstName} {member.lastName}
                               </option>
-                            ))}
+                            )) : []}
                           </Field>
                           <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
@@ -1197,8 +1255,8 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         description: selectedTask.description || '',
                         priority: selectedTask.priority || 'MEDIUM',
                         dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : '',
-                        categoryId: selectedTask.categoryId || '',
-                        assigneeId: selectedTask.assigneeId || ''
+                        categoryId: selectedTask.category?.id || '',
+                        assigneeId: selectedTask.assignee?.id || ''
                       }}
                       validationSchema={taskSchema}
                       onSubmit={(values) => updateMutation.mutate({ taskId: selectedTask.id, data: values })}
@@ -1278,7 +1336,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                               <option value="">Select Category (Optional)</option>
-                              {categories.map((category: TaskCategory) => (
+                              {(categories || []).map((category: TaskCategory) => (
                                 <option key={category.id} value={category.id}>
                                   {category.name}
                                 </option>
@@ -1298,11 +1356,11 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                               <option value="">Unassigned</option>
-                              {teamMembers.map((user: any) => (
+                              {Array.isArray(teamMembers) ? teamMembers.map((user: any) => (
                                 <option key={user.id} value={user.id}>
                                   {user.firstName} {user.lastName}
                                 </option>
-                              ))}
+                              )) : []}
                             </Field>
                             <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
                           </div>
