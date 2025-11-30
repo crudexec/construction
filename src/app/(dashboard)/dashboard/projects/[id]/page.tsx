@@ -28,6 +28,7 @@ import { ProjectOverview } from '@/components/projects/project-overview'
 import { ProjectTasks } from '@/components/projects/project-tasks'
 import { ProjectFiles } from '@/components/projects/project-files'
 import { ProjectEstimates } from '@/components/projects/project-estimates'
+import { DailyLogs } from '@/components/projects/daily-logs'
 import { ProjectCalendar } from '@/components/projects/project-calendar'
 import { ProjectMessages } from '@/components/projects/project-messages'
 import { ProjectEditModal } from '@/components/projects/project-edit-modal'
@@ -60,7 +61,7 @@ export default function ProjectDetailPage() {
   
   // Initialize tab from URL or default to overview
   const tabFromUrl = searchParams.get('tab')
-  const initialTab = tabFromUrl && ['overview', 'tasks', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl) 
+  const initialTab = tabFromUrl && ['overview', 'tasks', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl) 
     ? tabFromUrl 
     : 'overview'
   
@@ -79,7 +80,7 @@ export default function ProjectDetailPage() {
   // Update active tab when URL changes
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
-    if (tabFromUrl && ['overview', 'tasks', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'tasks', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
@@ -266,6 +267,7 @@ export default function ProjectDetailPage() {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: FileText },
     { id: 'tasks', name: 'Tasks', icon: CheckSquare },
+    { id: 'dailylogs', name: 'Daily Logs', icon: FileText },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
     { id: 'estimates', name: 'Estimates', icon: FileText },
     { id: 'files', name: 'Files', icon: FileText },
@@ -469,6 +471,7 @@ export default function ProjectDetailPage() {
       <div>
         {activeTab === 'overview' && <ProjectOverview project={project} onAddTask={handleAddTask} />}
         {activeTab === 'tasks' && <ProjectTasks projectId={projectId} shouldOpenAddModal={showAddTask} />}
+        {activeTab === 'dailylogs' && <DailyLogs projectId={projectId} />}
         {activeTab === 'calendar' && <ProjectCalendar projectId={projectId} />}
         {activeTab === 'estimates' && <ProjectEstimates projectId={projectId} />}
         {activeTab === 'files' && <ProjectFiles projectId={projectId} />}

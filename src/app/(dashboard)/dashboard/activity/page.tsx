@@ -144,6 +144,11 @@ const getActivityIcon = (type: string) => {
       return UserPlus
     case 'user_login':
       return User
+    case 'dailylog_created':
+    case 'dailylog_updated':
+      return FileText
+    case 'dailylog_deleted':
+      return Trash2
     case 'document_uploaded':
       return Upload
     case 'document_downloaded':
@@ -181,6 +186,11 @@ const getActivityColor = (type: string) => {
       return 'text-yellow-600 bg-yellow-100'
     case 'user_login':
       return 'text-cyan-600 bg-cyan-100'
+    case 'dailylog_created':
+    case 'dailylog_updated':
+      return 'text-orange-600 bg-orange-100'
+    case 'dailylog_deleted':
+      return 'text-red-600 bg-red-100'
     case 'document_uploaded':
     case 'document_downloaded':
       return 'text-indigo-600 bg-indigo-100'

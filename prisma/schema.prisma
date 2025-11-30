@@ -58,6 +58,7 @@ model User {
   activities       Activity[]
   documents        Document[]
   messages         Message[]
+  dailyLogs        DailyLog[]
   notifications    Notification[]
   bidRequests      BidRequest[]
   bidDocuments     BidDocument[]
@@ -133,6 +134,7 @@ model Card {
   activities       Activity[]
   messages         Message[]
   feedback         Feedback[]
+  dailyLogs        DailyLog[]
   walkarounds      Walkaround[]
   clientPortalSettings ClientPortalSettings?
   
@@ -505,6 +507,49 @@ model TaskCommentMention {
   @@index([mentionedUserId])
   @@index([isRead])
   @@unique([commentId, mentionedUserId])
+}
+
+model DailyLog {
+  id               String   @id @default(cuid())
+  date             DateTime @default(now())
+  cardId           String
+  authorId         String
+  
+  // Weather information
+  weatherCondition String?     // sunny, cloudy, rainy, etc.
+  temperature      Float?      // in Fahrenheit
+  weatherNotes     String?
+  
+  // Work information
+  workCompleted    String      // Detailed description of work done
+  materialsUsed    String?     // Materials used today
+  equipment        String?     // Equipment on site
+  
+  // Workers
+  workersOnSite    Int         @default(0)
+  workerDetails    String?     // Names/companies of workers
+  
+  // Issues and delays
+  issues           String?     // Any issues encountered
+  delays           String?     // Any delays and reasons
+  safetyIncidents  String?     // Safety incidents if any
+  
+  // Photos
+  photos           String?     // JSON array of photo URLs
+  
+  // Additional notes
+  notes            String?
+  
+  // Metadata
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  // Relations
+  card             Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  author           User        @relation(fields: [authorId], references: [id])
+  
+  @@index([cardId, date])
+  @@index([authorId])
 }
 
 enum TaskInteractionAction {
