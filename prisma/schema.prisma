@@ -64,6 +64,8 @@ model User {
   notificationPreference NotificationPreference?
   teamInvites      TeamInvite[]
   walkarounds      Walkaround[]
+  taskComments     TaskComment[]
+  taskMentions     TaskCommentMention[]
   
   @@index([email])
   @@index([companyId])
@@ -200,6 +202,7 @@ model Task {
   assignee         User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
   creator          User         @relation("TaskCreator", fields: [creatorId], references: [id])
   interactions     TaskInteraction[]
+  comments         TaskComment[]
   
   @@index([cardId])
   @@index([categoryId])
@@ -462,6 +465,46 @@ model TaskInteraction {
   @@index([taskId])
   @@index([action])
   @@index([timestamp])
+}
+
+model TaskComment {
+  id               String   @id @default(cuid())
+  content          String
+  taskId           String
+  authorId         String
+  parentId         String?  // For threaded replies
+  isEdited         Boolean  @default(false)
+  editedAt         DateTime?
+  deletedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  task             Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author           User     @relation(fields: [authorId], references: [id])
+  parent           TaskComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies          TaskComment[] @relation("CommentReplies")
+  mentions         TaskCommentMention[]
+  
+  @@index([taskId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model TaskCommentMention {
+  id               String   @id @default(cuid())
+  commentId        String
+  mentionedUserId  String
+  isRead           Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  
+  comment          TaskComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUser    User     @relation(fields: [mentionedUserId], references: [id])
+  
+  @@index([commentId])
+  @@index([mentionedUserId])
+  @@index([isRead])
+  @@unique([commentId, mentionedUserId])
 }
 
 enum TaskInteractionAction {

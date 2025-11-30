@@ -106,6 +106,31 @@ export async function POST(
       }
     })
 
+    // Create activity log for invitation acceptance
+    try {
+      // Get a recent project for activity context
+      const recentProject = await prisma.card.findFirst({
+        where: { 
+          companyId: invite.companyId
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+
+      if (recentProject) {
+        await prisma.activity.create({
+          data: {
+            type: 'user_joined',
+            description: `${invite.firstName} ${invite.lastName} joined the team`,
+            cardId: recentProject.id,
+            userId: newUser.id
+          }
+        })
+      }
+    } catch (activityError) {
+      // Don't fail user creation if activity logging fails
+      console.error('Failed to log user join activity:', activityError)
+    }
+
     return NextResponse.json({
       user: {
         id: newUser.id,

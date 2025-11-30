@@ -12,7 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Gavel
+  Gavel,
+  Activity
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
@@ -22,6 +23,7 @@ const navigation = [
   { name: 'Leads', href: '/dashboard/leads', icon: Users },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderOpen },
   { name: 'Bids', href: '/dashboard/bids', icon: Gavel },
+  { name: 'Activity', href: '/dashboard/activity', icon: Activity },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 

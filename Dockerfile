@@ -8,16 +8,18 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
+# Set build-time environment variables
+ENV DATABASE_URL="file:./dev.db"
+ENV JWT_SECRET="build-time-dummy-secret"
+ENV NEXTAUTH_SECRET="build-time-dummy-nextauth-secret"
+
 # Install dependencies
 RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
-
-# Build the application
+# Build the application (Prisma client is generated via postinstall)
 RUN npm run build
 
 # Production stage

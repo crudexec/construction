@@ -28,6 +28,7 @@ import toast from 'react-hot-toast'
 import { TaskAnalytics } from '@/components/admin/task-analytics'
 import { CompactFilters } from '@/components/ui/compact-filters'
 import { useModal } from '@/components/ui/modal-provider'
+import { TaskComments } from '@/components/projects/task-comments'
 
 interface ProjectTasksProps {
   projectId: string
@@ -266,6 +267,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [analyticsTaskId, setAnalyticsTaskId] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [editModalTab, setEditModalTab] = useState<'details' | 'comments'>('details')
   const queryClient = useQueryClient()
   const { showConfirm } = useModal()
 
@@ -1223,13 +1225,13 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
         />
       )}
 
-      {/* Edit Task Modal */}
+      {/* Edit Task Modal with Comments */}
       {isEditModalOpen && selectedTask && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
             <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsEditModalOpen(false)} />
             
-            <div className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
+            <div className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl sm:p-6">
               <div className="absolute right-0 top-0 pr-4 pt-4">
                 <button
                   type="button"
@@ -1240,15 +1242,44 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                 </button>
               </div>
               
-              <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <Edit className="h-6 w-6 text-blue-600" />
+              <div className="mb-4">
+                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">
+                  {selectedTask.title}
+                </h3>
+                
+                {/* Tab Navigation */}
+                <div className="border-b border-gray-200">
+                  <nav className="-mb-px flex space-x-8">
+                    <button
+                      onClick={() => setEditModalTab('details')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        editModalTab === 'details'
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Details
+                    </button>
+                    <button
+                      onClick={() => setEditModalTab('comments')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                        editModalTab === 'comments'
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <span>Comments</span>
+                      <span className="bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                        {/* We'll add comment count here later */}
+                        0
+                      </span>
+                    </button>
+                  </nav>
                 </div>
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                  <h3 className="text-lg font-medium leading-6 text-gray-900">
-                    Edit Task
-                  </h3>
-                  <div className="mt-4">
+                
+                {/* Tab Content */}
+                <div className="mt-4">
+                  {editModalTab === 'details' ? (
                     <Formik
                       initialValues={{
                         title: selectedTask.title || '',
@@ -1384,7 +1415,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </Form>
                       )}
                     </Formik>
-                  </div>
+                  ) : (
+                    <TaskComments taskId={selectedTask.id} projectId={projectId} />
+                  )}
                 </div>
               </div>
             </div>

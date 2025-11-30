@@ -94,6 +94,35 @@ export async function POST(request: NextRequest) {
       data: { lastLogin: new Date() }
     })
 
+    // Log login activity
+    try {
+      // Get user's most recent project for activity context
+      const recentProject = await prisma.card.findFirst({
+        where: { 
+          companyId: user.companyId,
+          OR: [
+            { ownerId: user.id },
+            { assignedUsers: { some: { id: user.id } } }
+          ]
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+
+      if (recentProject) {
+        await prisma.activity.create({
+          data: {
+            type: 'user_login',
+            description: `${user.firstName} ${user.lastName} logged in`,
+            cardId: recentProject.id,
+            userId: user.id
+          }
+        })
+      }
+    } catch (activityError) {
+      // Don't fail login if activity logging fails
+      console.error('Failed to log login activity:', activityError)
+    }
+
     return NextResponse.json({
       token,
       user: {

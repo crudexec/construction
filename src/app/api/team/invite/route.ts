@@ -89,6 +89,31 @@ export async function POST(request: NextRequest) {
     const protocol = host.includes('localhost') ? 'http' : 'https'
     const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${inviteToken}`
 
+    // Create activity log for invitation creation
+    try {
+      // Get a recent project for activity context
+      const recentProject = await prisma.card.findFirst({
+        where: { 
+          companyId: user.companyId
+        },
+        orderBy: { updatedAt: 'desc' }
+      })
+
+      if (recentProject) {
+        await prisma.activity.create({
+          data: {
+            type: 'user_invited',
+            description: `Invited ${firstName} ${lastName} (${email}) to join as ${role}`,
+            cardId: recentProject.id,
+            userId: user.id
+          }
+        })
+      }
+    } catch (activityError) {
+      // Don't fail invitation if activity logging fails
+      console.error('Failed to log invitation activity:', activityError)
+    }
+
     return NextResponse.json({
       invite: {
         id: invite.id,
