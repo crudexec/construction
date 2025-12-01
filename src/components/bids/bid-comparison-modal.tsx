@@ -198,10 +198,14 @@ export function BidComparisonModal({ isOpen, onClose, bids, onUpdateBidStatus }:
                           <div className="flex items-center space-x-2">
                             <span>{bid.companyName}</span>
                             {rankings[index]?.isLowest && (
-                              <TrendingDown className="h-4 w-4 text-green-600" title="Lowest bid" />
+                              <span title="Lowest bid">
+                                <TrendingDown className="h-4 w-4 text-green-600" />
+                              </span>
                             )}
                             {rankings[index]?.isHighest && (
-                              <TrendingUp className="h-4 w-4 text-red-600" title="Highest bid" />
+                              <span title="Highest bid">
+                                <TrendingUp className="h-4 w-4 text-red-600" />
+                              </span>
                             )}
                           </div>
                         </th>

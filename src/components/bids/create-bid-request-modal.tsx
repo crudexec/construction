@@ -14,7 +14,8 @@ import {
   Clock,
   FileText,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Copy
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'

@@ -219,7 +219,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
     const mention = `@[${user.firstName} ${user.lastName}](${user.id})`
     let content = ''
     let setContent: (val: string) => void
-    let inputRef: React.RefObject<HTMLTextAreaElement>
+    let inputRef: React.RefObject<HTMLTextAreaElement | null>
     
     if (inputType === 'new') {
       content = newComment
@@ -306,12 +306,10 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
 
   const handleDeleteComment = async (commentId: string) => {
     try {
-      const confirmed = await showConfirm({
-        title: 'Delete Comment',
-        message: 'Are you sure you want to delete this comment? This action cannot be undone.',
-        confirmText: 'Delete',
-        variant: 'error'
-      })
+      const confirmed = await showConfirm(
+        'Are you sure you want to delete this comment? This action cannot be undone.',
+        'Delete Comment'
+      )
 
       if (confirmed) {
         deleteMutation.mutate(commentId)
@@ -503,7 +501,7 @@ export function TaskComments({ taskId, projectId }: TaskCommentsProps) {
 
       {/* Comments list */}
       <div className="space-y-4 max-h-96 overflow-y-auto">
-        {comments.filter((c: Comment) => !c.parentId).map(comment => renderComment(comment))}
+        {comments.filter((c: Comment) => !c.parentId).map((comment: Comment) => renderComment(comment))}
         
         {comments.length === 0 && (
           <div className="text-center py-8">

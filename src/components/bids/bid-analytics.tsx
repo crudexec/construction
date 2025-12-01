@@ -92,7 +92,7 @@ export function BidAnalytics({ bids, budgetLimit }: BidAnalyticsProps) {
   const getBudgetStatus = () => {
     if (!budgetLimit) return null
     
-    const withinBudget = validBids.filter(bid => bid.totalAmount! <= budgetLimit).length
+    const withinBudget = validBids.filter(bid => bid.totalAmount! <= budgetLimit!).length
     const overBudget = validBids.length - withinBudget
     
     return { withinBudget, overBudget, percentage: (withinBudget / validBids.length) * 100 }
@@ -160,7 +160,7 @@ export function BidAnalytics({ bids, budgetLimit }: BidAnalyticsProps) {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center p-4 bg-gray-50 rounded-lg">
-              <div className="text-xl font-bold text-gray-900">{formatCurrency(budgetLimit)}</div>
+              <div className="text-xl font-bold text-gray-900">{formatCurrency(budgetLimit || 0)}</div>
               <div className="text-sm text-gray-600">Budget Limit</div>
             </div>
             
@@ -183,7 +183,7 @@ export function BidAnalytics({ bids, budgetLimit }: BidAnalyticsProps) {
                 <strong>Recommendation:</strong> You have {budgetStatus.withinBudget} bid(s) within your budget. 
                 The average of budget-compliant bids is {formatCurrency(
                   validBids
-                    .filter(bid => bid.totalAmount! <= budgetLimit)
+                    .filter(bid => bid.totalAmount! <= (budgetLimit || 0))
                     .reduce((sum, bid) => sum + bid.totalAmount!, 0) / budgetStatus.withinBudget
                 )}.
               </p>

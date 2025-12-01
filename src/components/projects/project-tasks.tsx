@@ -418,12 +418,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const handleArchiveTask = async (task: Task, event: React.MouseEvent) => {
     event.stopPropagation()
     try {
-      const confirmed = await showConfirm({
-        title: 'Delete Task',
-        message: `Are you sure you want to delete "${task.title}"? This action cannot be undone.`,
-        confirmText: 'Delete',
-        variant: 'error'
-      })
+      const confirmed = await showConfirm(
+        `Are you sure you want to delete "${task.title}"? This action cannot be undone.`,
+        'Delete Task'
+      )
 
       if (confirmed) {
         deleteMutation.mutate(task.id)

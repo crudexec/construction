@@ -244,13 +244,13 @@ export default function PublicBidPage() {
                   <div className="flex items-center text-sm">
                     <Calendar className="h-4 w-4 mr-2" />
                     <div>
-                      <span className={`font-medium ${bidRequest.daysRemaining !== null && bidRequest.daysRemaining < 0 ? 'text-red-600' : bidRequest.daysRemaining !== null && bidRequest.daysRemaining <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
-                        {bidRequest.daysRemaining !== null && bidRequest.daysRemaining < 0 ? 'Expired' : 
+                      <span className={`font-medium ${bidRequest.daysRemaining !== null && bidRequest.daysRemaining !== undefined && bidRequest.daysRemaining < 0 ? 'text-red-600' : bidRequest.daysRemaining !== null && bidRequest.daysRemaining !== undefined && bidRequest.daysRemaining <= 3 ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {bidRequest.daysRemaining !== null && bidRequest.daysRemaining !== undefined && bidRequest.daysRemaining < 0 ? 'Expired' : 
                          bidRequest.daysRemaining === 0 ? 'Due Today' : 
-                         bidRequest.daysRemaining !== null ? `${bidRequest.daysRemaining} days remaining` : 'Due: ' + new Date(bidRequest.deadline).toLocaleDateString()}
+                         bidRequest.daysRemaining !== null && bidRequest.daysRemaining !== undefined ? `${bidRequest.daysRemaining} days remaining` : 'Due: ' + new Date(bidRequest.deadline!).toLocaleDateString()}
                       </span>
                       <span className="text-gray-500 ml-2">
-                        ({new Date(bidRequest.deadline).toLocaleDateString()})
+                        ({new Date(bidRequest.deadline!).toLocaleDateString()})
                       </span>
                     </div>
                   </div>

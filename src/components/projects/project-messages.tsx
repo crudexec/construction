@@ -73,11 +73,14 @@ export function ProjectMessages({ projectId }: ProjectMessagesProps) {
     queryFn: () => fetchMessages(projectId),
     enabled: !!projectId,
     refetchInterval: 30000, // Refetch every 30 seconds for near real-time updates
-    onSuccess: () => {
-      // Invalidate unread count when messages are fetched (user is viewing messages)
+  })
+
+  // Invalidate unread count when messages are fetched (user is viewing messages)
+  useEffect(() => {
+    if (messagesData) {
       queryClient.invalidateQueries({ queryKey: ['unread-messages', projectId] })
     }
-  })
+  }, [messagesData, queryClient, projectId])
 
   const sendMessageMutation = useMutation({
     mutationFn: sendMessage,

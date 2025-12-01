@@ -59,7 +59,7 @@ export function ModalProvider({ children }: ModalProviderProps) {
           showCancel: false,
           ...options
         },
-        resolve
+        resolve: resolve as (value: boolean | string | null) => void
       })
 
       if (options.autoClose) {
@@ -110,7 +110,8 @@ export function ModalProvider({ children }: ModalProviderProps) {
   }
 
   const closeModal = async (confirmed: boolean, promptValue?: string) => {
-    const { resolve, onConfirm, onCancel, isPrompt } = modal
+    const { resolve, isPrompt } = modal
+    const { onConfirm, onCancel } = modal.options
 
     if (confirmed && onConfirm) {
       await onConfirm()

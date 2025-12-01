@@ -83,10 +83,9 @@ export async function POST(
     // Create activity log
     await prisma.activity.create({
       data: {
-        action: 'WALKAROUND_COMPLETED',
-        entityType: 'Card',
-        entityId: walkaround.projectId,
-        details: `Walkaround completed by ${user.firstName} ${user.lastName}`,
+        type: 'WALKAROUND_COMPLETED',
+        description: `Walkaround completed by ${user.firstName} ${user.lastName}`,
+        cardId: walkaround.projectId,
         userId: user.id
       }
     });
