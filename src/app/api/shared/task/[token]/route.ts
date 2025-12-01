@@ -61,11 +61,16 @@ export async function GET(
     }
 
     // Track that the task was opened
+    // Get IP address from headers (works with proxies/load balancers)
+    const forwardedFor = request.headers.get('x-forwarded-for')
+    const realIp = request.headers.get('x-real-ip')
+    const ipAddress = forwardedFor?.split(',')[0] || realIp || 'unknown'
+    
     await prisma.taskInteraction.create({
       data: {
         taskId: task.id,
         action: 'OPENED',
-        ipAddress: request.ip || 'unknown',
+        ipAddress: ipAddress,
         userAgent: request.headers.get('user-agent') || 'unknown',
         timestamp: new Date()
       }
