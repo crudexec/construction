@@ -77,16 +77,16 @@ export function Header() {
                   <p className="text-xs text-gray-400 mt-1 capitalize">{user?.role?.toLowerCase()}</p>
                 </div>
 
-                {/* Profile Link */}
+                {/* Activity Link */}
                 <button
                   onClick={() => {
                     setShowDropdown(false)
-                    router.push('/dashboard/profile')
+                    router.push('/dashboard/activity')
                   }}
                   className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
                 >
                   <User className="h-4 w-4 mr-3" />
-                  Profile
+                  My Activity
                 </button>
 
                 {/* Settings Link */}
