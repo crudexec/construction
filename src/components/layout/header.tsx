@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Search, Plus, Menu } from 'lucide-react'
+import { Bell, Search, Menu } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 
 export function Header() {
@@ -23,11 +23,6 @@ export function Header() {
         </div>
 
         <div className="ml-4 flex items-center space-x-4">
-          <button className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2">
-            <Plus className="h-4 w-4" />
-            <span>New Lead</span>
-          </button>
-          
           <button className="relative text-gray-400 hover:text-gray-500">
             <Bell className="h-6 w-6" />
             <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400 ring-2 ring-white" />
