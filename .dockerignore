@@ -15,3 +15,7 @@ yarn-debug.log*
 yarn-error.log*
 database/
 mobile-app/
+# IMPORTANT: Exclude production database
+production.db
+database/production.db
+/app/database/production.db
