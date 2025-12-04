@@ -137,7 +137,8 @@ async function fetchTeamMembers() {
     }
   })
   if (!response.ok) throw new Error('Failed to fetch team members')
-  return response.json()
+  const data = await response.json()
+  return data.users || []
 }
 
 async function inviteTeamMember(data: { email: string; firstName: string; lastName: string; role: string }) {
