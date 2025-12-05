@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Search, Menu, ChevronDown, User, Settings, LogOut } from 'lucide-react'
+import { Bell, Search, Menu, ChevronDown, User, Settings, LogOut, Users } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 
 export function Header() {
@@ -87,6 +87,18 @@ export function Header() {
                 >
                   <User className="h-4 w-4 mr-3" />
                   My Activity
+                </button>
+
+                {/* Team Link */}
+                <button
+                  onClick={() => {
+                    setShowDropdown(false)
+                    router.push('/dashboard/settings?tab=team')
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                >
+                  <Users className="h-4 w-4 mr-3" />
+                  Team
                 </button>
 
                 {/* Settings Link */}

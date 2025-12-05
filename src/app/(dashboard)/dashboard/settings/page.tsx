@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
@@ -238,8 +239,10 @@ async function updateNotificationPreferences(data: Partial<NotificationPreferenc
   return response.json()
 }
 
-export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('company')
+function SettingsContent() {
+  const searchParams = useSearchParams()
+  const initialTab = searchParams.get('tab') || 'company'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -1103,5 +1106,13 @@ export default function SettingsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SettingsContent />
+    </Suspense>
   )
 }

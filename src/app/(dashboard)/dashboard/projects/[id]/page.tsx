@@ -385,31 +385,35 @@ export default function ProjectDetailPage() {
               <span className="hidden sm:inline">New Estimate</span>
               <span className="sm:hidden">Estimate</span>
             </button>
-            <button 
-              onClick={handleTeamClick}
-              className="bg-purple-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-purple-700 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
-              <Users className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-              <span>Team</span>
-            </button>
-            {/* Client Portal Dropdown */}
+            {/* Project Options Dropdown */}
             <div className="relative portal-dropdown">
               <button 
                 onClick={() => setShowPortalDropdown(!showPortalDropdown)}
                 disabled={isGeneratingAccess}
-                className="bg-orange-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-orange-700 disabled:bg-orange-400 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
+                className="bg-gray-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-gray-700 disabled:bg-gray-400 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
                 {isGeneratingAccess ? (
                   <div className="animate-spin rounded-full h-3.5 w-3.5 border-b-2 border-white"></div>
                 ) : (
-                  <ExternalLink className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
+                  <Settings className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
                 )}
-                <span className="hidden sm:inline">Client Portal</span>
-                <span className="sm:hidden">Portal</span>
+                <span className="hidden sm:inline">Options</span>
+                <span className="sm:hidden">More</span>
                 <ChevronDown className="h-3 w-3 ml-1" />
               </button>
               
               {showPortalDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                <div className="absolute right-0 mt-2 w-52 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                   <div className="py-1">
+                    <button
+                      onClick={() => {
+                        setShowPortalDropdown(false)
+                        handleTeamClick()
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>Manage Team</span>
+                    </button>
                     <button
                       onClick={() => {
                         setShowPortalDropdown(false)
