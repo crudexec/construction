@@ -206,6 +206,10 @@ model Task {
   interactions     TaskInteraction[]
   comments         TaskComment[]
   
+  // Task dependencies - many-to-many self-relation
+  dependsOn        Task[]       @relation("TaskDependencies")
+  dependents       Task[]       @relation("TaskDependencies")
+  
   @@index([cardId])
   @@index([categoryId])
   @@index([assigneeId])

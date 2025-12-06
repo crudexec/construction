@@ -21,7 +21,8 @@ import {
   MessageSquare,
   Edit3,
   ChevronDown,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react'
 import Link from 'next/link'
 import { ProjectOverview } from '@/components/projects/project-overview'
@@ -31,6 +32,7 @@ import { ProjectEstimates } from '@/components/projects/project-estimates'
 import { DailyLogs } from '@/components/projects/daily-logs'
 import { ProjectCalendar } from '@/components/projects/project-calendar'
 import { ProjectMessages } from '@/components/projects/project-messages'
+import { ProjectTimeline } from '@/components/projects/project-timeline'
 import { ProjectEditModal } from '@/components/projects/project-edit-modal'
 import { ProjectTeamModal } from '@/components/projects/project-team-modal'
 import { PortalSettingsModal } from '@/components/projects/portal-settings-modal'
@@ -61,7 +63,7 @@ export default function ProjectDetailPage() {
   
   // Initialize tab from URL or default to overview
   const tabFromUrl = searchParams.get('tab')
-  const initialTab = tabFromUrl && ['overview', 'tasks', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl) 
+  const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl) 
     ? tabFromUrl 
     : 'overview'
   
@@ -80,7 +82,7 @@ export default function ProjectDetailPage() {
   // Update active tab when URL changes
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
-    if (tabFromUrl && ['overview', 'tasks', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
@@ -267,6 +269,7 @@ export default function ProjectDetailPage() {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: FileText },
     { id: 'tasks', name: 'Tasks', icon: CheckSquare },
+    { id: 'timeline', name: 'Timeline', icon: BarChart3 },
     { id: 'dailylogs', name: 'Daily Logs', icon: FileText },
     { id: 'calendar', name: 'Calendar', icon: Calendar },
     { id: 'estimates', name: 'Estimates', icon: FileText },
@@ -475,6 +478,7 @@ export default function ProjectDetailPage() {
       <div>
         {activeTab === 'overview' && <ProjectOverview project={project} onAddTask={handleAddTask} />}
         {activeTab === 'tasks' && <ProjectTasks projectId={projectId} shouldOpenAddModal={showAddTask} />}
+        {activeTab === 'timeline' && <ProjectTimeline projectId={projectId} />}
         {activeTab === 'dailylogs' && <DailyLogs projectId={projectId} />}
         {activeTab === 'calendar' && <ProjectCalendar projectId={projectId} />}
         {activeTab === 'estimates' && <ProjectEstimates projectId={projectId} />}
