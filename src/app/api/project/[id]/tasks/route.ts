@@ -61,6 +61,13 @@ export async function GET(
             email: true
           }
         }
+        // dependsOn: {
+        //   select: {
+        //     id: true,
+        //     title: true,
+        //     status: true
+        //   }
+        // }
       },
       orderBy: {
         createdAt: 'desc'
@@ -123,6 +130,20 @@ export async function POST(
       }
     }
 
+    // If dependencyIds are provided, verify they exist and belong to the same project
+    if (body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0) {
+      const dependencies = await prisma.task.findMany({
+        where: {
+          id: { in: body.dependencyIds },
+          cardId: projectId
+        }
+      })
+
+      if (dependencies.length !== body.dependencyIds.length) {
+        return NextResponse.json({ error: 'One or more dependency tasks not found' }, { status: 400 })
+      }
+    }
+
     const task = await prisma.task.create({
       data: {
         title: body.title,
@@ -133,7 +154,12 @@ export async function POST(
         cardId: projectId,
         categoryId: body.categoryId || null,
         assigneeId: body.assigneeId || null,
-        creatorId: user.id
+        creatorId: user.id,
+        // dependsOn: body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0 
+        //   ? {
+        //       connect: body.dependencyIds.map((id: string) => ({ id }))
+        //     }
+        //   : undefined
       },
       include: {
         category: {
@@ -157,6 +183,13 @@ export async function POST(
             firstName: true,
             lastName: true,
             email: true
+          }
+        },
+        dependsOn: {
+          select: {
+            id: true,
+            title: true,
+            status: true
           }
         }
       }

@@ -46,7 +46,6 @@ export async function GET(
                 lastName: true
               }
             },
-            // TODO: Add dependencies back once many-to-many self-relation is properly configured
             // dependsOn: {
             //   select: {
             //     id: true,
@@ -142,6 +141,18 @@ export async function GET(
           ? `${task.assignee.firstName} ${task.assignee.lastName}`
           : undefined,
         status: taskStatus as 'TODO' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE'
+        // isBlocked: task.dependsOn?.some(dep => dep.status !== 'COMPLETED') || false,
+        // dependencies: task.dependsOn?.map(dep => ({
+        //   id: dep.id,
+        //   title: dep.title,
+        //   status: dep.status,
+        //   isCompleted: dep.status === 'COMPLETED'
+        // })) || [],
+        // dependents: task.dependents?.map(dep => ({
+        //   id: dep.id,
+        //   title: dep.title,
+        //   status: dep.status
+        // })) || []
       }
     })
 

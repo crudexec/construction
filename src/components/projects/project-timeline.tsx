@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { format, addDays, differenceInDays, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
 import { Calendar, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react'
+import { TaskDetailModal } from './task-detail-modal'
 
 interface TimelineTask {
   id: string
@@ -15,19 +16,18 @@ interface TimelineTask {
   categoryColor: string
   assignee?: string
   status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE'
-  // TODO: Add back dependency fields when self-relation is working
-  // isBlocked?: boolean
-  // dependencies?: Array<{
-  //   id: string
-  //   title: string
-  //   status: string
-  //   isCompleted: boolean
-  // }>
-  // dependents?: Array<{
-  //   id: string
-  //   title: string
-  //   status: string
-  // }>
+  isBlocked?: boolean
+  dependencies?: Array<{
+    id: string
+    title: string
+    status: string
+    isCompleted: boolean
+  }>
+  dependents?: Array<{
+    id: string
+    title: string
+    status: string
+  }>
 }
 
 interface TimelineData {
@@ -83,6 +83,18 @@ async function fetchTimelineData(projectId: string): Promise<TimelineData> {
 
 export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
   const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month')
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
+
+  const handleTaskClick = (taskId: string) => {
+    setSelectedTaskId(taskId)
+    setIsTaskModalOpen(true)
+  }
+
+  const handleTaskModalClose = () => {
+    setSelectedTaskId(null)
+    setIsTaskModalOpen(false)
+  }
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['project-timeline', projectId],
@@ -271,7 +283,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
                   const leftPosition = (todayDiff / totalDays) * 100
                   return (
                     <div 
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-50 shadow-lg"
+                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg"
                       style={{
                         left: `${leftPosition}%`
                       }}
@@ -320,7 +332,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
                       className="absolute top-0 bottom-0 w-0.5 bg-red-600 shadow-lg pointer-events-none"
                       style={{
                         left: `${leftPosition}%`,
-                        zIndex: 9999
+                        zIndex: 40
                       }}
                       title={`Today: ${format(today, 'MMM dd, yyyy')}`}
                     />
@@ -344,7 +356,7 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
                 const offsetLeft = (3/12) * 100 // 3 columns out of 12 for task names
                 return (
                   <div 
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-50 shadow-lg pointer-events-none"
+                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg pointer-events-none"
                     style={{
                       left: `calc(${offsetLeft}% + ${leftPosition * (9/12)}%)` // Position within the 9-column timeline area
                     }}
@@ -361,14 +373,17 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
             ) : (
               data.tasks.map((task) => (
                 <div key={task.id} className="grid grid-cols-12 gap-0 hover:bg-gray-50">
-                  <div className="col-span-3 p-4 border-r border-gray-200">
+                  <div 
+                    className="col-span-3 p-4 border-r border-gray-200 cursor-pointer"
+                    onClick={() => handleTaskClick(task.id)}
+                  >
                     <div className="flex items-center space-x-3">
                       <div 
                         className={`w-2 h-2 rounded-full`} 
                         style={{ backgroundColor: task.categoryColor }} 
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-700 truncate">
+                        <div className="text-sm text-gray-700 truncate hover:text-primary-600">
                           {task.title}
                         </div>
                         <div className="text-xs text-gray-500">
@@ -379,8 +394,10 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
                   </div>
                   <div className="col-span-9 relative p-2">
                     <div 
-                      className={`h-5 rounded ${getTaskStatusColor(task.status)} opacity-70 flex items-center px-1`}
+                      className={`h-5 rounded ${getTaskStatusColor(task.status)} opacity-70 flex items-center px-1 cursor-pointer hover:opacity-90 transition-opacity`}
                       style={getTaskPosition(task)}
+                      onClick={() => handleTaskClick(task.id)}
+                      title={`${task.title} - Click for details`}
                     >
                       {task.progress > 0 && (
                         <div className="text-xs text-white font-medium">
@@ -421,6 +438,14 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
           </div>
         </div>
       </div>
+
+      {/* Task Detail Modal */}
+      <TaskDetailModal
+        taskId={selectedTaskId}
+        projectId={projectId}
+        isOpen={isTaskModalOpen}
+        onClose={handleTaskModalClose}
+      />
     </div>
   )
 }

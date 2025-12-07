@@ -69,6 +69,11 @@ interface Task {
     firstName: string
     lastName: string
   }
+  dependsOn?: Array<{
+    id: string
+    title: string
+    status: string
+  }>
   createdAt: string
 }
 
@@ -78,7 +83,8 @@ const taskSchema = Yup.object().shape({
   priority: Yup.string().required('Priority is required'),
   dueDate: Yup.date(),
   categoryId: Yup.string(),
-  assigneeId: Yup.string()
+  assigneeId: Yup.string(),
+  dependencyIds: Yup.array().of(Yup.string())
 })
 
 const categorySchema = Yup.object().shape({
@@ -881,7 +887,8 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       priority: 'MEDIUM',
                       dueDate: '',
                       categoryId: '',
-                      assigneeId: ''
+                      assigneeId: '',
+                      dependencyIds: []
                     }}
                     validationSchema={taskSchema}
                     onSubmit={(values) => createMutation.mutate(values)}
@@ -988,6 +995,47 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             )) : []}
                           </Field>
                           <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="dependencyIds" className="block text-sm font-medium text-gray-700">
+                            Task Dependencies
+                          </label>
+                          <Field name="dependencyIds">
+                            {({ field, form }: any) => {
+                              const availableTasks = tasks.filter((task: Task) => {
+                                // Exclude the current task and completed tasks from being dependencies
+                                return task.status !== 'COMPLETED'
+                              })
+                              
+                              const handleDependencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+                                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+                                form.setFieldValue('dependencyIds', selectedOptions)
+                              }
+                              
+                              return (
+                                <div className="mt-1">
+                                  <select
+                                    {...field}
+                                    multiple
+                                    size={Math.min(5, Math.max(2, availableTasks.length))}
+                                    onChange={handleDependencyChange}
+                                    className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                  >
+                                    {availableTasks.map((task: Task) => (
+                                      <option key={task.id} value={task.id}>
+                                        {task.title} ({task.status.replace('_', ' ')})
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
+                                  </p>
+                                </div>
+                              )
+                            }}
+                          </Field>
+                          <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
@@ -1285,7 +1333,8 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         priority: selectedTask.priority || 'MEDIUM',
                         dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : '',
                         categoryId: selectedTask.category?.id || '',
-                        assigneeId: selectedTask.assignee?.id || ''
+                        assigneeId: selectedTask.assignee?.id || '',
+                        dependencyIds: selectedTask.dependsOn?.map(d => d.id) || []
                       }}
                       validationSchema={taskSchema}
                       onSubmit={(values) => updateMutation.mutate({ taskId: selectedTask.id, data: values })}
@@ -1392,6 +1441,50 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               )) : []}
                             </Field>
                             <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
+                          </div>
+
+                          <div>
+                            <label htmlFor="dependencyIds" className="block text-sm font-medium text-gray-700">
+                              Task Dependencies
+                            </label>
+                            <Field name="dependencyIds">
+                              {({ field, form }: any) => {
+                                const availableTasks = tasks.filter((task: Task) => {
+                                  // Exclude the current task being edited and completed tasks
+                                  return task.id !== selectedTask.id && task.status !== 'COMPLETED'
+                                })
+                                
+                                const currentDependencies = selectedTask.dependsOn?.map(d => d.id) || []
+                                
+                                const handleDependencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+                                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
+                                  form.setFieldValue('dependencyIds', selectedOptions)
+                                }
+                                
+                                return (
+                                  <div className="mt-1">
+                                    <select
+                                      {...field}
+                                      multiple
+                                      size={Math.min(5, Math.max(2, availableTasks.length))}
+                                      onChange={handleDependencyChange}
+                                      defaultValue={currentDependencies}
+                                      className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                    >
+                                      {availableTasks.map((task: Task) => (
+                                        <option key={task.id} value={task.id}>
+                                          {task.title} ({task.status.replace('_', ' ')})
+                                        </option>
+                                      ))}
+                                    </select>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                      Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
+                                    </p>
+                                  </div>
+                                )
+                              }}
+                            </Field>
+                            <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
                           </div>
 
                           <div className="flex justify-end space-x-3 pt-4">

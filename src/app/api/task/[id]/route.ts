@@ -2,6 +2,84 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
+// Get task details
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authHeader = request.headers.get('authorization')
+    const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const user = await validateUser(token)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const { id: taskId } = await params
+
+    const task = await prisma.task.findFirst({
+      where: { 
+        id: taskId
+      },
+      include: {
+        card: {
+          select: {
+            companyId: true,
+            id: true,
+            title: true
+          }
+        },
+        category: {
+          select: {
+            name: true,
+            color: true
+          }
+        },
+        assignee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        creator: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        }
+        // dependsOn: {
+        //   select: {
+        //     id: true,
+        //     title: true,
+        //     status: true
+        //   }
+        // }
+      }
+    })
+
+    if (!task || task.card.companyId !== user.companyId) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+    }
+
+    return NextResponse.json(task)
+
+  } catch (error) {
+    console.error('Failed to fetch task:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch task' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -56,6 +134,21 @@ export async function PATCH(
       }
     }
 
+    // If dependencyIds are provided, verify they exist and belong to the same project
+    if (body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0) {
+      const dependencies = await prisma.task.findMany({
+        where: {
+          id: { in: body.dependencyIds },
+          cardId: task.cardId,
+          id: { not: taskId } // Don't allow self-dependency
+        }
+      })
+
+      if (dependencies.length !== body.dependencyIds.length) {
+        return NextResponse.json({ error: 'One or more dependency tasks not found or invalid' }, { status: 400 })
+      }
+    }
+
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
       data: {
@@ -67,7 +160,12 @@ export async function PATCH(
         categoryId: body.categoryId || null,
         assigneeId: body.assigneeId || null,
         completedAt: body.completedAt ? new Date(body.completedAt) : body.status === 'COMPLETED' ? new Date() : null,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        // dependsOn: body.dependencyIds && Array.isArray(body.dependencyIds)
+        //   ? {
+        //       set: body.dependencyIds.map((id: string) => ({ id }))
+        //     }
+        //   : undefined
       },
       include: {
         category: {
@@ -93,6 +191,13 @@ export async function PATCH(
             email: true
           }
         }
+        // dependsOn: {
+        //   select: {
+        //     id: true,
+        //     title: true,
+        //     status: true
+        //   }
+        // }
       }
     })
 
