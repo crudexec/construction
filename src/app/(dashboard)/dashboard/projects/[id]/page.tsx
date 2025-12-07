@@ -36,6 +36,7 @@ import { ProjectTimeline } from '@/components/projects/project-timeline'
 import { ProjectEditModal } from '@/components/projects/project-edit-modal'
 import { ProjectTeamModal } from '@/components/projects/project-team-modal'
 import { PortalSettingsModal } from '@/components/projects/portal-settings-modal'
+import { ProgressReport } from '@/components/projects/progress-report'
 import { useModal } from '@/components/ui/modal-provider'
 
 async function fetchProject(id: string) {
@@ -63,7 +64,7 @@ export default function ProjectDetailPage() {
   
   // Initialize tab from URL or default to overview
   const tabFromUrl = searchParams.get('tab')
-  const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl) 
+  const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'reports'].includes(tabFromUrl) 
     ? tabFromUrl 
     : 'overview'
   
@@ -82,7 +83,7 @@ export default function ProjectDetailPage() {
   // Update active tab when URL changes
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
-    if (tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'reports'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
@@ -275,6 +276,7 @@ export default function ProjectDetailPage() {
     { id: 'estimates', name: 'Estimates', icon: FileText },
     { id: 'files', name: 'Files', icon: FileText },
     { id: 'messages', name: 'Messages', icon: MessageSquare, count: unreadMessageCount },
+    { id: 'reports', name: 'Reports', icon: BarChart3 },
   ]
 
   if (isLoading) {
@@ -484,6 +486,7 @@ export default function ProjectDetailPage() {
         {activeTab === 'estimates' && <ProjectEstimates projectId={projectId} />}
         {activeTab === 'files' && <ProjectFiles projectId={projectId} />}
         {activeTab === 'messages' && <ProjectMessages projectId={projectId} />}
+        {activeTab === 'reports' && <ProgressReport projectId={projectId} />}
       </div>
 
       {/* Client Portal Modal */}

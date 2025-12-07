@@ -136,15 +136,17 @@ export async function PATCH(
 
     // If dependencyIds are provided, verify they exist and belong to the same project
     if (body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0) {
+      // Filter out self-dependency
+      const validDependencyIds = body.dependencyIds.filter((id: string) => id !== taskId)
+      
       const dependencies = await prisma.task.findMany({
         where: {
-          id: { in: body.dependencyIds },
-          cardId: task.cardId,
-          id: { not: taskId } // Don't allow self-dependency
+          id: { in: validDependencyIds },
+          cardId: task.cardId
         }
       })
 
-      if (dependencies.length !== body.dependencyIds.length) {
+      if (dependencies.length !== validDependencyIds.length) {
         return NextResponse.json({ error: 'One or more dependency tasks not found or invalid' }, { status: 400 })
       }
     }
