@@ -27,15 +27,17 @@ export async function GET(request: NextRequest) {
         lastName: true,
         email: true,
         role: true,
+        phone: true,
         avatar: true
       },
       orderBy: [
+        { role: 'asc' },
         { firstName: 'asc' },
         { lastName: 'asc' }
       ]
     })
 
-    return NextResponse.json({ users })
+    return NextResponse.json(users)
   } catch (error) {
     console.error('Error fetching users:', error)
     return NextResponse.json(

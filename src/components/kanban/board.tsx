@@ -372,7 +372,7 @@ export function KanbanBoard() {
                               opacity: snapshot.isDragging ? 0.5 : 1,
                             }}
                           >
-                            <CardItem card={card} />
+                            <CardItem card={card} onUpdate={() => queryClient.invalidateQueries({ queryKey: ['stages'] })} />
                           </div>
                         )}
                       </Draggable>
