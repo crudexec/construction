@@ -23,7 +23,7 @@ async function getUserFromToken(request: Request): Promise<DecodedToken | null> 
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromToken(request)
@@ -31,9 +31,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
+
     const project = await prisma.card.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId
       },
       include: {
@@ -73,7 +75,7 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromToken(request)
@@ -81,12 +83,13 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { id } = await params
     const body = await request.json()
     
     // Check if project exists and belongs to user's company
     const existingProject = await prisma.card.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId
       }
     })
@@ -185,7 +188,7 @@ export async function PUT(
 
     // Update the project
     const updatedProject = await prisma.card.update({
-      where: { id: params.id },
+      where: { id: id },
       data: {
         ...updateData,
         ...assignedUserOperations
@@ -220,7 +223,7 @@ export async function PUT(
           updatedFields: Object.keys(body),
           updatedBy: user.userId
         }),
-        cardId: params.id,
+        cardId: id,
         userId: user.userId
       }
     })
@@ -237,13 +240,15 @@ export async function PUT(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const user = await getUserFromToken(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const { id } = await params
 
     // Only ADMIN can delete projects
     if (user.role !== 'ADMIN') {
@@ -253,7 +258,7 @@ export async function DELETE(
     // Check if project exists and belongs to user's company
     const existingProject = await prisma.card.findFirst({
       where: {
-        id: params.id,
+        id: id,
         companyId: user.companyId
       }
     })
@@ -264,7 +269,7 @@ export async function DELETE(
 
     // Delete the project (cascade delete will handle related records)
     await prisma.card.delete({
-      where: { id: params.id }
+      where: { id: id }
     })
 
     return NextResponse.json({ success: true, message: 'Project deleted successfully' })
