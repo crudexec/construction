@@ -22,7 +22,8 @@ import {
   Edit3,
   ChevronDown,
   Settings,
-  BarChart3
+  BarChart3,
+  Briefcase
 } from 'lucide-react'
 import Link from 'next/link'
 import { ProjectOverview } from '@/components/projects/project-overview'
@@ -37,6 +38,7 @@ import { ProjectEditModal } from '@/components/projects/project-edit-modal'
 import { ProjectTeamModal } from '@/components/projects/project-team-modal'
 import { PortalSettingsModal } from '@/components/projects/portal-settings-modal'
 import { ProgressReport } from '@/components/projects/progress-report'
+import ProjectBidRequests from '@/components/projects/ProjectBidRequests'
 import { useModal } from '@/components/ui/modal-provider'
 
 async function fetchProject(id: string) {
@@ -64,7 +66,7 @@ export default function ProjectDetailPage() {
   
   // Initialize tab from URL or default to overview
   const tabFromUrl = searchParams.get('tab')
-  const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'reports'].includes(tabFromUrl) 
+  const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'bids', 'reports'].includes(tabFromUrl) 
     ? tabFromUrl 
     : 'overview'
   
@@ -83,7 +85,7 @@ export default function ProjectDetailPage() {
   // Update active tab when URL changes
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
-    if (tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'reports'].includes(tabFromUrl)) {
+    if (tabFromUrl && ['overview', 'tasks', 'timeline', 'dailylogs', 'calendar', 'estimates', 'files', 'messages', 'bids', 'reports'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
     }
   }, [searchParams])
@@ -276,6 +278,7 @@ export default function ProjectDetailPage() {
     { id: 'estimates', name: 'Estimates', icon: FileText },
     { id: 'files', name: 'Files', icon: FileText },
     { id: 'messages', name: 'Messages', icon: MessageSquare, count: unreadMessageCount },
+    { id: 'bids', name: 'Bids', icon: Briefcase },
     { id: 'reports', name: 'Reports', icon: BarChart3 },
   ]
 
@@ -486,6 +489,22 @@ export default function ProjectDetailPage() {
         {activeTab === 'estimates' && <ProjectEstimates projectId={projectId} />}
         {activeTab === 'files' && <ProjectFiles projectId={projectId} />}
         {activeTab === 'messages' && <ProjectMessages projectId={projectId} />}
+        {activeTab === 'bids' && (
+          <ProjectBidRequests 
+            projectId={projectId}
+            projectTitle={project?.title || ''}
+            projectData={{
+              description: project?.description,
+              projectAddress: project?.projectAddress,
+              projectCity: project?.projectCity,
+              projectState: project?.projectState,
+              projectZipCode: project?.projectZipCode,
+              timeline: project?.timeline,
+              budget: project?.budget
+            }}
+            canEdit={['ADMIN', 'STAFF'].includes(project?.assignedUsers?.find((user: any) => user.id === project?.ownerId)?.role || project?.owner?.role || '')}
+          />
+        )}
         {activeTab === 'reports' && <ProgressReport projectId={projectId} />}
       </div>
 

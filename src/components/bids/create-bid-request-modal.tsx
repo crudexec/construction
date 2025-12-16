@@ -23,6 +23,14 @@ import Link from 'next/link'
 interface CreateBidRequestModalProps {
   isOpen: boolean
   onClose: () => void
+  projectId?: string
+  projectTitle?: string
+  projectData?: {
+    description?: string
+    location?: string
+    timeline?: string
+    budget?: number
+  }
 }
 
 interface BidRequestFormData {
@@ -61,13 +69,17 @@ const bidRequestSchema = Yup.object().shape({
   budget: Yup.string().matches(/^\d*\.?\d*$/, 'Budget must be a valid number')
 })
 
-async function createBidRequest(data: BidRequestFormData) {
+async function createBidRequest(data: BidRequestFormData, projectId?: string) {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
+  
+  const endpoint = projectId 
+    ? `/api/projects/${projectId}/bid-requests`
+    : '/api/bid-requests'
     
-  const response = await fetch('/api/bid-requests', {
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
@@ -80,16 +92,19 @@ async function createBidRequest(data: BidRequestFormData) {
   return response.json()
 }
 
-export function CreateBidRequestModal({ isOpen, onClose }: CreateBidRequestModalProps) {
+export function CreateBidRequestModal({ isOpen, onClose, projectId, projectTitle, projectData }: CreateBidRequestModalProps) {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [createdBidRequest, setCreatedBidRequest] = useState<{ shareUrl: string; bidRequest: any } | null>(null)
   const queryClient = useQueryClient()
 
   const createMutation = useMutation({
-    mutationFn: createBidRequest,
+    mutationFn: (data: BidRequestFormData) => createBidRequest(data, projectId),
     onSuccess: (data) => {
       toast.success('Bid request created successfully!')
       queryClient.invalidateQueries({ queryKey: ['bid-requests'] })
+      if (projectId) {
+        queryClient.invalidateQueries({ queryKey: ['project-bid-requests', projectId] })
+      }
       setCreatedBidRequest(data)
     },
     onError: (error) => {
@@ -139,9 +154,14 @@ export function CreateBidRequestModal({ isOpen, onClose }: CreateBidRequestModal
         <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
-              {createdBidRequest ? 'Bid Request Created!' : 'Create Bid Request'}
-            </h3>
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">
+                {createdBidRequest ? 'Bid Request Created!' : 'Create Bid Request'}
+              </h3>
+              {projectTitle && !createdBidRequest && (
+                <p className="mt-1 text-sm text-gray-500">For project: {projectTitle}</p>
+              )}
+            </div>
             <button
               onClick={handleClose}
               className="text-gray-400 hover:text-gray-500"
@@ -215,13 +235,13 @@ export function CreateBidRequestModal({ isOpen, onClose }: CreateBidRequestModal
             <div className="p-6">
             <Formik
               initialValues={{
-                title: '',
-                description: '',
-                location: '',
-                timeline: '',
+                title: projectTitle ? `Bid Request for ${projectTitle}` : '',
+                description: projectData?.description || '',
+                location: projectData?.location || '',
+                timeline: projectData?.timeline || '',
                 requirements: '',
                 deadline: '',
-                budget: ''
+                budget: projectData?.budget?.toString() || ''
               }}
               validationSchema={bidRequestSchema}
               onSubmit={(values, { setSubmitting }) => {

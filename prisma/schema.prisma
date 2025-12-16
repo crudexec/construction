@@ -136,6 +136,7 @@ model Card {
   feedback         Feedback[]
   dailyLogs        DailyLog[]
   walkarounds      Walkaround[]
+  bidRequests      BidRequest[]
   clientPortalSettings ClientPortalSettings?
   
   @@index([stageId])
@@ -574,17 +575,20 @@ model BidRequest {
   budget           Float?
   shareToken       String   @unique
   isActive         Boolean  @default(true)
+  cardId           String   // Link to specific project
   companyId        String
   creatorId        String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   
+  card             Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   creator          User     @relation(fields: [creatorId], references: [id])
   bids             Bid[]
   documents        BidDocument[]
   views            BidView[]
   
+  @@index([cardId])
   @@index([companyId])
   @@index([creatorId])
   @@index([shareToken])
