@@ -829,6 +829,7 @@ async function main() {
       deadline: new Date('2024-02-15'),
       budget: 500000,
       shareToken: 'bid-' + Math.random().toString(36).substring(7),
+      cardId: officeProject.id, // Link to office project
       companyId: company.id,
       creatorId: adminUser.id
     }

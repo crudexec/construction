@@ -17,15 +17,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const url = new URL(request.url)
+    const cardId = url.searchParams.get('cardId')
+
     const bidRequests = await prisma.bidRequest.findMany({
       where: {
-        companyId: user.companyId
+        companyId: user.companyId,
+        ...(cardId && { cardId })
       },
       include: {
         creator: {
           select: {
             firstName: true,
             lastName: true
+          }
+        },
+        card: {
+          select: {
+            title: true
           }
         },
         _count: {
@@ -65,10 +74,26 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { title, description, location, timeline, requirements, deadline, budget } = body
+    const { title, description, location, timeline, requirements, deadline, budget, cardId } = body
 
     if (!title || !description) {
       return NextResponse.json({ error: 'Title and description are required' }, { status: 400 })
+    }
+
+    if (!cardId) {
+      return NextResponse.json({ error: 'Project ID (cardId) is required' }, { status: 400 })
+    }
+
+    // Verify project exists and belongs to user's company
+    const project = await prisma.card.findFirst({
+      where: {
+        id: cardId,
+        companyId: user.companyId
+      }
+    })
+
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
     // Generate unique share token
@@ -84,6 +109,7 @@ export async function POST(request: NextRequest) {
         deadline: deadline ? new Date(deadline) : null,
         budget: budget ? parseFloat(budget) : null,
         shareToken,
+        cardId,
         companyId: user.companyId,
         creatorId: user.id
       },
