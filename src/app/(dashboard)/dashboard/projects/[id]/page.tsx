@@ -502,7 +502,7 @@ export default function ProjectDetailPage() {
               timeline: project?.timeline,
               budget: project?.budget
             }}
-            canEdit={['ADMIN', 'STAFF'].includes(project?.assignedUsers?.find((user: any) => user.id === project?.ownerId)?.role || project?.owner?.role || '')}
+            canEdit={true}  // For now, allow all users with project access to create bid requests
           />
         )}
         {activeTab === 'reports' && <ProgressReport projectId={projectId} />}

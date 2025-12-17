@@ -263,6 +263,63 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
     }
   })
 
+  const handleDownload = async (file: Document) => {
+    try {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+      
+      // Use our secure file serving endpoint
+      const response = await fetch(`/api/files/${file.id}?download=true`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cookie': document.cookie
+        }
+      })
+      
+      if (!response.ok) throw new Error('Failed to download file')
+      
+      const blob = await response.blob()
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.fileName
+      
+      // Trigger download
+      document.body.appendChild(link)
+      link.click()
+      
+      // Cleanup
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+      
+      toast.success(`Downloaded ${file.name}`)
+    } catch (error) {
+      toast.error('Failed to download file')
+      console.error('Download error:', error)
+    }
+  }
+
+  const handleView = (file: Document) => {
+    const token = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('auth-token='))
+      ?.split('=')[1]
+    
+    // For images and PDFs, open in new tab using our secure endpoint
+    if (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') {
+      // Create a URL with authentication
+      const viewUrl = `/api/files/${file.id}?t=${token}`
+      window.open(viewUrl, '_blank')
+    } else {
+      // For other files, download them
+      handleDownload(file)
+    }
+  }
+
   const createFolderMutation = useMutation({
     mutationFn: (data: any) => createFolder(projectId, data),
     onSuccess: () => {
@@ -574,11 +631,18 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                       </div>
                       <div className="flex items-center space-x-1">
                         <button
-                          onClick={() => window.open(file.url, '_blank')}
+                          onClick={() => handleView(file)}
                           className="text-gray-400 hover:text-gray-600"
                           title="View"
                         >
                           <Eye className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => handleDownload(file)}
+                          className="text-gray-400 hover:text-gray-600"
+                          title="Download"
+                        >
+                          <Download className="h-3 w-3" />
                         </button>
                         <button
                           onClick={() => shareMutation.mutate({ fileId: file.id, isShared: !file.isShared })}
