@@ -10,11 +10,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const url = new URL(request.url)
+    const requestUrl = new URL(request.url)
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || 
                   request.cookies.get('auth-token')?.value || 
-                  url.searchParams.get('t') // Token in query params for viewing
+                  requestUrl.searchParams.get('t') // Token in query params for viewing
     
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -26,8 +26,7 @@ export async function GET(
     }
 
     const { id: documentId } = await params
-    const url = new URL(request.url)
-    const download = url.searchParams.get('download') === 'true'
+    const download = requestUrl.searchParams.get('download') === 'true'
 
     // Verify document exists and user has access
     const document = await prisma.document.findFirst({
@@ -90,7 +89,7 @@ export async function GET(
       }
     }
 
-    return new NextResponse(fileBuffer, { headers })
+    return new NextResponse(fileBuffer as BodyInit, { headers })
   } catch (error) {
     console.error('Error serving file:', error)
     return NextResponse.json(
