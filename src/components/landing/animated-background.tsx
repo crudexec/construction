@@ -27,9 +27,9 @@ export function AnimatedBackground() {
       rotation: number
       rotationSpeed: number
 
-      constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
+      constructor(canvasWidth: number, canvasHeight: number) {
+        this.x = Math.random() * canvasWidth
+        this.y = Math.random() * canvasHeight
         this.size = Math.random() * 5 + 2
         this.speedX = (Math.random() - 0.5) * 1.5
         this.speedY = (Math.random() - 0.5) * 1.5
@@ -39,51 +39,51 @@ export function AnimatedBackground() {
         this.rotationSpeed = (Math.random() - 0.5) * 0.02
       }
 
-      update() {
+      update(canvasWidth: number, canvasHeight: number) {
         this.x += this.speedX
         this.y += this.speedY
         this.rotation += this.rotationSpeed
 
         // Wrap around screen
-        if (this.x > canvas.width + 50) this.x = -50
-        if (this.x < -50) this.x = canvas.width + 50
-        if (this.y > canvas.height + 50) this.y = -50
-        if (this.y < -50) this.y = canvas.height + 50
+        if (this.x > canvasWidth + 50) this.x = -50
+        if (this.x < -50) this.x = canvasWidth + 50
+        if (this.y > canvasHeight + 50) this.y = -50
+        if (this.y < -50) this.y = canvasHeight + 50
       }
 
-      draw() {
-        ctx.save()
-        ctx.translate(this.x, this.y)
-        ctx.rotate(this.rotation)
-        ctx.fillStyle = `rgba(59, 130, 246, ${this.opacity})`
-        ctx.strokeStyle = `rgba(59, 130, 246, ${this.opacity})`
-        ctx.lineWidth = 2
+      draw(context: CanvasRenderingContext2D) {
+        context.save()
+        context.translate(this.x, this.y)
+        context.rotate(this.rotation)
+        context.fillStyle = `rgba(59, 130, 246, ${this.opacity})`
+        context.strokeStyle = `rgba(59, 130, 246, ${this.opacity})`
+        context.lineWidth = 2
 
         switch (this.type) {
           case 'dot':
-            ctx.beginPath()
-            ctx.arc(0, 0, this.size, 0, Math.PI * 2)
-            ctx.fill()
+            context.beginPath()
+            context.arc(0, 0, this.size, 0, Math.PI * 2)
+            context.fill()
             break
           case 'line':
-            ctx.beginPath()
-            ctx.moveTo(-this.size * 3, 0)
-            ctx.lineTo(this.size * 3, 0)
-            ctx.stroke()
+            context.beginPath()
+            context.moveTo(-this.size * 3, 0)
+            context.lineTo(this.size * 3, 0)
+            context.stroke()
             break
           case 'square':
-            ctx.strokeRect(-this.size, -this.size, this.size * 2, this.size * 2)
+            context.strokeRect(-this.size, -this.size, this.size * 2, this.size * 2)
             break
           case 'triangle':
-            ctx.beginPath()
-            ctx.moveTo(0, -this.size)
-            ctx.lineTo(this.size, this.size)
-            ctx.lineTo(-this.size, this.size)
-            ctx.closePath()
-            ctx.stroke()
+            context.beginPath()
+            context.moveTo(0, -this.size)
+            context.lineTo(this.size, this.size)
+            context.lineTo(-this.size, this.size)
+            context.closePath()
+            context.stroke()
             break
         }
-        ctx.restore()
+        context.restore()
       }
     }
 
@@ -96,16 +96,16 @@ export function AnimatedBackground() {
       opacity: number
       appearing: boolean
 
-      constructor() {
+      constructor(canvasWidth: number, canvasHeight: number) {
         const isHorizontal = Math.random() > 0.5
         if (isHorizontal) {
           this.startX = 0
-          this.endX = canvas.width
-          this.startY = this.endY = Math.random() * canvas.height
+          this.endX = canvasWidth
+          this.startY = this.endY = Math.random() * canvasHeight
         } else {
           this.startY = 0
-          this.endY = canvas.height
-          this.startX = this.endX = Math.random() * canvas.width
+          this.endY = canvasHeight
+          this.startX = this.endX = Math.random() * canvasWidth
         }
         this.opacity = 0
         this.appearing = true
@@ -122,14 +122,14 @@ export function AnimatedBackground() {
         }
       }
 
-      draw() {
+      draw(context: CanvasRenderingContext2D) {
         if (this.opacity <= 0) return
-        ctx.strokeStyle = `rgba(37, 99, 235, ${this.opacity})`
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(this.startX, this.startY)
-        ctx.lineTo(this.endX, this.endY)
-        ctx.stroke()
+        context.strokeStyle = `rgba(37, 99, 235, ${this.opacity})`
+        context.lineWidth = 1
+        context.beginPath()
+        context.moveTo(this.startX, this.startY)
+        context.lineTo(this.endX, this.endY)
+        context.stroke()
       }
     }
 
@@ -139,22 +139,24 @@ export function AnimatedBackground() {
 
     // Initialize particles
     for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle())
+      particles.push(new Particle(canvas.width, canvas.height))
     }
 
     // Animation loop
     function animate() {
+      if (!ctx || !canvas) return
+      
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       // Randomly add grid lines
       if (Math.random() < 0.05 && gridLines.length < 20) {
-        gridLines.push(new GridLine())
+        gridLines.push(new GridLine(canvas.width, canvas.height))
       }
 
       // Update and draw grid lines
       gridLines.forEach((line, index) => {
         line.update()
-        line.draw()
+        line.draw(ctx)
         if (line.opacity <= 0) {
           gridLines.splice(index, 1)
         }
@@ -162,8 +164,8 @@ export function AnimatedBackground() {
 
       // Update and draw particles
       particles.forEach(particle => {
-        particle.update()
-        particle.draw()
+        particle.update(canvas.width, canvas.height)
+        particle.draw(ctx)
       })
 
       // Draw connections between nearby particles
