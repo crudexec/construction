@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { FileViewer } from '@/components/files/file-viewer'
 import { 
   Upload,
   Search,
@@ -209,6 +210,8 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
   const [folderPath, setFolderPath] = useState<Array<{id: string | null, name: string}>>([
     { id: null, name: 'Root' }
   ])
+  const [viewerFile, setViewerFile] = useState<Document | null>(null)
+  const [viewerFileIndex, setViewerFileIndex] = useState<number>(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -303,21 +306,28 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
     }
   }
 
-  const handleView = (file: Document) => {
-    const token = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('auth-token='))
-      ?.split('=')[1]
-    
-    // For images and PDFs, open in new tab using our secure endpoint
-    if (file.mimeType.startsWith('image/') || file.mimeType === 'application/pdf') {
-      // Create a URL with authentication
-      const viewUrl = `/api/files/${file.id}?t=${token}`
-      window.open(viewUrl, '_blank')
+  const handleView = (file: Document, index?: number) => {
+    // Open file in the new viewer
+    setViewerFile(file)
+    if (index !== undefined) {
+      setViewerFileIndex(index)
     } else {
-      // For other files, download them
-      handleDownload(file)
+      // Find the index of the file in the filtered list
+      const idx = filteredFiles.findIndex((f: Document) => f.id === file.id)
+      setViewerFileIndex(idx >= 0 ? idx : 0)
     }
+  }
+
+  const handleViewerNavigate = (index: number) => {
+    if (index >= 0 && index < filteredFiles.length) {
+      setViewerFile(filteredFiles[index])
+      setViewerFileIndex(index)
+    }
+  }
+
+  const handleViewerClose = () => {
+    setViewerFile(null)
+    setViewerFileIndex(0)
   }
 
   const createFolderMutation = useMutation({
@@ -382,7 +392,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
     file.folderId === currentFolderId
   )
 
-  // Apply search and type filters
+  // Apply search and type filters (moved declaration before handleView)
   const filteredFiles = currentFiles.filter((file: Document) => {
     const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          file.fileName.toLowerCase().includes(searchTerm.toLowerCase())
@@ -631,7 +641,7 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
                       </div>
                       <div className="flex items-center space-x-1">
                         <button
-                          onClick={() => handleView(file)}
+                          onClick={() => handleView(file, filteredFiles.indexOf(file))}
                           className="text-gray-400 hover:text-gray-600"
                           title="View"
                         >
@@ -868,6 +878,19 @@ export function ProjectFiles({ projectId }: ProjectFilesProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* File Viewer */}
+      {viewerFile && (
+        <FileViewer
+          file={viewerFile}
+          files={filteredFiles}
+          currentIndex={viewerFileIndex}
+          onClose={handleViewerClose}
+          onNavigate={handleViewerNavigate}
+          onShare={(fileId, isShared) => shareMutation.mutate({ fileId, isShared })}
+          onDownload={handleDownload}
+        />
       )}
     </div>
   )
