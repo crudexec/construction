@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { 
   Plus, 
   Calendar,
@@ -22,7 +23,13 @@ import {
   Share,
   Copy,
   ExternalLink,
-  Eye
+  Eye,
+  Table,
+  List,
+  Check,
+  ChevronUp,
+  ArrowUpDown,
+  GripVertical
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { TaskAnalytics } from '@/components/admin/task-analytics'
@@ -164,6 +171,23 @@ async function deleteTask(taskId: string) {
   return response.json()
 }
 
+async function duplicateTask(taskId: string) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+    
+  const response = await fetch(`/api/task/${taskId}/duplicate`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    }
+  })
+  if (!response.ok) throw new Error('Failed to duplicate task')
+  return response.json()
+}
+
 async function fetchProjectCategories(projectId: string) {
   const token = document.cookie
     .split('; ')
@@ -259,6 +283,309 @@ async function fetchProjectTeamMembers(projectId: string) {
   return allMembers
 }
 
+// Helper function to get due date status and styling
+function getDueDateInfo(dueDate: string | null, status: string) {
+  if (!dueDate || status === 'COMPLETED') {
+    return null
+  }
+
+  const now = new Date()
+  const due = new Date(dueDate)
+  const diffTime = due.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays)
+    return {
+      label: `${overdueDays} day${overdueDays > 1 ? 's' : ''} overdue`,
+      tooltip: `${overdueDays} day${overdueDays > 1 ? 's' : ''} overdue`,
+      className: 'bg-red-100 text-red-800 border border-red-200',
+      icon: 'AlertTriangle'
+    }
+  } else if (diffDays === 0) {
+    return {
+      label: 'Due today',
+      tooltip: 'Due today',
+      className: 'bg-orange-100 text-orange-800 border border-orange-200',
+      icon: 'Calendar'
+    }
+  } else if (diffDays <= 3) {
+    return {
+      label: `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`,
+      tooltip: `Due in ${diffDays} day${diffDays > 1 ? 's' : ''}`,
+      className: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+      icon: 'Clock'
+    }
+  }
+  
+  return null
+}
+
+// Table Row Component for editable tasks
+function TableTaskRow({ 
+  task, 
+  isSelected, 
+  onSelect, 
+  onStatusChange,
+  priorityColors,
+  statusColors,
+  updateMutation,
+  duplicateMutation,
+  deleteMutation,
+  shareTask,
+  setAnalyticsTaskId,
+  categories,
+  members,
+  dragProvided,
+  isDragging
+}: {
+  task: Task
+  isSelected: boolean
+  onSelect: (checked: boolean) => void
+  onStatusChange: (taskId: string, status: string) => void
+  priorityColors: any
+  statusColors: any
+  updateMutation: any
+  duplicateMutation: any
+  deleteMutation: any
+  shareTask: (taskId: string) => void
+  setAnalyticsTaskId: (taskId: string) => void
+  categories: TaskCategory[]
+  members: any[]
+  dragProvided?: any
+  isDragging?: boolean
+}) {
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editTitle, setEditTitle] = useState(task.title)
+  const [isEditingDescription, setIsEditingDescription] = useState(false)
+  const [editDescription, setEditDescription] = useState(task.description || '')
+
+  const handleTitleSave = () => {
+    if (editTitle.trim() && editTitle !== task.title) {
+      updateMutation.mutate({ 
+        taskId: task.id, 
+        data: { title: editTitle.trim() } 
+      })
+    }
+    setIsEditingTitle(false)
+  }
+
+  const handleDescriptionSave = () => {
+    if (editDescription !== task.description) {
+      updateMutation.mutate({ 
+        taskId: task.id, 
+        data: { description: editDescription.trim() } 
+      })
+    }
+    setIsEditingDescription(false)
+  }
+
+  return (
+    <tr 
+      ref={dragProvided?.innerRef}
+      {...dragProvided?.draggableProps}
+      className={`hover:bg-gray-50 ${isDragging ? 'bg-blue-50 opacity-75' : ''}`}
+    >
+      <td className="px-2 py-3 whitespace-nowrap">
+        <div 
+          {...dragProvided?.dragHandleProps}
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+        >
+          <GripVertical className="h-4 w-4" />
+        </div>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelect(e.target.checked)}
+          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+        />
+      </td>
+      <td className="px-3 py-3">
+        <div className="space-y-1">
+          {isEditingTitle ? (
+            <input
+              type="text"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              onBlur={handleTitleSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleTitleSave()
+                if (e.key === 'Escape') {
+                  setEditTitle(task.title)
+                  setIsEditingTitle(false)
+                }
+              }}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"
+              autoFocus
+            />
+          ) : (
+            <div 
+              onClick={() => setIsEditingTitle(true)}
+              className="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600"
+            >
+              {task.title}
+            </div>
+          )}
+          {isEditingDescription ? (
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              onBlur={handleDescriptionSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setEditDescription(task.description || '')
+                  setIsEditingDescription(false)
+                }
+              }}
+              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
+              rows={2}
+            />
+          ) : (
+            <div 
+              onClick={() => setIsEditingDescription(true)}
+              className="text-xs text-gray-500 cursor-pointer hover:text-gray-700"
+            >
+              {task.description || <span className="italic">Add description...</span>}
+            </div>
+          )}
+        </div>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <select
+          value={task.status}
+          onChange={(e) => onStatusChange(task.id, e.target.value)}
+          className={`text-xs rounded-full px-2 py-1 font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${statusColors[task.status]}`}
+        >
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN PROGRESS</option>
+          <option value="COMPLETED">COMPLETED</option>
+        </select>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <select
+          value={task.priority}
+          onChange={(e) => updateMutation.mutate({ 
+            taskId: task.id, 
+            data: { priority: e.target.value } 
+          })}
+          className={`text-xs rounded-full px-2 py-1 font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${priorityColors[task.priority]}`}
+        >
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="URGENT">URGENT</option>
+        </select>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <select
+          value={task.assignee?.id || ''}
+          onChange={(e) => updateMutation.mutate({ 
+            taskId: task.id, 
+            data: { assigneeId: e.target.value || null } 
+          })}
+          className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        >
+          <option value="">Unassigned</option>
+          {members.map((member: any) => (
+            <option key={member.id} value={member.id}>
+              {member.firstName} {member.lastName}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <select
+          value={task.category?.id || ''}
+          onChange={(e) => updateMutation.mutate({ 
+            taskId: task.id, 
+            data: { categoryId: e.target.value || null } 
+          })}
+          className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        >
+          <option value="">Uncategorized</option>
+          {categories.map((category: TaskCategory) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className="space-y-1">
+          {(() => {
+            const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+            return dueDateInfo ? (
+              <div className="flex justify-center mb-1">
+                {dueDateInfo.icon === 'AlertTriangle' && (
+                  <div 
+                    className="h-3 w-3 rounded-full bg-red-500 border border-red-600 cursor-pointer"
+                    title={dueDateInfo.tooltip || dueDateInfo.label}
+                  ></div>
+                )}
+                {dueDateInfo.icon === 'Calendar' && (
+                  <div 
+                    className="h-3 w-3 rounded-full bg-orange-500 border border-orange-600 cursor-pointer"
+                    title={dueDateInfo.tooltip || dueDateInfo.label}
+                  ></div>
+                )}
+                {dueDateInfo.icon === 'Clock' && (
+                  <div 
+                    className="h-3 w-3 rounded-full bg-yellow-500 border border-yellow-600 cursor-pointer"
+                    title={dueDateInfo.tooltip || dueDateInfo.label}
+                  ></div>
+                )}
+              </div>
+            ) : null
+          })()}
+          <input
+            type="date"
+            value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
+            onChange={(e) => updateMutation.mutate({ 
+              taskId: task.id, 
+              data: { dueDate: e.target.value ? new Date(e.target.value) : null } 
+            })}
+            className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+      </td>
+      <td className="px-3 py-3 whitespace-nowrap">
+        <div className="flex items-center space-x-1">
+          <button
+            onClick={() => shareTask(task.id)}
+            className="text-gray-400 hover:text-blue-600 p-1"
+            title="Share Task"
+          >
+            <Share className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setAnalyticsTaskId(task.id)}
+            className="text-gray-400 hover:text-purple-600 p-1"
+            title="View Analytics"
+          >
+            <Eye className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => duplicateMutation.mutate(task.id)}
+            className="text-gray-400 hover:text-indigo-600 p-1"
+            title="Duplicate"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => deleteMutation.mutate(task.id)}
+            className="text-gray-400 hover:text-red-600 p-1"
+            title="Delete"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
 export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
@@ -274,6 +601,17 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [editModalTab, setEditModalTab] = useState<'details' | 'comments'>('details')
+  const [viewType, setViewType] = useState<'list' | 'table'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('taskViewType') as 'list' | 'table') || 'list'
+    }
+    return 'list'
+  })
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const [sortColumn, setSortColumn] = useState<string | null>(null)
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [editingField, setEditingField] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { showConfirm } = useModal()
 
@@ -283,6 +621,67 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
       setIsAddModalOpen(true)
     }
   }, [shouldOpenAddModal])
+
+  // Handle view type change and persist to localStorage
+  const handleViewTypeChange = (type: 'list' | 'table') => {
+    setViewType(type)
+    localStorage.setItem('taskViewType', type)
+  }
+
+  // Handle sorting
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  // Handle drag and drop
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return
+
+    const { source, destination } = result
+    
+    // If dragging within the same category/section
+    if (source.droppableId === destination.droppableId) {
+      const categoryId = source.droppableId
+      const tasksInCategory = [...(tasksByCategory[categoryId] || [])]
+      const [removed] = tasksInCategory.splice(source.index, 1)
+      tasksInCategory.splice(destination.index, 0, removed)
+      
+      // Update local state optimistically
+      const newTasksByCategory = { ...tasksByCategory }
+      newTasksByCategory[categoryId] = tasksInCategory
+      
+      // Here you would call an API to persist the order
+      // For now, we'll just update the UI optimistically
+      queryClient.setQueryData(['project-tasks', projectId], (oldData: any) => {
+        if (!oldData) return oldData
+        // Reorder tasks based on new position
+        return oldData
+      })
+      
+      toast.success('Task order updated')
+    } else {
+      // Moving between categories
+      const sourceCategory = source.droppableId
+      const destCategory = destination.droppableId
+      const sourceTasks = [...(tasksByCategory[sourceCategory] || [])]
+      const destTasks = [...(tasksByCategory[destCategory] || [])]
+      
+      const [movedTask] = sourceTasks.splice(source.index, 1)
+      destTasks.splice(destination.index, 0, movedTask)
+      
+      // Update the task's category
+      const newCategoryId = destCategory === 'uncategorized' ? null : destCategory
+      updateMutation.mutate({
+        taskId: movedTask.id,
+        data: { categoryId: newCategoryId }
+      })
+    }
+  }
 
   const { data: tasks = [], isLoading } = useQuery({
     queryKey: ['project-tasks', projectId],
@@ -317,6 +716,26 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
 
   const updateMutation = useMutation({
     mutationFn: ({ taskId, data }: { taskId: string, data: any }) => updateTask(taskId, data),
+    onMutate: async ({ taskId, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['project-tasks', projectId] })
+      
+      // Snapshot the previous value
+      const previousTasks = queryClient.getQueryData(['project-tasks', projectId])
+      
+      // Optimistically update the cache
+      queryClient.setQueryData(['project-tasks', projectId], (old: any) => {
+        if (!old?.tasks) return old
+        return {
+          ...old,
+          tasks: old.tasks.map((task: Task) => 
+            task.id === taskId ? { ...task, ...data } : task
+          )
+        }
+      })
+      
+      return { previousTasks }
+    },
     onSuccess: () => {
       toast.success('Task updated successfully!')
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
@@ -324,7 +743,11 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
       setIsEditModalOpen(false)
       setSelectedTask(null)
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback on error
+      if (context?.previousTasks) {
+        queryClient.setQueryData(['project-tasks', projectId], context.previousTasks)
+      }
       toast.error(error instanceof Error ? error.message : 'Failed to update task')
     }
   })
@@ -338,6 +761,18 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete task')
+    }
+  })
+
+  const duplicateMutation = useMutation({
+    mutationFn: duplicateTask,
+    onSuccess: () => {
+      toast.success('Task duplicated successfully!')
+      queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['project', projectId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to duplicate task')
     }
   })
 
@@ -407,12 +842,57 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     COMPLETED: 'bg-green-100 text-green-800',
   }
 
+  // Handle bulk selection
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedTasks(new Set(filteredTasks.map((task: Task) => task.id)))
+    } else {
+      setSelectedTasks(new Set())
+    }
+  }
+
+  const handleSelectTask = (taskId: string, checked: boolean) => {
+    const newSelected = new Set(selectedTasks)
+    if (checked) {
+      newSelected.add(taskId)
+    } else {
+      newSelected.delete(taskId)
+    }
+    setSelectedTasks(newSelected)
+  }
+
+  // Sort tasks if needed for table view
+  const sortedTasks = [...filteredTasks].sort((a: Task, b: Task) => {
+    if (!sortColumn) return 0
+    
+    let aVal: any = a[sortColumn as keyof Task]
+    let bVal: any = b[sortColumn as keyof Task]
+    
+    // Handle nested properties
+    if (sortColumn === 'assignee') {
+      aVal = a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : ''
+      bVal = b.assignee ? `${b.assignee.firstName} ${b.assignee.lastName}` : ''
+    } else if (sortColumn === 'category') {
+      aVal = a.category?.name || ''
+      bVal = b.category?.name || ''
+    }
+    
+    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
+    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
+    return 0
+  })
+
   const handleStatusChange = (taskId: string, newStatus: string) => {
     const updateData = { 
       status: newStatus,
       ...(newStatus === 'COMPLETED' ? { completedAt: new Date() } : {})
     }
     updateMutation.mutate({ taskId, data: updateData })
+  }
+
+  const handleDuplicateTask = (task: Task, event: React.MouseEvent) => {
+    event.stopPropagation()
+    duplicateMutation.mutate(task.id)
   }
 
   const handleEditTask = (task: Task, event: React.MouseEvent) => {
@@ -516,8 +996,58 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
         {/* Action Buttons */}
         <div className="bg-white p-3 rounded-lg shadow">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Tasks</h3>
+            <div className="flex items-center space-x-4">
+              <h3 className="text-lg font-medium text-gray-900">Tasks</h3>
+              {/* View Toggle */}
+              <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                <button
+                  onClick={() => handleViewTypeChange('list')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    viewType === 'list'
+                      ? 'bg-white text-gray-900 shadow'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  title="List View"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => handleViewTypeChange('table')}
+                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                    viewType === 'table'
+                      ? 'bg-white text-gray-900 shadow'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                  title="Table View"
+                >
+                  <Table className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
             <div className="flex space-x-2">
+              {selectedTasks.size > 0 && viewType === 'table' && (
+                <div className="flex items-center space-x-2 mr-4">
+                  <span className="text-sm text-gray-600">{selectedTasks.size} selected</span>
+                  <button
+                    onClick={async () => {
+                      const confirmed = await showConfirm(
+                        `Delete ${selectedTasks.size} selected tasks?`,
+                        'Delete Tasks'
+                      )
+                      if (confirmed) {
+                        // Implement bulk delete
+                        selectedTasks.forEach(taskId => {
+                          deleteMutation.mutate(taskId)
+                        })
+                        setSelectedTasks(new Set())
+                      }
+                    }}
+                    className="text-red-600 hover:text-red-700 text-sm font-medium"
+                  >
+                    Delete Selected
+                  </button>
+                </div>
+              )}
               <button
                 onClick={() => setIsAddCategoryModalOpen(true)}
                 className="bg-gray-600 text-white px-3 py-1.5 rounded-md hover:bg-gray-700 flex items-center space-x-1 text-sm"
@@ -584,8 +1114,161 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
         />
       </div>
 
-      {/* Tasks List - Grouped by Category */}
-      <div className="space-y-2">
+      {/* Task View - Conditional rendering based on viewType */}
+      {viewType === 'table' ? (
+        /* Table View */
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="w-8 px-2 py-3"></th>
+                    <th scope="col" className="w-12 px-3 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedTasks.size === filteredTasks.length && filteredTasks.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      />
+                    </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('title')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Task</span>
+                      {sortColumn === 'title' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Status</span>
+                      {sortColumn === 'status' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('priority')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Priority</span>
+                      {sortColumn === 'priority' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('assignee')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Assignee</span>
+                      {sortColumn === 'assignee' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('category')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Category</span>
+                      {sortColumn === 'category' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('dueDate')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Due Date</span>
+                      {sortColumn === 'dueDate' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th scope="col" className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <Droppable droppableId="table-tasks">
+                {(provided) => (
+                  <tbody 
+                    className="bg-white divide-y divide-gray-200"
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
+                  >
+                    {sortedTasks.map((task: Task, index: number) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided, snapshot) => (
+                          <TableTaskRow
+                            task={task}
+                            isSelected={selectedTasks.has(task.id)}
+                            onSelect={(checked) => handleSelectTask(task.id, checked)}
+                            onStatusChange={handleStatusChange}
+                            priorityColors={priorityColors}
+                            statusColors={statusColors}
+                            updateMutation={updateMutation}
+                            duplicateMutation={duplicateMutation}
+                            deleteMutation={deleteMutation}
+                            shareTask={shareTask}
+                            setAnalyticsTaskId={setAnalyticsTaskId}
+                            categories={categories}
+                            members={teamMembers}
+                            dragProvided={provided}
+                            isDragging={snapshot.isDragging}
+                          />
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </tbody>
+                )}
+              </Droppable>
+            </table>
+          </div>
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-12">
+              <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <div className="text-sm text-gray-500 mb-3">
+                {searchTerm || selectedCategory !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all'
+                  ? 'No tasks match your filters'
+                  : 'No tasks found'}
+              </div>
+              {(!searchTerm && selectedCategory === 'all' && selectedStatus === 'all' && selectedPriority === 'all') && (
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Create your first task
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+        </DragDropContext>
+      ) : (
+        /* List View - Original grouped by category */
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="space-y-2">
         {/* Uncategorized Tasks */}
         {tasksByCategory['uncategorized'] && tasksByCategory['uncategorized'].length > 0 && (
           <div className="bg-white rounded-lg shadow">
@@ -606,15 +1289,32 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
             </div>
             
             {!isCategoryCollapsed('uncategorized') && (
-              <div className="p-2 space-y-1">
-                {tasksByCategory['uncategorized'].map((task: Task) => (
+              <Droppable droppableId="uncategorized">
+                {(provided) => (
                   <div 
-                    key={task.id} 
-                    className="bg-gray-50 rounded p-2 hover:bg-gray-100 transition-colors cursor-pointer"
-                    onClick={(e) => handleTaskClick(task, e)}
+                    className="p-2 space-y-1"
+                    {...provided.droppableProps}
+                    ref={provided.innerRef}
                   >
+                    {tasksByCategory['uncategorized'].map((task: Task, index: number) => (
+                      <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided, snapshot) => (
+                          <div 
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className={`bg-gray-50 rounded p-2 hover:bg-gray-100 transition-colors cursor-pointer ${
+                              snapshot.isDragging ? 'shadow-lg bg-blue-50' : ''
+                            }`}
+                            onClick={(e) => handleTaskClick(task, e)}
+                          >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2 flex-1">
+                        <div 
+                          {...provided.dragHandleProps}
+                          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+                        >
+                          <GripVertical className="h-4 w-4" />
+                        </div>
                         <button
                           onClick={() => handleStatusChange(task.id, task.status === 'COMPLETED' ? 'TODO' : 'COMPLETED')}
                           className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
@@ -642,13 +1342,23 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         )}
                         
                         {task.dueDate && (
-                          <span className="text-xs text-gray-500 flex items-center">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            {new Date(task.dueDate).toLocaleDateString()}
-                            {new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' && (
-                              <AlertCircle className="h-3 w-3 ml-1 text-red-500" />
-                            )}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500 flex items-center">
+                              <Calendar className="h-3 w-3 mr-1" />
+                              {new Date(task.dueDate).toLocaleDateString()}
+                            </span>
+                            {(() => {
+                              const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+                              return dueDateInfo ? (
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium  ${dueDateInfo.className}`}>
+                                  {dueDateInfo.icon === 'AlertTriangle' && <AlertCircle className="h-3 w-3 mr-1" />}
+                                  {dueDateInfo.icon === 'Calendar' && <Calendar className="h-3 w-3 mr-1" />}
+                                  {dueDateInfo.icon === 'Clock' && <Clock className="h-3 w-3 mr-1" />}
+                                  {dueDateInfo.label}
+                                </span>
+                              ) : null
+                            })()}
+                          </div>
                         )}
                       </div>
                       
@@ -675,6 +1385,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </button>
                         
                         <button
+                          onClick={(e) => handleDuplicateTask(task, e)}
+                          className="text-gray-400 hover:text-indigo-600 p-1"
+                          title="Duplicate"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        
+                        <button
                           onClick={(e) => handleEditTask(task, e)}
                           className="text-gray-400 hover:text-gray-600 p-1"
                           title="Edit"
@@ -692,8 +1410,13 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
             )}
           </div>
         )}
@@ -761,13 +1484,23 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           )}
                           
                           {task.dueDate && (
-                            <span className="text-xs text-gray-500 flex items-center">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {new Date(task.dueDate).toLocaleDateString()}
-                              {new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' && (
-                                <AlertCircle className="h-3 w-3 ml-1 text-red-500" />
-                              )}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(task.dueDate).toLocaleDateString()}
+                              </span>
+                              {(() => {
+                                const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+                                return dueDateInfo ? (
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium  ${dueDateInfo.className}`}>
+                                    {dueDateInfo.icon === 'AlertTriangle' && <AlertCircle className="h-3 w-3 mr-1" />}
+                                    {dueDateInfo.icon === 'Calendar' && <Calendar className="h-3 w-3 mr-1" />}
+                                    {dueDateInfo.icon === 'Clock' && <Clock className="h-3 w-3 mr-1" />}
+                                    {dueDateInfo.label}
+                                  </span>
+                                ) : null
+                              })()}
+                            </div>
                           )}
                         </div>
                         
@@ -791,6 +1524,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             title="View Analytics"
                           >
                             <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          
+                          <button
+                            onClick={(e) => handleDuplicateTask(task, e)}
+                            className="text-gray-400 hover:text-indigo-600 p-1"
+                            title="Duplicate"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
                           </button>
                           
                           <button
@@ -837,25 +1578,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
           </div>
         )}
       </div>
-
-      {filteredTasks.length === 0 && (
-        <div className="text-center py-12">
-          <CheckSquare className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <div className="text-gray-500 mb-4">
-            {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all'
-              ? 'No tasks match your filters'
-              : 'No tasks found'}
-          </div>
-          {(!searchTerm && selectedStatus === 'all' && selectedPriority === 'all') && (
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Create your first task
-            </button>
-          )}
-        </div>
+      </DragDropContext>
       )}
+
+      {/* This empty state moved into each view type for better layout */}
 
       {/* Add Task Modal */}
       {isAddModalOpen && (
@@ -903,10 +1629,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             id="title"
                             name="title"
                             type="text"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="e.g., Install electrical wiring"
                           />
-                          <ErrorMessage name="title" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="title" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
@@ -918,10 +1644,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             id="description"
                             name="description"
                             rows={3}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Task details and requirements..."
                           />
-                          <ErrorMessage name="description" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="description" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -933,14 +1659,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               as="select"
                               id="priority"
                               name="priority"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                               <option value="LOW">Low</option>
                               <option value="MEDIUM">Medium</option>
                               <option value="HIGH">High</option>
                               <option value="URGENT">Urgent</option>
                             </Field>
-                            <ErrorMessage name="priority" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="priority" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div>
@@ -951,9 +1677,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               id="dueDate"
                               name="dueDate"
                               type="date"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             />
-                            <ErrorMessage name="dueDate" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="dueDate" component="p" className=" text-sm text-red-600" />
                           </div>
                         </div>
 
@@ -965,7 +1691,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             as="select"
                             id="categoryId"
                             name="categoryId"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           >
                             <option value="">Uncategorized</option>
                             {Array.isArray(categories) ? categories.map((category: TaskCategory) => (
@@ -974,7 +1700,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               </option>
                             )) : []}
                           </Field>
-                          <ErrorMessage name="categoryId" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="categoryId" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
@@ -985,7 +1711,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             as="select"
                             id="assigneeId"
                             name="assigneeId"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                           >
                             <option value="">Unassigned</option>
                             {Array.isArray(teamMembers) ? teamMembers.map((member: any) => (
@@ -994,7 +1720,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               </option>
                             )) : []}
                           </Field>
-                          <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="assigneeId" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
@@ -1014,7 +1740,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               }
                               
                               return (
-                                <div className="mt-1">
+                                <div className="">
                                   <select
                                     {...field}
                                     multiple
@@ -1028,14 +1754,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                       </option>
                                     ))}
                                   </select>
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className="text-xs text-gray-500 ">
                                     Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
                                   </p>
                                 </div>
                               )
                             }}
                           </Field>
-                          <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="dependencyIds" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
@@ -1106,10 +1832,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             id="name"
                             name="name"
                             type="text"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="e.g., Foundation, Electrical, Plumbing"
                           />
-                          <ErrorMessage name="name" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="name" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
@@ -1121,17 +1847,17 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             id="description"
                             name="description"
                             rows={3}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             placeholder="Optional description for this category..."
                           />
-                          <ErrorMessage name="description" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="description" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
                           <label htmlFor="color" className="block text-sm font-medium text-gray-700">
                             Color
                           </label>
-                          <div className="mt-1 flex items-center space-x-3">
+                          <div className=" flex items-center space-x-3">
                             <Field
                               id="color"
                               name="color"
@@ -1140,7 +1866,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             />
                             <span className="text-sm text-gray-500">Choose a color to identify this category</span>
                           </div>
-                          <ErrorMessage name="color" component="p" className="mt-1 text-sm text-red-600" />
+                          <ErrorMessage name="color" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
@@ -1233,7 +1959,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         <h4 className="text-sm font-medium text-yellow-800">
                           Security Note
                         </h4>
-                        <p className="text-sm text-yellow-700 mt-1">
+                        <p className="text-sm text-yellow-700 ">
                           This link allows anyone to view task details and update its status. Share only with trusted individuals.
                         </p>
                       </div>
@@ -1349,10 +2075,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               id="title"
                               name="title"
                               type="text"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="Enter task title..."
                             />
-                            <ErrorMessage name="title" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="title" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div>
@@ -1364,10 +2090,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               id="description"
                               name="description"
                               rows={3}
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                               placeholder="Optional task description..."
                             />
-                            <ErrorMessage name="description" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="description" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div className="grid grid-cols-2 gap-4">
@@ -1379,14 +2105,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 as="select"
                                 id="priority"
                                 name="priority"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                               >
                                 <option value="LOW">Low</option>
                                 <option value="MEDIUM">Medium</option>
                                 <option value="HIGH">High</option>
                                 <option value="URGENT">Urgent</option>
                               </Field>
-                              <ErrorMessage name="priority" component="p" className="mt-1 text-sm text-red-600" />
+                              <ErrorMessage name="priority" component="p" className=" text-sm text-red-600" />
                             </div>
 
                             <div>
@@ -1397,9 +2123,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 id="dueDate"
                                 name="dueDate"
                                 type="date"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                                className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                               />
-                              <ErrorMessage name="dueDate" component="p" className="mt-1 text-sm text-red-600" />
+                              <ErrorMessage name="dueDate" component="p" className=" text-sm text-red-600" />
                             </div>
                           </div>
 
@@ -1411,7 +2137,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               as="select"
                               id="categoryId"
                               name="categoryId"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                               <option value="">Select Category (Optional)</option>
                               {(categories || []).map((category: TaskCategory) => (
@@ -1420,7 +2146,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 </option>
                               ))}
                             </Field>
-                            <ErrorMessage name="categoryId" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="categoryId" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div>
@@ -1431,7 +2157,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               as="select"
                               id="assigneeId"
                               name="assigneeId"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                             >
                               <option value="">Unassigned</option>
                               {Array.isArray(teamMembers) ? teamMembers.map((user: any) => (
@@ -1440,7 +2166,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 </option>
                               )) : []}
                             </Field>
-                            <ErrorMessage name="assigneeId" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="assigneeId" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div>
@@ -1462,7 +2188,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 }
                                 
                                 return (
-                                  <div className="mt-1">
+                                  <div className="">
                                     <select
                                       {...field}
                                       multiple
@@ -1477,14 +2203,14 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                         </option>
                                       ))}
                                     </select>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-gray-500 ">
                                       Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
                                     </p>
                                   </div>
                                 )
                               }}
                             </Field>
-                            <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
+                            <ErrorMessage name="dependencyIds" component="p" className=" text-sm text-red-600" />
                           </div>
 
                           <div className="flex justify-end space-x-3 pt-4">

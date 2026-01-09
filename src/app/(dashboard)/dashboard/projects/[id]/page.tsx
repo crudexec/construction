@@ -377,23 +377,8 @@ export default function ProjectDetailPage() {
             </div>
           </div>
           
-          {/* Bold Action Buttons - Mobile Responsive */}
-          <div className="flex flex-wrap sm:flex-nowrap gap-2 sm:space-x-2">
-            <button 
-              onClick={handleAddTask}
-              className="bg-green-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-green-700 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
-              <Plus className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-              <span className="hidden sm:inline">Add Task</span>
-              <span className="sm:hidden">Task</span>
-            </button>
-            <button 
-              onClick={handleNewEstimate}
-              className="bg-blue-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-md hover:bg-blue-700 font-semibold text-xs sm:text-sm flex items-center justify-center space-x-1 flex-1 sm:flex-initial">
-              <FileText className="h-3.5 sm:h-4 w-3.5 sm:w-4" />
-              <span className="hidden sm:inline">New Estimate</span>
-              <span className="sm:hidden">Estimate</span>
-            </button>
-            {/* Project Options Dropdown */}
+          {/* Project Options Dropdown */}
+          <div className="flex justify-end">
             <div className="relative portal-dropdown">
               <button 
                 onClick={() => setShowPortalDropdown(!showPortalDropdown)}
@@ -451,26 +436,27 @@ export default function ProjectDetailPage() {
       </div>
 
 
-      {/* Compact Navigation Tabs - Settings Style */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      {/* Ultra Compact Horizontal Tabs */}
+      <div className="border-b border-gray-200 bg-gray-50">
+        <nav className="flex overflow-x-auto scrollbar-hide px-2">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (
               <button
                 key={tab.id}
                 onClick={() => handleTabChange(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                className={`relative flex items-center space-x-1 px-2 py-1.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary-500 text-primary-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                <span>{tab.name}</span>
+                <Icon className="h-3 w-3" />
+                <span className="hidden sm:block">{tab.name}</span>
+                <span className="sm:hidden">{tab.name.charAt(0)}</span>
                 {tab.count && tab.count > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center ml-1">
-                    {tab.count > 99 ? '99+' : tab.count}
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-3 w-3 flex items-center justify-center text-[10px]">
+                    {tab.count > 9 ? '9' : tab.count}
                   </span>
                 )}
               </button>
