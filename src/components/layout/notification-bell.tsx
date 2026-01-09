@@ -90,7 +90,7 @@ export function NotificationBell() {
   }, [])
 
   const handleMarkAllAsRead = () => {
-    markAsReadMutation.mutate()
+    markAsReadMutation.mutate(undefined)
   }
 
   const handleNotificationClick = (notification: Notification) => {

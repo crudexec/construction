@@ -515,7 +515,7 @@ function TableTaskRow({
       <td className="px-3 py-3 whitespace-nowrap">
         <div className="space-y-1">
           {(() => {
-            const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+            const dueDateInfo = getDueDateInfo(task.dueDate || null, task.status)
             return dueDateInfo ? (
               <div className="flex justify-center mb-1">
                 {dueDateInfo.icon === 'AlertTriangle' && (
@@ -1348,7 +1348,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               {new Date(task.dueDate).toLocaleDateString()}
                             </span>
                             {(() => {
-                              const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+                              const dueDateInfo = getDueDateInfo(task.dueDate || null, task.status)
                               return dueDateInfo ? (
                                 <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium  ${dueDateInfo.className}`}>
                                   {dueDateInfo.icon === 'AlertTriangle' && <AlertCircle className="h-3 w-3 mr-1" />}
@@ -1490,7 +1490,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 {new Date(task.dueDate).toLocaleDateString()}
                               </span>
                               {(() => {
-                                const dueDateInfo = getDueDateInfo(task.dueDate, task.status)
+                                const dueDateInfo = getDueDateInfo(task.dueDate || null, task.status)
                                 return dueDateInfo ? (
                                   <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium  ${dueDateInfo.className}`}>
                                     {dueDateInfo.icon === 'AlertTriangle' && <AlertCircle className="h-3 w-3 mr-1" />}
