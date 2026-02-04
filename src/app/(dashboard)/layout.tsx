@@ -2,8 +2,28 @@
 
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/auth'
-import { Sidebar } from '@/components/layout/sidebar'
+import { Sidebar, SidebarProvider, useSidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+
+function DashboardContent({ children }: { children: React.ReactNode }) {
+  const { isCollapsed } = useSidebar()
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar />
+      <div 
+        className={`transition-all duration-300 ${
+          isCollapsed ? 'pl-16' : 'pl-64'
+        }`}
+      >
+        <Header />
+        <main className="py-6 px-4 sm:px-6 lg:px-8">
+          {children}
+        </main>
+      </div>
+    </div>
+  )
+}
 
 export default function DashboardLayout({
   children,
@@ -21,14 +41,10 @@ export default function DashboardLayout({
   // This prevents client-side redirects that cause flashing
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="pl-16 lg:pl-64">
-        <Header />
-        <main className="py-6 px-4 sm:px-6 lg:px-8">
-          {children}
-        </main>
-      </div>
-    </div>
+    <SidebarProvider>
+      <DashboardContent>
+        {children}
+      </DashboardContent>
+    </SidebarProvider>
   )
 }

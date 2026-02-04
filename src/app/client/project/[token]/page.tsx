@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
-import { 
+import {
   Building,
   Calendar,
   CheckCircle,
@@ -28,6 +28,7 @@ import {
   Users,
   Briefcase
 } from 'lucide-react'
+import { formatCurrency } from '@/lib/currency'
 
 interface ClientProjectData {
   project: {
@@ -59,6 +60,7 @@ interface ClientProjectData {
     website?: string
     phone?: string
     email?: string
+    currency?: string
   }
   projectManager?: {
     firstName: string
@@ -264,7 +266,17 @@ export default function ClientPortalPage() {
     )
   }
 
-  const { project, company, projectManager, metrics, tasksByCategory, images, documents, activities, estimates } = projectData
+  const {
+    project,
+    company,
+    projectManager,
+    metrics,
+    tasksByCategory = [],
+    images = [],
+    documents = [],
+    activities = [],
+    estimates = []
+  } = projectData
 
   const tabs = [
     { id: 'overview', name: 'Overview', icon: Home },
@@ -443,7 +455,7 @@ export default function ClientPortalPage() {
                     <div className="ml-3">
                       <p className="text-sm text-gray-500">Budget</p>
                       <p className="font-semibold">
-                        ${project.budget?.toLocaleString() || 'TBD'}
+                        {project.budget ? formatCurrency(project.budget, company.currency) : 'TBD'}
                       </p>
                     </div>
                   </div>
@@ -774,7 +786,7 @@ export default function ClientPortalPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-2xl font-bold text-gray-900">
-                            ${estimate.total.toLocaleString()}
+                            {formatCurrency(estimate.total, company.currency)}
                           </p>
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
                             estimate.status === 'ACCEPTED' ? 'bg-green-100 text-green-800' :

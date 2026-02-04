@@ -83,7 +83,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-2">
               <Building2 className="h-8 w-8 text-gray-900" />
-              <span className="text-xl font-bold text-gray-900">BuildFlow CRM</span>
+              <span className="text-xl font-bold text-gray-900">BuildFlo</span>
             </div>
             <div className="flex items-center space-x-6">
               <Link
@@ -255,7 +255,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-gray-50 rounded-2xl p-12 border border-gray-200">
             <p className="text-xl text-gray-700 italic mb-6 leading-relaxed">
-              "BuildFlow transformed how we manage our construction business. We've doubled our project capacity 
+              "BuildFlo transformed how we manage our construction business. We've doubled our project capacity 
               without adding admin staff. The ROI was immediate."
             </p>
             <div className="flex items-center justify-center space-x-4">
@@ -300,7 +300,7 @@ export default function HomePage() {
             Ready to streamline your construction business?
           </h2>
           <p className="text-lg text-gray-300 mb-8">
-            Join hundreds of contractors who've simplified their operations with BuildFlow.
+            Join hundreds of contractors who've simplified their operations with BuildFlo.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
@@ -326,7 +326,7 @@ export default function HomePage() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <Building2 className="h-6 w-6 text-gray-900" />
-              <span className="text-sm font-semibold text-gray-900">BuildFlow CRM</span>
+              <span className="text-sm font-semibold text-gray-900">BuildFlo</span>
             </div>
             <div className="flex items-center space-x-6 text-sm text-gray-600">
               <Link href="#" className="hover:text-gray-900 transition-colors">Privacy</Link>
@@ -334,7 +334,7 @@ export default function HomePage() {
               <Link href="#" className="hover:text-gray-900 transition-colors">Contact</Link>
             </div>
             <div className="text-sm text-gray-500 mt-4 md:mt-0">
-              © 2024 BuildFlow CRM. All rights reserved.
+              © 2024 BuildFlo. All rights reserved.
             </div>
           </div>
         </div>

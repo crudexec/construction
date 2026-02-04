@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
-import { 
+import {
   DollarSign,
   Plus,
   TrendingUp,
@@ -17,6 +17,7 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useCurrency } from '@/hooks/useCurrency'
 
 interface ProjectFinancialProps {
   projectId: string
@@ -124,6 +125,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [viewType, setViewType] = useState<'budget' | 'expenses'>('budget')
   const queryClient = useQueryClient()
+  const { format: formatCurrency, symbol: currencySymbol } = useCurrency()
 
   const { data: budgetItems = [], isLoading } = useQuery({
     queryKey: ['budget-items', projectId],
@@ -231,7 +233,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div>
               <p className="text-sm font-medium text-gray-500">Total Budget</p>
               <p className="text-2xl font-semibold text-gray-900">
-                ${totalBudget.toLocaleString()}
+                {formatCurrency(totalBudget)}
               </p>
             </div>
             <DollarSign className="h-8 w-8 text-blue-500" />
@@ -243,7 +245,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div>
               <p className="text-sm font-medium text-gray-500">Total Expenses</p>
               <p className="text-2xl font-semibold text-gray-900">
-                ${expenses.toLocaleString()}
+                {formatCurrency(expenses)}
               </p>
             </div>
             <TrendingUp className="h-8 w-8 text-red-500" />
@@ -255,7 +257,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div>
               <p className="text-sm font-medium text-gray-500">Remaining Budget</p>
               <p className={`text-2xl font-semibold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ${remainingBudget.toLocaleString()}
+                {formatCurrency(remainingBudget)}
               </p>
             </div>
             <Calculator className="h-8 w-8 text-green-500" />
@@ -281,7 +283,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-medium text-gray-900">Budget Progress</h3>
           <div className="text-sm text-gray-500">
-            ${expenses.toLocaleString()} of ${totalBudget.toLocaleString()}
+            {formatCurrency(expenses)} of {formatCurrency(totalBudget)}
           </div>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-4">
@@ -298,7 +300,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
         {budgetUsedPercentage > 100 && (
           <p className="text-sm text-red-600 mt-2 flex items-center">
             <AlertTriangle className="h-4 w-4 mr-1" />
-            Project is ${(expenses - totalBudget).toLocaleString()} over budget
+            Project is {formatCurrency(expenses - totalBudget)} over budget
           </p>
         )}
       </div>
@@ -311,7 +313,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-red-700">Paid Expenses</span>
               <span className="text-lg font-semibold text-red-800">
-                ${paidExpenses.toLocaleString()}
+                {formatCurrency(paidExpenses)}
               </span>
             </div>
           </div>
@@ -319,7 +321,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-orange-700">Unpaid Expenses</span>
               <span className="text-lg font-semibold text-orange-800">
-                ${unpaidExpenses.toLocaleString()}
+                {formatCurrency(unpaidExpenses)}
               </span>
             </div>
           </div>
@@ -373,9 +375,9 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
             <div className="px-6 py-4 border-b border-gray-200">
               <h4 className="text-md font-medium text-gray-900">{category}</h4>
               <p className="text-sm text-gray-500">
-                ${itemsByCategory[category].reduce((sum: number, item: BudgetItem) => 
+                {formatCurrency(itemsByCategory[category].reduce((sum: number, item: BudgetItem) =>
                   sum + (item.amount * item.quantity), 0
-                ).toLocaleString()} total
+                ))} total
               </p>
             </div>
             <div className="divide-y divide-gray-200">
@@ -397,10 +399,10 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
                     )}
                     <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
                       <span>
-                        {item.quantity} {item.unit || 'units'} × ${item.amount.toLocaleString()}
+                        {item.quantity} {item.unit || 'units'} × {formatCurrency(item.amount)}
                       </span>
                       <span className="font-medium">
-                        = ${(item.amount * item.quantity).toLocaleString()}
+                        = {formatCurrency(item.amount * item.quantity)}
                       </span>
                       {item.isPaid && item.paidAt && (
                         <span>Paid {new Date(item.paidAt).toLocaleDateString()}</span>
@@ -572,7 +574,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
 
                           <div>
                             <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-                              Unit Price * ($)
+                              Unit Price * ({currencySymbol})
                             </label>
                             <Field
                               id="amount"
@@ -589,7 +591,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
                         <div className="p-4 bg-gray-50 rounded-lg">
                           <p className="text-sm text-gray-600">
                             Total: <span className="font-semibold">
-                              ${((values.quantity || 0) * (values.amount || 0)).toLocaleString()}
+                              {formatCurrency((values.quantity || 0) * (values.amount || 0))}
                             </span>
                           </p>
                         </div>

@@ -6,7 +6,7 @@ import { Providers } from '@/components/providers'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'BuildFlow CRM - Project Management System',
+  title: 'BuildFlo - Project Management System',
   description: 'Modern CRM and project management system for construction companies',
 }
 

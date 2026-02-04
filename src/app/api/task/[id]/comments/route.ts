@@ -41,9 +41,10 @@ export async function GET(
 
     // Fetch all comments for the task
     const comments = await prisma.taskComment.findMany({
-      where: { 
+      where: {
         taskId,
-        deletedAt: null // Don't show deleted comments
+        deletedAt: null, // Don't show deleted comments
+        parentId: null // Only top-level comments
       },
       include: {
         author: {
@@ -53,6 +54,14 @@ export async function GET(
             lastName: true,
             email: true,
             avatar: true
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true
           }
         },
         mentions: {
@@ -81,6 +90,14 @@ export async function GET(
                 avatar: true
               }
             },
+            vendor: {
+              select: {
+                id: true,
+                name: true,
+                companyName: true,
+                email: true
+              }
+            },
             mentions: {
               include: {
                 mentionedUser: {
@@ -104,7 +121,31 @@ export async function GET(
       }
     })
 
-    return NextResponse.json(comments)
+    // Normalize comments to include author info from either user or vendor
+    const normalizedComments = comments.map(comment => ({
+      ...comment,
+      author: comment.author || (comment.vendor ? {
+        id: `vendor-${comment.vendor.id}`,
+        firstName: comment.vendor.name,
+        lastName: `(Vendor)`,
+        email: comment.vendor.email,
+        avatar: null
+      } : null),
+      authorId: comment.authorId || (comment.vendor ? `vendor-${comment.vendor.id}` : null),
+      replies: comment.replies?.map(reply => ({
+        ...reply,
+        author: reply.author || (reply.vendor ? {
+          id: `vendor-${reply.vendor.id}`,
+          firstName: reply.vendor.name,
+          lastName: `(Vendor)`,
+          email: reply.vendor.email,
+          avatar: null
+        } : null),
+        authorId: reply.authorId || (reply.vendor ? `vendor-${reply.vendor.id}` : null)
+      })) || []
+    }))
+
+    return NextResponse.json(normalizedComments)
   } catch (error) {
     console.error('Error fetching task comments:', error)
     return NextResponse.json(

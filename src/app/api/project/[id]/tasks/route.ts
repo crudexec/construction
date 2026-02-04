@@ -21,9 +21,13 @@ export async function GET(
 
     const { id: projectId } = await params
 
+    // Get groupBy query parameter
+    const { searchParams } = new URL(request.url)
+    const groupBy = searchParams.get('groupBy') || 'category' // default to category
+
     // Verify project exists and user has access
     const project = await prisma.card.findFirst({
-      where: { 
+      where: {
         id: projectId,
         companyId: user.companyId
       }
@@ -34,7 +38,7 @@ export async function GET(
     }
 
     const tasks = await prisma.task.findMany({
-      where: { 
+      where: {
         cardId: projectId
       },
       include: {
@@ -42,7 +46,20 @@ export async function GET(
           select: {
             id: true,
             name: true,
-            color: true
+            color: true,
+            order: true
+          }
+        },
+        milestone: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            status: true,
+            targetDate: true,
+            completedDate: true,
+            amount: true,
+            order: true
           }
         },
         assignee: {
@@ -60,6 +77,40 @@ export async function GET(
             lastName: true,
             email: true
           }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true
+          }
+        },
+        attachments: {
+          select: {
+            id: true,
+            fileName: true,
+            fileSize: true,
+            mimeType: true,
+            url: true,
+            createdAt: true,
+            uploader: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            uploadedByVendor: {
+              select: {
+                id: true,
+                name: true,
+                companyName: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
         }
         // dependsOn: {
         //   select: {
@@ -69,12 +120,71 @@ export async function GET(
         //   }
         // }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      orderBy: [
+        {
+          order: 'asc'
+        },
+        {
+          createdAt: 'desc'
+        }
+      ]
     })
 
-    return NextResponse.json(tasks)
+    // Group by milestone if requested
+    if (groupBy === 'milestone') {
+      // Fetch all milestones for the project
+      const milestones = await prisma.projectMilestone.findMany({
+        where: { projectId },
+        orderBy: { order: 'asc' }
+      })
+
+      // Group tasks by milestone
+      const grouped = milestones.map(milestone => {
+        const milestoneTasks = tasks.filter(t => t.milestoneId === milestone.id)
+        const completedCount = milestoneTasks.filter(t => t.status === 'COMPLETED').length
+        const progress = milestoneTasks.length > 0 ? (completedCount / milestoneTasks.length) * 100 : 0
+
+        return {
+          milestone: {
+            ...milestone,
+            completedTasksCount: completedCount,
+            totalTasksCount: milestoneTasks.length,
+            progress: Math.round(progress)
+          },
+          tasks: milestoneTasks.sort((a, b) => (a.order || 0) - (b.order || 0))
+        }
+      })
+
+      // Add unassigned tasks group
+      const unassignedTasks = tasks.filter(t => !t.milestoneId).sort((a, b) => (a.order || 0) - (b.order || 0))
+      if (unassignedTasks.length > 0) {
+        grouped.push({
+          milestone: null,
+          tasks: unassignedTasks
+        })
+      }
+
+      return NextResponse.json({ groupBy: 'milestone', groups: grouped })
+    }
+
+    // Default: Sort tasks by category
+    const sortedTasks = tasks.sort((a, b) => {
+      // Both have categories - sort by category order, then task order
+      if (a.category && b.category) {
+        if (a.category.order !== b.category.order) {
+          return a.category.order - b.category.order
+        }
+        return (a.order || 0) - (b.order || 0)
+      }
+      // Only a has category - a comes first
+      if (a.category && !b.category) return -1
+      // Only b has category - b comes first
+      if (!a.category && b.category) return 1
+      // Neither has category - sort by task order
+      return (a.order || 0) - (b.order || 0)
+    })
+
+    return NextResponse.json(sortedTasks)
   } catch (error) {
     console.error('Error fetching project tasks:', error)
     return NextResponse.json(
@@ -130,6 +240,20 @@ export async function POST(
       }
     }
 
+    // If milestoneId is provided, verify it exists and belongs to the same project
+    if (body.milestoneId) {
+      const milestone = await prisma.projectMilestone.findFirst({
+        where: {
+          id: body.milestoneId,
+          projectId: projectId
+        }
+      })
+
+      if (!milestone) {
+        return NextResponse.json({ error: 'Invalid milestone' }, { status: 400 })
+      }
+    }
+
     // If dependencyIds are provided, verify they exist and belong to the same project
     if (body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0) {
       const dependencies = await prisma.task.findMany({
@@ -153,9 +277,10 @@ export async function POST(
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         cardId: projectId,
         categoryId: body.categoryId || null,
+        milestoneId: body.milestoneId || null,
         assigneeId: body.assigneeId || null,
         creatorId: user.id,
-        // dependsOn: body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0 
+        // dependsOn: body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0
         //   ? {
         //       connect: body.dependencyIds.map((id: string) => ({ id }))
         //     }

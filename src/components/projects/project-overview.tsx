@@ -1,185 +1,102 @@
 'use client'
 
-import { Calendar, DollarSign, MapPin, Phone, Mail, Users, Clock, Activity, Plus, FileText, CheckSquare, MessageSquare, Upload, UserPlus, Edit3, Target, TrendingUp, AlertCircle } from 'lucide-react'
+import { Calendar, Users, Activity, Plus, FileText, CheckSquare, MessageSquare, Upload, UserPlus, Edit3, TrendingUp, DollarSign, Target } from 'lucide-react'
+import { useCurrency } from '@/hooks/useCurrency'
+import { MilestoneCard } from './milestone-card'
 
 interface ProjectOverviewProps {
   project: any
   onAddTask?: () => void
+  onTeamClick?: () => void
+  progress?: number
+  totalTasks?: number
+  completedTasks?: number
+  inProgressTasks?: number
+  milestones?: any[]
+  onAddMilestone?: () => void
+  onEditMilestone?: (milestone: any) => void
+  onViewMilestoneTasks?: (milestoneId: string) => void
 }
 
-export function ProjectOverview({ project, onAddTask }: ProjectOverviewProps) {
+export function ProjectOverview({
+  project,
+  onAddTask,
+  onTeamClick,
+  progress = 0,
+  totalTasks = 0,
+  completedTasks = 0,
+  inProgressTasks = 0,
+  milestones = [],
+  onAddMilestone,
+  onEditMilestone,
+  onViewMilestoneTasks
+}: ProjectOverviewProps) {
+  const { format: formatCurrency } = useCurrency()
   return (
-    <div className="space-y-3">
-      {/* Compact Project Information - Mobile Responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* Combined Project & Client Details */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-            <h3 className="text-sm font-semibold text-gray-900">Project & Client Details</h3>
-            {project.contactEmail && (
-              <div className="flex gap-2">
-                <a href={`mailto:${project.contactEmail}`} className="bg-blue-600 text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 flex items-center space-x-1">
-                  <Mail className="h-3 w-3" />
-                  <span>Email</span>
-                </a>
-                {project.contactPhone && (
-                  <a href={`tel:${project.contactPhone}`} className="bg-green-600 text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:bg-green-700 flex items-center space-x-1">
-                    <Phone className="h-3 w-3" />
-                    <span>Call</span>
-                  </a>
-                )}
-              </div>
-            )}
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        {/* Progress Card */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all group">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">Progress</span>
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
           </div>
-          <div className="space-y-3">
-            {project.description && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                <p className="text-sm text-gray-900">{project.description}</p>
-              </div>
-            )}
-            
-            {project.projectAddress && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Location</label>
-                <div className="flex items-center text-sm text-gray-900">
-                  <MapPin className="h-3 w-3 mr-1 text-gray-500" />
-                  <span>
-                    {project.projectAddress}
-                    {project.projectCity && `, ${project.projectCity}`}
-                    {project.projectState && `, ${project.projectState}`}
-                    {project.projectZipCode && ` ${project.projectZipCode}`}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {(project.startDate || project.endDate) && (
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Timeline</label>
-                <div className="flex items-center text-sm text-gray-900">
-                  <Calendar className="h-3 w-3 mr-1 text-gray-500" />
-                  <span>
-                    {project.startDate && new Date(project.startDate).toLocaleDateString()}
-                    {project.startDate && project.endDate && ' - '}
-                    {project.endDate && new Date(project.endDate).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Client Info Section */}
-            <div className="pt-2 border-t border-gray-200">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {project.contactName && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">Client</label>
-                    <p className="text-sm text-gray-900">{project.contactName}</p>
-                  </div>
-                )}
-                
-                {project.contactEmail && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">Email</label>
-                    <p className="text-sm text-gray-900 truncate">{project.contactEmail}</p>
-                  </div>
-                )}
-                
-                {project.contactPhone && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">Phone</label>
-                    <p className="text-sm text-gray-900">{project.contactPhone}</p>
-                  </div>
-                )}
-                
-                {project.budget && (
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700">Budget</label>
-                    <p className="text-sm text-gray-900 font-semibold">${(project.budget || 0).toLocaleString()}</p>
-                  </div>
-                )}
-              </div>
-            </div>
+          <div className="flex items-end gap-2 mb-3">
+            <span className="text-3xl font-bold text-slate-900">{progress}</span>
+            <span className="text-lg text-slate-500 mb-1">%</span>
+          </div>
+          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-1000 ease-out"
+              style={{ width: `${progress}%` }}
+            ></div>
           </div>
         </div>
 
-        {/* Task Summary Widget */}
-        <div className="bg-white rounded-lg shadow p-4">
+        {/* Tasks Card */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all group">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-900 flex items-center">
-              <CheckSquare className="h-4 w-4 mr-2" />
-              Task Summary
-            </h3>
-            <button 
-              onClick={onAddTask || (() => alert('Add task functionality would navigate to tasks tab'))}
-              className="bg-primary-600 text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:bg-primary-700 flex items-center space-x-1">
-              <Plus className="h-3 w-3" />
-              <span>Add Task</span>
-            </button>
+            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">Tasks</span>
+            <CheckSquare className="h-4 w-4 text-blue-500" />
           </div>
-
-          {/* Task Stats */}
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="text-center p-2 bg-blue-50 rounded">
-              <Target className="h-4 w-4 text-blue-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">Total Tasks</p>
-              <p className="text-lg font-semibold text-gray-900">{project.metrics?.totalTasks || 0}</p>
-            </div>
-            
-            <div className="text-center p-2 bg-green-50 rounded">
-              <CheckSquare className="h-4 w-4 text-green-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">Completed</p>
-              <p className="text-lg font-semibold text-gray-900">{project.metrics?.completedTasks || 0}</p>
-            </div>
-            
-            <div className="text-center p-2 bg-yellow-50 rounded">
-              <Clock className="h-4 w-4 text-yellow-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">In Progress</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {(project.metrics?.totalTasks || 0) - (project.metrics?.completedTasks || 0)}
-              </p>
-            </div>
-            
-            <div className="text-center p-2 bg-purple-50 rounded">
-              <TrendingUp className="h-4 w-4 text-purple-500 mx-auto mb-1" />
-              <p className="text-xs text-gray-600">Progress</p>
-              <p className="text-lg font-semibold text-gray-900">{project.metrics?.progress || 0}%</p>
-            </div>
+          <div className="flex items-end gap-2 mb-1">
+            <span className="text-3xl font-bold text-slate-900">{completedTasks}</span>
+            <span className="text-lg text-slate-500 mb-1">/ {totalTasks}</span>
           </div>
+          <p className="text-xs text-slate-500">{inProgressTasks} in progress</p>
+        </div>
 
-          {/* Progress Bar */}
-          <div className="mb-3">
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>Overall Progress</span>
-              <span>{project.metrics?.progress || 0}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div
-                className={`h-2 rounded-full ${
-                  (project.metrics?.progress || 0) >= 90 ? 'bg-green-500' :
-                  (project.metrics?.progress || 0) >= 70 ? 'bg-blue-500' :
-                  (project.metrics?.progress || 0) >= 50 ? 'bg-yellow-500' :
-                  'bg-red-500'
-                }`}
-                style={{ width: `${project.metrics?.progress || 0}%` }}
-              />
-            </div>
+        {/* Budget Card */}
+        <div className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all group">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">Budget</span>
+            <DollarSign className="h-4 w-4 text-amber-500" />
           </div>
+          <div className="flex items-end gap-1">
+            <span className="text-3xl font-bold text-slate-900">
+              {formatCurrency(project.budget, { compact: true })}
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Total budget</p>
+        </div>
 
-          {/* Overdue Tasks Alert */}
-          {project.overdueTasks > 0 && (
-            <div className="p-2 bg-red-50 rounded flex items-center space-x-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              <span className="text-xs text-red-700">
-                {project.overdueTasks} task{project.overdueTasks > 1 ? 's' : ''} overdue
-              </span>
-            </div>
-          )}
+        {/* Team Card */}
+        <div
+          className="bg-white rounded-xl p-4 border border-slate-200 hover:shadow-md transition-all group cursor-pointer"
+          onClick={onTeamClick}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">Team</span>
+            <Users className="h-4 w-4 text-purple-500" />
+          </div>
+          <div className="flex items-end gap-2 mb-1">
+            <span className="text-3xl font-bold text-slate-900">{project.team?.length || 1}</span>
+          </div>
+          <p className="text-xs text-slate-500">Team members</p>
         </div>
       </div>
-
-
-      {/* Compact Team Members - Mobile Responsive */}
+      {/* Team Members - Mobile Responsive */}
       {project.assignedUsers?.length > 0 && (
         <div id="team-members" className="bg-white rounded-lg shadow p-4">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
@@ -206,6 +123,38 @@ export function ProjectOverview({ project, onAddTask }: ProjectOverviewProps) {
                   <p className="text-xs font-medium text-gray-900 truncate">{user.firstName} {user.lastName}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Milestones Section */}
+      {milestones && milestones.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+              <Target className="h-4 w-4 mr-2" />
+              <span>Milestones ({milestones.length})</span>
+            </h3>
+            {onAddMilestone && (
+              <button
+                onClick={onAddMilestone}
+                className="bg-blue-600 text-white px-2 sm:px-3 py-1 rounded text-xs font-semibold hover:bg-blue-700 flex items-center space-x-1"
+              >
+                <Plus className="h-3 w-3" />
+                <span className="hidden sm:inline">Add Milestone</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {milestones.map((milestone) => (
+              <MilestoneCard
+                key={milestone.id}
+                milestone={milestone}
+                onEdit={onEditMilestone}
+                onViewTasks={onViewMilestoneTasks}
+              />
             ))}
           </div>
         </div>

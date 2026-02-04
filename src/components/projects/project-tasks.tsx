@@ -5,13 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { 
-  Plus, 
+import {
+  Plus,
   Calendar,
   User,
   CheckSquare,
   Clock,
   AlertCircle,
+  AlertTriangle,
   MoreHorizontal,
   Edit,
   Trash2,
@@ -29,13 +30,21 @@ import {
   Check,
   ChevronUp,
   ArrowUpDown,
-  GripVertical
+  GripVertical,
+  Building2,
+  DollarSign,
+  CheckCircle,
+  XCircle,
+  Target,
+  Paperclip
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { TaskAnalytics } from '@/components/admin/task-analytics'
 import { CompactFilters } from '@/components/ui/compact-filters'
 import { useModal } from '@/components/ui/modal-provider'
 import { TaskComments } from '@/components/projects/task-comments'
+import { TaskAttachments } from '@/components/projects/task-attachments'
+import { useCurrency } from '@/hooks/useCurrency'
 
 interface ProjectTasksProps {
   projectId: string
@@ -61,11 +70,24 @@ interface Task {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   dueDate?: string
   completedAt?: string
+  order?: number
   category?: {
     id: string
     name: string
     color: string
+    order?: number
   }
+  milestone?: {
+    id: string
+    title: string
+    description?: string
+    status: string
+    targetDate?: string
+    completedDate?: string
+    amount?: number
+    order: number
+  }
+  milestoneId?: string
   assignee?: {
     id: string
     firstName: string
@@ -81,7 +103,46 @@ interface Task {
     title: string
     status: string
   }>
+  vendor?: {
+    id: string
+    name: string
+    companyName: string
+  }
+  budgetAmount?: number
+  approvedAmount?: number
+  completionPendingApproval?: boolean
+  completionRequestedAt?: string
+  completionApprovedAt?: string
+  completionApprover?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
+  attachments?: Array<{
+    id: string
+    fileName: string
+    fileSize: number
+    mimeType: string
+    url: string
+    uploader?: {
+      id: string
+      firstName: string
+      lastName: string
+    } | null
+    uploadedByVendor?: {
+      id: string
+      name: string
+      companyName: string
+    } | null
+    createdAt: string
+  }>
   createdAt: string
+}
+
+interface Vendor {
+  id: string
+  name: string
+  companyName: string
 }
 
 const taskSchema = Yup.object().shape({
@@ -90,7 +151,9 @@ const taskSchema = Yup.object().shape({
   priority: Yup.string().required('Priority is required'),
   dueDate: Yup.date(),
   categoryId: Yup.string(),
+  milestoneId: Yup.string(),
   assigneeId: Yup.string(),
+  vendorId: Yup.string(),
   dependencyIds: Yup.array().of(Yup.string())
 })
 
@@ -100,35 +163,24 @@ const categorySchema = Yup.object().shape({
   color: Yup.string().required('Color is required')
 })
 
-async function fetchProjectTasks(projectId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
-  const response = await fetch(`/api/project/${projectId}/tasks`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+async function fetchProjectTasks(projectId: string, groupBy?: string) {
+  const url = groupBy
+    ? `/api/project/${projectId}/tasks?groupBy=${groupBy}`
+    : `/api/project/${projectId}/tasks`
+  const response = await fetch(url, {
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to fetch tasks')
   return response.json()
 }
 
 async function createTask(projectId: string, data: any) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/project/${projectId}/tasks`, {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
+    headers: {
+      'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   })
   if (!response.ok) throw new Error('Failed to create task')
@@ -136,87 +188,64 @@ async function createTask(projectId: string, data: any) {
 }
 
 async function updateTask(taskId: string, data: any) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/task/${taskId}`, {
     method: 'PATCH',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
+    headers: {
+      'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   })
   if (!response.ok) throw new Error('Failed to update task')
   return response.json()
 }
 
+async function reorderTasks(projectId: string, taskIds: string[]) {
+  const response = await fetch(`/api/project/${projectId}/tasks/reorder`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify({ taskIds }),
+  })
+  if (!response.ok) throw new Error('Failed to reorder tasks')
+  return response.json()
+}
+
 async function deleteTask(taskId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/task/${taskId}`, {
     method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to delete task')
   return response.json()
 }
 
 async function duplicateTask(taskId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/task/${taskId}/duplicate`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to duplicate task')
   return response.json()
 }
 
 async function fetchProjectCategories(projectId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/project/${projectId}/categories`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to fetch categories')
   return response.json()
 }
 
 async function createCategory(projectId: string, data: any) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/project/${projectId}/categories`, {
     method: 'POST',
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
+    headers: {
+      'Content-Type': 'application/json'
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   })
   if (!response.ok) throw new Error('Failed to create category')
@@ -224,53 +253,29 @@ async function createCategory(projectId: string, data: any) {
 }
 
 async function deleteCategory(categoryId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/category/${categoryId}`, {
     method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to delete category')
   return response.json()
 }
 
 async function fetchTeamMembers() {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch('/api/users', {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to fetch team members')
   return response.json()
 }
 
 async function fetchProjectTeamMembers(projectId: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-    
   const response = await fetch(`/api/project/${projectId}/team`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+    credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to fetch project team members')
   const data = await response.json()
-  
+
   // The API returns { owner, teamMembers }, we want to combine them for the dropdown
   const allMembers = []
   if (data.owner) {
@@ -279,8 +284,16 @@ async function fetchProjectTeamMembers(projectId: string) {
   if (data.teamMembers && Array.isArray(data.teamMembers)) {
     allMembers.push(...data.teamMembers)
   }
-  
+
   return allMembers
+}
+
+async function fetchVendors(): Promise<Vendor[]> {
+  const response = await fetch('/api/vendors', {
+    credentials: 'include'
+  })
+  if (!response.ok) return []
+  return response.json()
 }
 
 // Helper function to get due date status and styling
@@ -550,6 +563,9 @@ function TableTaskRow({
           />
         </div>
       </td>
+      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
+        {new Date(task.createdAt).toLocaleDateString()}
+      </td>
       <td className="px-3 py-3 whitespace-nowrap">
         <div className="flex items-center space-x-1">
           <button
@@ -600,12 +616,18 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [analyticsTaskId, setAnalyticsTaskId] = useState<string | null>(null)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [editModalTab, setEditModalTab] = useState<'details' | 'comments'>('details')
+  const [editModalTab, setEditModalTab] = useState<'details' | 'internal' | 'comments' | 'attachments'>('details')
   const [viewType, setViewType] = useState<'list' | 'table'>(() => {
     if (typeof window !== 'undefined') {
       return (localStorage.getItem('taskViewType') as 'list' | 'table') || 'list'
     }
     return 'list'
+  })
+  const [groupBy, setGroupBy] = useState<'category' | 'milestone'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('taskGroupBy') as 'category' | 'milestone') || 'category'
+    }
+    return 'category'
   })
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
   const [sortColumn, setSortColumn] = useState<string | null>(null)
@@ -614,6 +636,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [editingField, setEditingField] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const { showConfirm } = useModal()
+  const { format: formatCurrency, symbol: currencySymbol } = useCurrency()
 
   // Open modal when shouldOpenAddModal prop is true
   useEffect(() => {
@@ -628,6 +651,12 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     localStorage.setItem('taskViewType', type)
   }
 
+  // Handle group by change and persist to localStorage
+  const handleGroupByChange = (type: 'category' | 'milestone') => {
+    setGroupBy(type)
+    localStorage.setItem('taskGroupBy', type)
+  }
+
   // Handle sorting
   const handleSort = (column: string) => {
     if (sortColumn === column) {
@@ -639,60 +668,331 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   }
 
   // Handle drag and drop
-  const handleDragEnd = (result: DropResult) => {
+  const handleDragEnd = async (result: DropResult) => {
     if (!result.destination) return
 
     const { source, destination } = result
-    
-    // If dragging within the same category/section
+
+    // Handle table view reordering (single droppable for all tasks)
+    if (source.droppableId === 'table-tasks' && destination.droppableId === 'table-tasks') {
+      // Use sortedTasks for table view
+      const currentTasks = queryClient.getQueryData<Task[]>(['project-tasks', projectId]) || []
+      const reorderedTasks = [...currentTasks]
+      const [removed] = reorderedTasks.splice(source.index, 1)
+
+      if (!removed) {
+        console.error('No task found at source index:', source.index)
+        return
+      }
+
+      reorderedTasks.splice(destination.index, 0, removed)
+
+      // Get the new order of task IDs
+      const reorderedTaskIds = reorderedTasks.map((task: Task) => task.id)
+
+      // Optimistically update the UI
+      queryClient.setQueryData(['project-tasks', projectId], (oldData: Task[]) => {
+        if (!oldData) return oldData
+
+        // Create a map of new orders
+        const orderMap = new Map<string, number>()
+        reorderedTaskIds.forEach((id: string, index: number) => {
+          orderMap.set(id, index)
+        })
+
+        // Update the order in the tasks array
+        return oldData.map((task: Task) => ({
+          ...task,
+          order: orderMap.get(task.id) ?? task.order
+        }))
+      })
+
+      // Call API to persist the order
+      try {
+        await reorderTasks(projectId, reorderedTaskIds)
+        toast.success('Task order updated')
+      } catch (error) {
+        // Revert on error by refetching
+        queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+        toast.error('Failed to update task order')
+      }
+      return
+    }
+
+    // Handle list view reordering (grouped by milestone or category)
     if (source.droppableId === destination.droppableId) {
+      // Same group reordering
+      if (groupBy === 'milestone') {
+        const milestoneId = source.droppableId
+        const milestoneData = tasksByMilestone[milestoneId]
+        if (!milestoneData) {
+          console.error('No milestone data found for:', milestoneId)
+          return
+        }
+
+        const tasksInMilestone = [...milestoneData.tasks]
+        const [removed] = tasksInMilestone.splice(source.index, 1)
+        if (!removed) return
+
+        tasksInMilestone.splice(destination.index, 0, removed)
+        const reorderedTaskIds = tasksInMilestone.map((task: Task) => task.id)
+
+        // Optimistically update the UI
+        queryClient.setQueryData(['project-tasks', projectId, groupBy], (oldData: any) => {
+          if (!oldData) return oldData
+
+          // If data is grouped (from API)
+          if (oldData.groupBy === 'milestone' && oldData.groups) {
+            return {
+              ...oldData,
+              groups: oldData.groups.map((group: any) => {
+                const groupId = group.milestone?.id || 'unassigned'
+                if (groupId === milestoneId) {
+                  return {
+                    ...group,
+                    tasks: reorderedTaskIds.map((id: string) =>
+                      tasksInMilestone.find((t: Task) => t.id === id)
+                    ).filter(Boolean)
+                  }
+                }
+                return group
+              })
+            }
+          }
+
+          // If data is flat array
+          if (Array.isArray(oldData)) {
+            const orderMap = new Map<string, number>()
+            reorderedTaskIds.forEach((id: string, index: number) => {
+              orderMap.set(id, index)
+            })
+
+            return oldData.map((task: Task) => {
+              if (orderMap.has(task.id)) {
+                return { ...task, order: orderMap.get(task.id) }
+              }
+              return task
+            })
+          }
+
+          return oldData
+        })
+
+        try {
+          await reorderTasks(projectId, reorderedTaskIds)
+          toast.success('Task order updated')
+        } catch (error) {
+          // Revert on error by refetching
+          queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+          toast.error('Failed to update task order')
+        }
+        return
+      }
+
+      // Category reordering (existing logic)
       const categoryId = source.droppableId
       const tasksInCategory = [...(tasksByCategory[categoryId] || [])]
+
+      if (tasksInCategory.length === 0) {
+        console.error('No tasks found in category:', categoryId)
+        return
+      }
+
       const [removed] = tasksInCategory.splice(source.index, 1)
+
+      if (!removed) {
+        console.error('No task found at source index:', source.index)
+        return
+      }
+
       tasksInCategory.splice(destination.index, 0, removed)
-      
-      // Update local state optimistically
-      const newTasksByCategory = { ...tasksByCategory }
-      newTasksByCategory[categoryId] = tasksInCategory
-      
-      // Here you would call an API to persist the order
-      // For now, we'll just update the UI optimistically
-      queryClient.setQueryData(['project-tasks', projectId], (oldData: any) => {
+
+      // Get the new order of task IDs for this category
+      const reorderedTaskIds = tasksInCategory.map((task: Task) => task.id)
+
+      // Optimistically update the UI
+      queryClient.setQueryData(['project-tasks', projectId], (oldData: Task[]) => {
         if (!oldData) return oldData
-        // Reorder tasks based on new position
-        return oldData
+
+        // Create a map of new orders
+        const orderMap = new Map<string, number>()
+        reorderedTaskIds.forEach((id: string, index: number) => {
+          orderMap.set(id, index)
+        })
+
+        // Update the order in the tasks array
+        return oldData.map((task: Task) => {
+          if (orderMap.has(task.id)) {
+            return { ...task, order: orderMap.get(task.id) }
+          }
+          return task
+        }).sort((a: Task, b: Task) => {
+          // Sort by category order first, then by task order
+          const categoryOrderA = a.category?.order ?? 999
+          const categoryOrderB = b.category?.order ?? 999
+          if (categoryOrderA !== categoryOrderB) return categoryOrderA - categoryOrderB
+          return (a.order ?? 0) - (b.order ?? 0)
+        })
       })
-      
-      toast.success('Task order updated')
+
+      // Call API to persist the order
+      try {
+        await reorderTasks(projectId, reorderedTaskIds)
+        toast.success('Task order updated')
+      } catch (error) {
+        // Revert on error by refetching
+        queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+        toast.error('Failed to update task order')
+      }
     } else {
-      // Moving between categories
-      const sourceCategory = source.droppableId
-      const destCategory = destination.droppableId
-      const sourceTasks = [...(tasksByCategory[sourceCategory] || [])]
-      const destTasks = [...(tasksByCategory[destCategory] || [])]
-      
-      const [movedTask] = sourceTasks.splice(source.index, 1)
-      destTasks.splice(destination.index, 0, movedTask)
-      
-      // Update the task's category
-      const newCategoryId = destCategory === 'uncategorized' ? null : destCategory
-      updateMutation.mutate({
-        taskId: movedTask.id,
-        data: { categoryId: newCategoryId }
-      })
+      // Moving between groups (milestone or category)
+      if (groupBy === 'milestone') {
+        // Moving between milestones
+        const sourceMilestoneId = source.droppableId
+        const destMilestoneId = destination.droppableId
+
+        const sourceData = tasksByMilestone[sourceMilestoneId]
+        const destData = tasksByMilestone[destMilestoneId]
+
+        if (!sourceData || !destData) {
+          console.error('Milestone data not found')
+          return
+        }
+
+        const sourceTasks = [...sourceData.tasks]
+        const [movedTask] = sourceTasks.splice(source.index, 1)
+
+        if (!movedTask) return
+
+        // Update the task's milestone
+        const newMilestoneId = destMilestoneId === 'unassigned' ? null : destMilestoneId
+
+        // Optimistically update the UI
+        queryClient.setQueryData(['project-tasks', projectId, groupBy], (oldData: any) => {
+          if (!oldData) return oldData
+
+          // If data is grouped (from API)
+          if (oldData.groupBy === 'milestone' && oldData.groups) {
+            return {
+              ...oldData,
+              groups: oldData.groups.map((group: any) => {
+                const groupId = group.milestone?.id || 'unassigned'
+
+                // Remove from source
+                if (groupId === sourceMilestoneId) {
+                  return {
+                    ...group,
+                    tasks: group.tasks.filter((t: Task) => t.id !== movedTask.id)
+                  }
+                }
+
+                // Add to destination
+                if (groupId === destMilestoneId) {
+                  const updatedTask = { ...movedTask, milestoneId: newMilestoneId }
+                  const newTasks = [...group.tasks]
+                  newTasks.splice(destination.index, 0, updatedTask)
+                  return {
+                    ...group,
+                    tasks: newTasks
+                  }
+                }
+
+                return group
+              })
+            }
+          }
+
+          // If data is flat array
+          if (Array.isArray(oldData)) {
+            return oldData.map((task: Task) => {
+              if (task.id === movedTask.id) {
+                return { ...task, milestoneId: newMilestoneId }
+              }
+              return task
+            })
+          }
+
+          return oldData
+        })
+
+        try {
+          await updateTask(movedTask.id, { milestoneId: newMilestoneId })
+          toast.success(`Task moved to ${destMilestoneId === 'unassigned' ? 'Unassigned' : destData.milestone?.title || 'milestone'}`)
+        } catch (error) {
+          // Revert on error
+          queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+          toast.error('Failed to move task')
+        }
+      } else {
+        // Moving between categories (existing logic)
+        const sourceCategory = source.droppableId
+        const destCategory = destination.droppableId
+        const sourceTasks = [...(tasksByCategory[sourceCategory] || [])]
+        const destTasks = [...(tasksByCategory[destCategory] || [])]
+
+        if (sourceTasks.length === 0) {
+          console.error('No tasks found in source category:', sourceCategory)
+          return
+        }
+
+        const [movedTask] = sourceTasks.splice(source.index, 1)
+
+        if (!movedTask) {
+          console.error('No task found at source index:', source.index)
+          return
+        }
+
+        destTasks.splice(destination.index, 0, movedTask)
+
+        // Update the task's category and reorder destination category
+        const newCategoryId = destCategory === 'uncategorized' ? null : destCategory
+        const reorderedDestTaskIds = destTasks.map((task: Task) => task.id)
+
+        // Update category first
+        updateMutation.mutate({
+          taskId: movedTask.id,
+          data: { categoryId: newCategoryId }
+        })
+
+        // Then reorder the destination category
+        try {
+          await reorderTasks(projectId, reorderedDestTaskIds)
+        } catch (error) {
+          console.error('Failed to reorder after category change:', error)
+        }
+      }
     }
   }
 
-  const { data: tasks = [], isLoading } = useQuery({
-    queryKey: ['project-tasks', projectId],
-    queryFn: () => fetchProjectTasks(projectId),
+  const { data: tasksData, isLoading } = useQuery({
+    queryKey: ['project-tasks', projectId, groupBy],
+    queryFn: () => fetchProjectTasks(projectId, groupBy === 'milestone' ? 'milestone' : undefined),
     enabled: !!projectId
   })
+
+  // Extract tasks - handle both flat array and grouped response
+  const tasks = tasksData?.groupBy === 'milestone'
+    ? tasksData.groups.flatMap((g: any) => g.tasks)
+    : (Array.isArray(tasksData) ? tasksData : [])
+
+  const milestonesWithTasks = tasksData?.groupBy === 'milestone' ? tasksData.groups : []
 
   const { data: categories = [] } = useQuery({
     queryKey: ['project-categories', projectId],
     queryFn: () => fetchProjectCategories(projectId),
     enabled: !!projectId
+  })
+
+  const { data: milestones = [] } = useQuery({
+    queryKey: ['project-milestones', projectId],
+    queryFn: async () => {
+      const response = await fetch(`/api/project/${projectId}/milestones`, {
+        credentials: 'include'
+      })
+      if (!response.ok) throw new Error('Failed to fetch milestones')
+      return response.json()
+    },
+    enabled: !!projectId && groupBy === 'milestone'
   })
 
   const { data: teamMembers = [] } = useQuery({
@@ -701,12 +1001,19 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     enabled: !!projectId
   })
 
+  const { data: vendors = [] } = useQuery({
+    queryKey: ['vendors'],
+    queryFn: fetchVendors
+  })
+
   const createMutation = useMutation({
     mutationFn: (data: any) => createTask(projectId, data),
     onSuccess: () => {
       toast.success('Task created successfully!')
+      // Invalidate all project-tasks queries (with any groupBy param)
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
       queryClient.invalidateQueries({ queryKey: ['project', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
       setIsAddModalOpen(false)
     },
     onError: (error) => {
@@ -719,9 +1026,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     onMutate: async ({ taskId, data }) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['project-tasks', projectId] })
-      
+
       // Snapshot the previous value
-      const previousTasks = queryClient.getQueryData(['project-tasks', projectId])
+      const previousTasks = queryClient.getQueryData(['project-tasks', projectId, groupBy])
       
       // Optimistically update the cache
       queryClient.setQueryData(['project-tasks', projectId], (old: any) => {
@@ -738,8 +1045,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     },
     onSuccess: () => {
       toast.success('Task updated successfully!')
+      // Invalidate all variations of project-tasks queries
       queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
       queryClient.invalidateQueries({ queryKey: ['project', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
       setIsEditModalOpen(false)
       setSelectedTask(null)
     },
@@ -749,6 +1058,50 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
         queryClient.setQueryData(['project-tasks', projectId], context.previousTasks)
       }
       toast.error(error instanceof Error ? error.message : 'Failed to update task')
+    }
+  })
+
+  // Separate mutation for internal tab updates (doesn't close modal)
+  const internalUpdateMutation = useMutation({
+    mutationFn: ({ taskId, data }: { taskId: string, data: any }) => updateTask(taskId, data),
+    onSuccess: (updatedTask) => {
+      toast.success('Saved')
+      queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+      // Update selectedTask with new values without closing modal
+      if (selectedTask) {
+        setSelectedTask({ ...selectedTask, ...updatedTask })
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to save')
+    }
+  })
+
+  const approvalMutation = useMutation({
+    mutationFn: async ({ taskId, action }: { taskId: string, action: 'approve' | 'reject' }) => {
+      const response = await fetch(`/api/task/${taskId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({ action })
+      })
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to process approval')
+      }
+      return response.json()
+    },
+    onSuccess: (updatedTask, { action }) => {
+      toast.success(action === 'approve' ? 'Task completion approved' : 'Task completion rejected')
+      queryClient.invalidateQueries({ queryKey: ['project-tasks', projectId] })
+      if (selectedTask) {
+        setSelectedTask({ ...selectedTask, ...updatedTask })
+      }
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to process approval')
     }
   })
 
@@ -820,14 +1173,38 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const tasksByCategory = filteredTasks.reduce((acc: { [key: string]: Task[] }, task: Task) => {
     const categoryId = task.category?.id || 'uncategorized'
     const categoryName = task.category?.name || 'Uncategorized'
-    
+
     if (!acc[categoryId]) {
       acc[categoryId] = []
     }
     acc[categoryId].push(task)
-    
+
     return acc
   }, {})
+
+  // Group tasks by milestone (only when groupBy is 'milestone')
+  const tasksByMilestone = groupBy === 'milestone' && milestonesWithTasks.length > 0
+    ? milestonesWithTasks.reduce((acc: { [key: string]: { milestone: any; tasks: Task[] } }, group: any) => {
+        const milestoneId = group.milestone?.id || 'unassigned'
+        acc[milestoneId] = {
+          milestone: group.milestone,
+          tasks: group.tasks
+        }
+        return acc
+      }, {})
+    : filteredTasks.reduce((acc: { [key: string]: { milestone: any; tasks: Task[] } }, task: Task) => {
+        const milestoneId = task.milestoneId || 'unassigned'
+
+        if (!acc[milestoneId]) {
+          acc[milestoneId] = {
+            milestone: task.milestone || null,
+            tasks: []
+          }
+        }
+        acc[milestoneId].tasks.push(task)
+
+        return acc
+      }, {})
 
   const priorityColors = {
     LOW: 'bg-gray-100 text-gray-800',
@@ -863,7 +1240,19 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
 
   // Sort tasks if needed for table view
   const sortedTasks = [...filteredTasks].sort((a: Task, b: Task) => {
-    if (!sortColumn) return 0
+    // Always sort by category first (primary sort)
+    const aCategoryOrder = a.category?.order ?? Number.MAX_VALUE
+    const bCategoryOrder = b.category?.order ?? Number.MAX_VALUE
+    
+    if (aCategoryOrder !== bCategoryOrder) {
+      return aCategoryOrder - bCategoryOrder
+    }
+    
+    // If categories are the same, apply secondary sort
+    if (!sortColumn) {
+      // Default to creation date if no column is selected
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    }
     
     let aVal: any = a[sortColumn as keyof Task]
     let bVal: any = b[sortColumn as keyof Task]
@@ -873,13 +1262,22 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
       aVal = a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : ''
       bVal = b.assignee ? `${b.assignee.firstName} ${b.assignee.lastName}` : ''
     } else if (sortColumn === 'category') {
+      // For category column sort, use the name for secondary sorting within same order
       aVal = a.category?.name || ''
       bVal = b.category?.name || ''
+    } else if (sortColumn === 'dueDate') {
+      aVal = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_VALUE
+      bVal = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_VALUE
+    } else if (sortColumn === 'createdAt') {
+      aVal = new Date(a.createdAt).getTime()
+      bVal = new Date(b.createdAt).getTime()
     }
     
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-    return 0
+    
+    // Tertiary sort by creation date if values are equal
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
   const handleStatusChange = (taskId: string, newStatus: string) => {
@@ -949,10 +1347,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
       setSharingTask(taskId)
       const response = await fetch(`/api/task/${taskId}/share`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${document.cookie.split('; ').find(row => row.startsWith('auth-token='))?.split('=')[1]}`,
-          'Cookie': document.cookie
-        }
+        credentials: 'include'
       })
 
       if (!response.ok) {
@@ -998,30 +1393,59 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-4">
               <h3 className="text-lg font-medium text-gray-900">Tasks</h3>
-              {/* View Toggle */}
-              <div className="flex items-center bg-gray-100 rounded-md p-0.5">
-                <button
-                  onClick={() => handleViewTypeChange('list')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    viewType === 'list'
-                      ? 'bg-white text-gray-900 shadow'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  title="List View"
-                >
-                  <List className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleViewTypeChange('table')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    viewType === 'table'
-                      ? 'bg-white text-gray-900 shadow'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  title="Table View"
-                >
-                  <Table className="h-4 w-4" />
-                </button>
+              <div className="flex items-center gap-3">
+                {/* Group By Toggle (only in list view) */}
+                {viewType === 'list' && (
+                  <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                    <button
+                      onClick={() => handleGroupByChange('category')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        groupBy === 'category'
+                          ? 'bg-white text-gray-900 shadow'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                      title="Group by Category"
+                    >
+                      <Folder className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleGroupByChange('milestone')}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        groupBy === 'milestone'
+                          ? 'bg-white text-gray-900 shadow'
+                          : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                      title="Group by Milestone"
+                    >
+                      <Target className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+                {/* View Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-md p-0.5">
+                  <button
+                    onClick={() => handleViewTypeChange('list')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      viewType === 'list'
+                        ? 'bg-white text-gray-900 shadow'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    title="List View"
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => handleViewTypeChange('table')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                      viewType === 'table'
+                        ? 'bg-white text-gray-900 shadow'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                    title="Table View"
+                  >
+                    <Table className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
             <div className="flex space-x-2">
@@ -1204,6 +1628,18 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       )}
                     </div>
                   </th>
+                  <th 
+                    scope="col" 
+                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('createdAt')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Created</span>
+                      {sortColumn === 'createdAt' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
                   <th scope="col" className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -1264,6 +1700,174 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
             </div>
           )}
         </div>
+        </DragDropContext>
+      ) : groupBy === 'milestone' ? (
+        /* List View - Grouped by Milestone */
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="space-y-2">
+            {/* Milestone Groups */}
+            {Object.entries(tasksByMilestone).map(([key, group]: [string, any]) => {
+              const { milestone, tasks: milestoneTasks } = group
+              const isUnassigned = key === 'unassigned' || !milestone
+              const milestoneId = milestone?.id || 'unassigned'
+
+              if (milestoneTasks.length === 0) return null
+
+              const completedCount = milestoneTasks.filter((t: Task) => t.status === 'COMPLETED').length
+              const progress = milestoneTasks.length > 0 ? Math.round((completedCount / milestoneTasks.length) * 100) : 0
+
+              return (
+                <div key={milestoneId} className="bg-white rounded-lg shadow">
+                  <div
+                    className="flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 border-b"
+                    onClick={() => toggleCategoryCollapse(milestoneId)}
+                  >
+                    <div className="flex items-center space-x-3 flex-1">
+                      {isCategoryCollapsed(milestoneId) ? (
+                        <ChevronRight className="h-4 w-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                      )}
+                      <Target className={`h-4 w-4 ${isUnassigned ? 'text-gray-500' : 'text-blue-600'}`} />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-medium text-gray-900">
+                            {isUnassigned ? 'Unassigned Tasks' : milestone.title}
+                          </h3>
+                          {!isUnassigned && milestone.status && (
+                            <span className={`px-2 py-0.5 text-xs rounded-full ${
+                              milestone.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                              milestone.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                              milestone.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {milestone.status.replace('_', ' ')}
+                            </span>
+                          )}
+                          <span className="text-xs text-gray-500">
+                            ({completedCount}/{milestoneTasks.length})
+                          </span>
+                        </div>
+                        {!isUnassigned && (
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
+                            <span>Progress: {progress}%</span>
+                            {milestone.targetDate && (
+                              <span>Due: {new Date(milestone.targetDate).toLocaleDateString()}</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {!isUnassigned && (
+                      <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 rounded-full transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {!isCategoryCollapsed(milestoneId) && (
+                    <Droppable droppableId={milestoneId}>
+                      {(provided) => (
+                        <div
+                          className="p-2 space-y-1"
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
+                        >
+                          {milestoneTasks.map((task: Task, index: number) => (
+                            <Draggable key={task.id} draggableId={task.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  className={`bg-gray-50 rounded p-2 hover:bg-gray-100 transition-colors cursor-pointer ${
+                                    snapshot.isDragging ? 'shadow-lg bg-blue-50' : ''
+                                  }`}
+                                  onClick={(e) => handleTaskClick(task, e)}
+                                >
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex items-start space-x-2 flex-1">
+                                      <div {...provided.dragHandleProps} className="mt-0.5">
+                                        <GripVertical className="h-4 w-4 text-gray-400" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <p className="text-sm font-medium text-gray-900">{task.title}</p>
+                                        {task.description && (
+                                          <p className="text-xs text-gray-500 mt-1 line-clamp-1">{task.description}</p>
+                                        )}
+                                        <div className="flex items-center gap-2 mt-1">
+                                          {task.category && (
+                                            <span
+                                              className="px-1.5 py-0.5 text-xs rounded"
+                                              style={{ backgroundColor: `${task.category.color}20`, color: task.category.color }}
+                                            >
+                                              {task.category.name}
+                                            </span>
+                                          )}
+                                          {task.assignee && (
+                                            <span className="text-xs text-gray-500 flex items-center">
+                                              <User className="h-3 w-3 mr-1" />
+                                              {task.assignee.firstName}
+                                            </span>
+                                          )}
+                                          {task.dueDate && (
+                                            <span className="text-xs text-gray-500 flex items-center">
+                                              <Calendar className="h-3 w-3 mr-1" />
+                                              {new Date(task.dueDate).toLocaleDateString()}
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={task.status}
+                                        onChange={(e) => {
+                                          e.stopPropagation()
+                                          handleStatusChange(task.id, e.target.value)
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        disabled={updateMutation.isPending}
+                                        className={`px-2 py-1 text-xs rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                          task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                          task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                          'bg-gray-100 text-gray-700'
+                                        }`}
+                                      >
+                                        <option value="TODO">To Do</option>
+                                        <option value="IN_PROGRESS">In Progress</option>
+                                        <option value="COMPLETED">Completed</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  )}
+                </div>
+              )
+            })}
+
+            {/* Empty State */}
+            {Object.keys(tasksByMilestone).length === 0 && (
+              <div className="bg-white rounded-lg shadow p-12 text-center">
+                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
+                <p className="text-gray-500 mb-4">
+                  {milestones.length === 0
+                    ? 'Create a milestone first, then add tasks to it.'
+                    : 'Tasks will appear here when assigned to milestones.'}
+                </p>
+              </div>
+            )}
+          </div>
         </DragDropContext>
       ) : (
         /* List View - Original grouped by category */
@@ -1331,10 +1935,21 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${priorityColors[task.priority]}`}>
                           {task.priority}
                         </span>
-                        <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${statusColors[task.status]}`}>
-                          {task.status.replace(/_/g, ' ')}
-                        </span>
-                        
+                        <select
+                          value={task.status}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            handleStatusChange(task.id, e.target.value)
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          disabled={updateMutation.isPending}
+                          className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${statusColors[task.status]}`}
+                        >
+                          <option value="TODO">To Do</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="COMPLETED">Completed</option>
+                        </select>
+
                         {task.assignee && (
                           <span className="text-xs text-gray-500">
                             {task.assignee.firstName} {task.assignee.lastName}
@@ -1473,10 +2088,21 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${priorityColors[task.priority]}`}>
                             {task.priority}
                           </span>
-                          <span className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${statusColors[task.status]}`}>
-                            {task.status.replace(/_/g, ' ')}
-                          </span>
-                          
+                          <select
+                            value={task.status}
+                            onChange={(e) => {
+                              e.stopPropagation()
+                              handleStatusChange(task.id, e.target.value)
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            disabled={updateMutation.isPending}
+                            className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 ${statusColors[task.status]}`}
+                          >
+                            <option value="TODO">To Do</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="COMPLETED">Completed</option>
+                          </select>
+
                           {task.assignee && (
                             <span className="text-xs text-gray-500">
                               {task.assignee.firstName} {task.assignee.lastName}
@@ -1613,6 +2239,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       priority: 'MEDIUM',
                       dueDate: '',
                       categoryId: '',
+                      milestoneId: '',
                       assigneeId: '',
                       dependencyIds: []
                     }}
@@ -1701,6 +2328,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             )) : []}
                           </Field>
                           <ErrorMessage name="categoryId" component="p" className=" text-sm text-red-600" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="milestoneId" className="block text-sm font-medium text-gray-700">
+                            <div className="flex items-center gap-2">
+                              <Target className="h-4 w-4 text-gray-400" />
+                              <span>Milestone</span>
+                            </div>
+                          </label>
+                          <Field
+                            as="select"
+                            id="milestoneId"
+                            name="milestoneId"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          >
+                            <option value="">No milestone</option>
+                            {Array.isArray(milestones) ? milestones.map((milestone: any) => (
+                              <option key={milestone.id} value={milestone.id}>
+                                {milestone.title}
+                              </option>
+                            )) : []}
+                          </Field>
+                          <ErrorMessage name="milestoneId" component="p" className=" text-sm text-red-600" />
                         </div>
 
                         <div>
@@ -2046,6 +2696,27 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         0
                       </span>
                     </button>
+                    <button
+                      onClick={() => setEditModalTab('internal')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                        editModalTab === 'internal'
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Internal
+                    </button>
+                    <button
+                      onClick={() => setEditModalTab('attachments')}
+                      className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                        editModalTab === 'attachments'
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      <span>Attachments</span>
+                    </button>
                   </nav>
                 </div>
                 
@@ -2059,7 +2730,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         priority: selectedTask.priority || 'MEDIUM',
                         dueDate: selectedTask.dueDate ? new Date(selectedTask.dueDate).toISOString().split('T')[0] : '',
                         categoryId: selectedTask.category?.id || '',
+                        milestoneId: selectedTask.milestone?.id || '',
                         assigneeId: selectedTask.assignee?.id || '',
+                        vendorId: selectedTask.vendor?.id || '',
                         dependencyIds: selectedTask.dependsOn?.map(d => d.id) || []
                       }}
                       validationSchema={taskSchema}
@@ -2150,6 +2823,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           </div>
 
                           <div>
+                            <label htmlFor="milestoneId" className="block text-sm font-medium text-gray-700">
+                              <div className="flex items-center gap-2">
+                                <Target className="h-4 w-4 text-gray-400" />
+                                <span>Milestone</span>
+                              </div>
+                            </label>
+                            <Field
+                              as="select"
+                              id="milestoneId"
+                              name="milestoneId"
+                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            >
+                              <option value="">No milestone</option>
+                              {(milestones || []).map((milestone: any) => (
+                                <option key={milestone.id} value={milestone.id}>
+                                  {milestone.title}
+                                </option>
+                              ))}
+                            </Field>
+                            <ErrorMessage name="milestoneId" component="p" className="text-sm text-red-600" />
+                          </div>
+
+                          <div>
                             <label htmlFor="assigneeId" className="block text-sm font-medium text-gray-700">
                               Assign To
                             </label>
@@ -2190,11 +2886,11 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 return (
                                   <div className="">
                                     <select
-                                      {...field}
+                                      name={field.name}
                                       multiple
                                       size={Math.min(5, Math.max(2, availableTasks.length))}
                                       onChange={handleDependencyChange}
-                                      defaultValue={currentDependencies}
+                                      value={field.value || []}
                                       className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                                     >
                                       {availableTasks.map((task: Task) => (
@@ -2232,8 +2928,174 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </Form>
                       )}
                     </Formik>
-                  ) : (
+                  ) : editModalTab === 'comments' ? (
                     <TaskComments taskId={selectedTask.id} projectId={projectId} />
+                  ) : editModalTab === 'attachments' ? (
+                    <TaskAttachments
+                      taskId={selectedTask.id}
+                      attachments={selectedTask.attachments || []}
+                      onUpdate={() => {
+                        // Refetch task data to get updated attachments
+                        queryClient.invalidateQueries({ queryKey: ['project-timeline', projectId] })
+                      }}
+                    />
+                  ) : (
+                    <div className="space-y-6">
+                      {/* Completion Approval Alert */}
+                      {selectedTask.completionPendingApproval && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                          <div className="flex items-start gap-3">
+                            <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-amber-800">
+                                Completion Approval Required
+                              </h4>
+                              <p className="text-sm text-amber-700 mt-1">
+                                The vendor has marked this task as complete. Please review and approve or reject the completion.
+                              </p>
+                              {selectedTask.completionRequestedAt && (
+                                <p className="text-xs text-amber-600 mt-2">
+                                  Requested on {new Date(selectedTask.completionRequestedAt).toLocaleDateString()} at {new Date(selectedTask.completionRequestedAt).toLocaleTimeString()}
+                                </p>
+                              )}
+                              <div className="flex gap-2 mt-3">
+                                <button
+                                  onClick={() => approvalMutation.mutate({ taskId: selectedTask.id, action: 'approve' })}
+                                  disabled={approvalMutation.isPending}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                  {approvalMutation.isPending ? 'Processing...' : 'Approve Completion'}
+                                </button>
+                                <button
+                                  onClick={() => approvalMutation.mutate({ taskId: selectedTask.id, action: 'reject' })}
+                                  disabled={approvalMutation.isPending}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 disabled:opacity-50"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                  {approvalMutation.isPending ? 'Processing...' : 'Reject'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Budget Information */}
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                          <DollarSign className="h-4 w-4" />
+                          Budget Information
+                        </h4>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Budget Amount</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gray-500">{currencySymbol}</span>
+                              <input
+                                type="number"
+                                key={`budget-${selectedTask.id}-${selectedTask.budgetAmount}`}
+                                defaultValue={selectedTask.budgetAmount || ''}
+                                onBlur={(e) => {
+                                  const value = e.target.value ? parseFloat(e.target.value) : null
+                                  if (value !== selectedTask.budgetAmount) {
+                                    internalUpdateMutation.mutate({
+                                      taskId: selectedTask.id,
+                                      data: { budgetAmount: value }
+                                    })
+                                  }
+                                }}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                                className="w-full border border-gray-300 rounded-md pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">Approved Amount</label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-2 text-gray-500">{currencySymbol}</span>
+                              <input
+                                type="number"
+                                key={`approved-${selectedTask.id}-${selectedTask.approvedAmount}`}
+                                defaultValue={selectedTask.approvedAmount || ''}
+                                onBlur={(e) => {
+                                  const value = e.target.value ? parseFloat(e.target.value) : null
+                                  if (value !== selectedTask.approvedAmount) {
+                                    internalUpdateMutation.mutate({
+                                      taskId: selectedTask.id,
+                                      data: { approvedAmount: value }
+                                    })
+                                  }
+                                }}
+                                placeholder="0.00"
+                                min="0"
+                                step="0.01"
+                                className="w-full border border-gray-300 rounded-md pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Changes are saved automatically when you click outside the field.
+                        </p>
+                      </div>
+
+                      {/* Summary with Cost Variance */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Summary</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-gray-500">Budget:</span>
+                            <span className="ml-2 font-medium">
+                              {selectedTask.budgetAmount ? formatCurrency(selectedTask.budgetAmount) : 'Not set'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Approved:</span>
+                            <span className="ml-2 font-medium">
+                              {selectedTask.approvedAmount ? formatCurrency(selectedTask.approvedAmount) : 'Not set'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Vendor:</span>
+                            <span className="ml-2 font-medium">
+                              {selectedTask.vendor ? selectedTask.vendor.name : 'Not assigned'}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500">Cost Variance:</span>
+                            {selectedTask.budgetAmount && selectedTask.approvedAmount ? (
+                              <span className={`ml-2 font-medium ${
+                                selectedTask.budgetAmount - selectedTask.approvedAmount >= 0
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}>
+                                {selectedTask.budgetAmount - selectedTask.approvedAmount >= 0 ? '+' : ''}
+                                {formatCurrency(Math.abs(selectedTask.budgetAmount - selectedTask.approvedAmount))}
+                              </span>
+                            ) : (
+                              <span className="ml-2 font-medium text-gray-400">N/A</span>
+                            )}
+                          </div>
+                        </div>
+                        {selectedTask.budgetAmount && selectedTask.approvedAmount && (
+                          <div className="mt-3 pt-3 border-t border-gray-100">
+                            <p className={`text-xs ${
+                              selectedTask.budgetAmount - selectedTask.approvedAmount >= 0
+                                ? 'text-green-600'
+                                : 'text-red-600'
+                            }`}>
+                              {selectedTask.budgetAmount - selectedTask.approvedAmount >= 0
+                                ? `Under budget by ${formatCurrency(selectedTask.budgetAmount - selectedTask.approvedAmount)}`
+                                : `Over budget by ${formatCurrency(Math.abs(selectedTask.budgetAmount - selectedTask.approvedAmount))}`
+                              }
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>

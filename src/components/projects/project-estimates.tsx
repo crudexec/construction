@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast'
 import { generateEstimatePDF } from '@/lib/pdf-generator'
 import { CompactFilters } from '@/components/ui/compact-filters'
+import { useCurrency } from '@/hooks/useCurrency'
 
 interface ProjectEstimatesProps {
   projectId: string
@@ -177,6 +178,7 @@ async function fetchProject(projectId: string) {
 export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { format: formatCurrency, symbol: currencySymbol, currency: currencyCode } = useCurrency()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -305,7 +307,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
     }
     
     try {
-      generateEstimatePDF(estimate, project)
+      generateEstimatePDF(estimate, project, undefined, currencyCode)
       toast.success('PDF downloaded successfully!')
     } catch (error) {
       console.error('Error generating PDF:', error)
@@ -387,7 +389,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                       <span>{estimate.items.length} items</span>
                     </div>
                     <div className="text-sm font-semibold text-gray-900">
-                      ${estimate.total.toLocaleString()}
+                      {formatCurrency(estimate.total)}
                     </div>
                   </div>
                 </div>
@@ -604,7 +606,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                                     </div>
                                     <div className="col-span-2">
                                       <div className="px-3 py-2 text-sm text-gray-900 font-medium">
-                                        ${((values.items[index]?.quantity || 0) * (values.items[index]?.unitPrice || 0)).toFixed(2)}
+                                        {formatCurrency((values.items[index]?.quantity || 0) * (values.items[index]?.unitPrice || 0))}
                                       </div>
                                     </div>
                                     <div className="col-span-1">
@@ -670,24 +672,24 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
 
                           <div className="mt-4 text-right space-y-1">
                             <div className="text-sm text-gray-600">
-                              Subtotal: ${values.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0).toFixed(2)}
+                              Subtotal: {formatCurrency(values.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0))}
                             </div>
                             {values.tax > 0 && (
                               <div className="text-sm text-gray-600">
-                                Tax: ${values.tax.toFixed(2)}
+                                Tax: {formatCurrency(values.tax)}
                               </div>
                             )}
                             {values.discount > 0 && (
                               <div className="text-sm text-green-600">
-                                Discount: -${values.discount.toFixed(2)}
+                                Discount: -{formatCurrency(values.discount)}
                               </div>
                             )}
                             <div className="text-lg font-semibold text-gray-900">
-                              Total: ${(
+                              Total: {formatCurrency(
                                 values.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.unitPrice || 0)), 0) +
                                 values.tax -
                                 values.discount
-                              ).toFixed(2)}
+                              )}
                             </div>
                           </div>
                         </div>
@@ -805,8 +807,8 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                               </td>
                               <td className="px-4 py-4 text-sm text-gray-900">{item.quantity}</td>
                               <td className="px-4 py-4 text-sm text-gray-900">{item.unit}</td>
-                              <td className="px-4 py-4 text-sm text-gray-900">${item.unitPrice.toLocaleString()}</td>
-                              <td className="px-4 py-4 text-sm font-medium text-gray-900">${item.total.toLocaleString()}</td>
+                              <td className="px-4 py-4 text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
+                              <td className="px-4 py-4 text-sm font-medium text-gray-900">{formatCurrency(item.total)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -819,23 +821,23 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                     <div className="max-w-md ml-auto space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Subtotal:</span>
-                        <span className="font-medium">${selectedEstimate.subtotal.toLocaleString()}</span>
+                        <span className="font-medium">{formatCurrency(selectedEstimate.subtotal)}</span>
                       </div>
                       {selectedEstimate.tax > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Tax:</span>
-                          <span className="font-medium">${selectedEstimate.tax.toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(selectedEstimate.tax)}</span>
                         </div>
                       )}
                       {selectedEstimate.discount > 0 && (
                         <div className="flex justify-between text-sm">
                           <span className="text-gray-600">Discount:</span>
-                          <span className="font-medium text-green-600">-${selectedEstimate.discount.toLocaleString()}</span>
+                          <span className="font-medium text-green-600">-{formatCurrency(selectedEstimate.discount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between text-lg font-semibold border-t pt-2">
                         <span>Total:</span>
-                        <span>${selectedEstimate.total.toLocaleString()}</span>
+                        <span>{formatCurrency(selectedEstimate.total)}</span>
                       </div>
                     </div>
                   </div>

@@ -23,7 +23,7 @@ export async function GET(
     const { id: taskId } = await params
 
     const task = await prisma.task.findFirst({
-      where: { 
+      where: {
         id: taskId
       },
       include: {
@@ -54,14 +54,49 @@ export async function GET(
             firstName: true,
             lastName: true
           }
+        },
+        payments: {
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: {
+            paymentDate: 'desc'
+          }
+        },
+        attachments: {
+          include: {
+            uploader: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            uploadedByVendor: {
+              select: {
+                id: true,
+                name: true,
+                companyName: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true
+          }
         }
-        // dependsOn: {
-        //   select: {
-        //     id: true,
-        //     title: true,
-        //     status: true
-        //   }
-        // }
       }
     })
 
@@ -134,11 +169,25 @@ export async function PATCH(
       }
     }
 
+    // If milestoneId is provided, verify it exists and belongs to the same project
+    if (body.milestoneId && body.milestoneId.trim() !== '') {
+      const milestone = await prisma.projectMilestone.findFirst({
+        where: {
+          id: body.milestoneId,
+          projectId: task.cardId
+        }
+      })
+
+      if (!milestone) {
+        return NextResponse.json({ error: 'Invalid milestone' }, { status: 400 })
+      }
+    }
+
     // If dependencyIds are provided, verify they exist and belong to the same project
     if (body.dependencyIds && Array.isArray(body.dependencyIds) && body.dependencyIds.length > 0) {
       // Filter out self-dependency
       const validDependencyIds = body.dependencyIds.filter((id: string) => id !== taskId)
-      
+
       const dependencies = await prisma.task.findMany({
         where: {
           id: { in: validDependencyIds },
@@ -160,14 +209,15 @@ export async function PATCH(
         priority: body.priority,
         dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
         categoryId: body.categoryId || null,
+        milestoneId: body.milestoneId !== undefined ? (body.milestoneId || null) : undefined,
         assigneeId: body.assigneeId || null,
         completedAt: body.completedAt ? new Date(body.completedAt) : body.status === 'COMPLETED' ? new Date() : null,
         updatedAt: new Date(),
-        // dependsOn: body.dependencyIds && Array.isArray(body.dependencyIds)
-        //   ? {
-        //       set: body.dependencyIds.map((id: string) => ({ id }))
-        //     }
-        //   : undefined
+        // Budget fields
+        ...(body.budgetAmount !== undefined && { budgetAmount: body.budgetAmount }),
+        ...(body.approvedAmount !== undefined && { approvedAmount: body.approvedAmount }),
+        // Vendor assignment
+        ...(body.vendorId !== undefined && { vendorId: body.vendorId || null }),
       },
       include: {
         category: {
@@ -191,6 +241,13 @@ export async function PATCH(
             firstName: true,
             lastName: true,
             email: true
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true
           }
         }
         // dependsOn: {

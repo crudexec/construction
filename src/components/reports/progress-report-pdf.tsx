@@ -3,6 +3,7 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink, Image } from '@react-pdf/renderer'
 import { format } from 'date-fns'
+import { formatCurrency } from '@/lib/currency'
 
 // PDF Styles
 const styles = StyleSheet.create({
@@ -203,10 +204,11 @@ const getPriorityColor = (priority: string) => {
 
 interface ProgressReportPDFProps {
   reportData: any
+  currencyCode?: string
 }
 
 // PDF Document Component
-const ProgressReportDocument: React.FC<{ data: any }> = ({ data }) => (
+const ProgressReportDocument: React.FC<{ data: any; currencyCode?: string }> = ({ data, currencyCode = 'USD' }) => (
   <Document>
     <Page size="A4" style={styles.page}>
       {/* Header */}
@@ -255,7 +257,7 @@ const ProgressReportDocument: React.FC<{ data: any }> = ({ data }) => (
         {data.project.budget && (
           <View style={styles.row}>
             <Text style={styles.label}>Budget:</Text>
-            <Text style={styles.value}>${data.project.budget.toLocaleString()}</Text>
+            <Text style={styles.value}>{formatCurrency(data.project.budget, currencyCode)}</Text>
           </View>
         )}
       </View>
@@ -412,12 +414,12 @@ const ProgressReportDocument: React.FC<{ data: any }> = ({ data }) => (
   </Document>
 )
 
-export function ProgressReportPDF({ reportData }: ProgressReportPDFProps) {
+export function ProgressReportPDF({ reportData, currencyCode = 'USD' }: ProgressReportPDFProps) {
   const fileName = `${reportData.project.title.replace(/\s+/g, '_')}_Progress_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`
 
   return (
     <PDFDownloadLink
-      document={<ProgressReportDocument data={reportData} />}
+      document={<ProgressReportDocument data={reportData} currencyCode={currencyCode} />}
       fileName={fileName}
       className="inline-flex items-center px-4 py-2 bg-primary-600 text-white font-semibold rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
     >

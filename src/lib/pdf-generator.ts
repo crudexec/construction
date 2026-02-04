@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import { formatCurrency } from '@/lib/currency'
 
 interface EstimateItem {
   id: string
@@ -38,7 +39,7 @@ interface Project {
   projectZipCode?: string
 }
 
-export function generateEstimatePDF(estimate: Estimate, project: Project, companyInfo?: any) {
+export function generateEstimatePDF(estimate: Estimate, project: Project, companyInfo?: any, currencyCode: string = 'USD') {
   const doc = new jsPDF()
   
   // Company header
@@ -126,8 +127,8 @@ export function generateEstimatePDF(estimate: Estimate, project: Project, compan
     item.name + (item.description ? `\n${item.description}` : ''),
     item.quantity.toString(),
     item.unit,
-    `$${item.unitPrice.toLocaleString()}`,
-    `$${item.total.toLocaleString()}`
+    formatCurrency(item.unitPrice, currencyCode),
+    formatCurrency(item.total, currencyCode)
   ])
   
   autoTable(doc, {
@@ -164,32 +165,32 @@ export function generateEstimatePDF(estimate: Estimate, project: Project, compan
   
   doc.setFontSize(11)
   doc.setTextColor(60, 60, 60)
-  
+
   doc.text('Subtotal:', totalsX, totalsY)
-  doc.text(`$${estimate.subtotal.toLocaleString()}`, totalsX + 50, totalsY, { align: 'right' })
+  doc.text(formatCurrency(estimate.subtotal, currencyCode), totalsX + 50, totalsY, { align: 'right' })
   totalsY += 7
-  
+
   if (estimate.tax > 0) {
     doc.text('Tax:', totalsX, totalsY)
-    doc.text(`$${estimate.tax.toLocaleString()}`, totalsX + 50, totalsY, { align: 'right' })
+    doc.text(formatCurrency(estimate.tax, currencyCode), totalsX + 50, totalsY, { align: 'right' })
     totalsY += 7
   }
-  
+
   if (estimate.discount > 0) {
     doc.text('Discount:', totalsX, totalsY)
-    doc.text(`-$${estimate.discount.toLocaleString()}`, totalsX + 50, totalsY, { align: 'right' })
+    doc.text(`-${formatCurrency(estimate.discount, currencyCode).replace(/^[^\d-]/, '')}`, totalsX + 50, totalsY, { align: 'right' })
     totalsY += 7
   }
-  
+
   // Total line
   doc.setFontSize(14)
   doc.setTextColor(40, 40, 40)
   doc.setLineWidth(0.5)
   doc.line(totalsX, totalsY + 2, totalsX + 50, totalsY + 2)
-  
+
   totalsY += 10
   doc.text('Total:', totalsX, totalsY)
-  doc.text(`$${estimate.total.toLocaleString()}`, totalsX + 50, totalsY, { align: 'right' })
+  doc.text(formatCurrency(estimate.total, currencyCode), totalsX + 50, totalsY, { align: 'right' })
   
   // Footer
   const pageHeight = doc.internal.pageSize.height

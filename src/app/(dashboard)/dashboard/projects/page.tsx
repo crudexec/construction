@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { AddProjectModal } from '@/components/projects/add-project-modal'
 import { CompactFilters } from '@/components/ui/compact-filters'
+import { useCurrency } from '@/hooks/useCurrency'
 
 interface Project {
   id: string
@@ -81,6 +82,7 @@ export default function ProjectsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const { format: formatCurrency } = useCurrency()
 
   const { data: projects = [], isLoading, refetch } = useQuery({
     queryKey: ['projects'],
@@ -223,8 +225,8 @@ export default function ProjectsPage() {
                             </span>
                           </div>
                         )}
-                        <span className="hidden sm:inline">Budget: ${(project.budget || 0).toLocaleString()}</span>
-                        <span className="sm:hidden">${Math.round((project.budget || 0) / 1000)}k</span>
+                        <span className="hidden sm:inline">Budget: {formatCurrency(project.budget || 0)}</span>
+                        <span className="sm:hidden">{formatCurrency(project.budget || 0, { compact: true })}</span>
                         <span>Tasks: {project.metrics?.completedTasks || 0}/{project.metrics?.totalTasks || 0}</span>
                         {project.assignedUsers.length > 0 && (
                           <div className="flex items-center space-x-1">

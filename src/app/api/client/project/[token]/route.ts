@@ -29,7 +29,8 @@ export async function GET(
             logo: true,
             website: true,
             phone: true,
-            email: true
+            email: true,
+            currency: true
           }
         },
         owner: {

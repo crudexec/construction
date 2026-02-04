@@ -250,40 +250,56 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
             <div className="col-span-3 p-4 font-medium text-gray-900 border-r border-gray-200">
               Task
             </div>
-            <div className="col-span-9 relative">
-              <div className="flex h-12 items-center">
-                {dateColumns.map((date, index) => (
+            <div className="col-span-9 relative h-12">
+              {/* Date column markers positioned absolutely to match task bars */}
+              {dateColumns.map((date, index) => {
+                const totalDays = differenceInDays(endDate, startDate)
+                const daysDiff = differenceInDays(date, startDate)
+                const leftPosition = (daysDiff / totalDays) * 100
+
+                // Calculate width based on days to next column
+                const nextDate = dateColumns[index + 1]
+                const daysToNext = nextDate
+                  ? differenceInDays(nextDate, date)
+                  : differenceInDays(endDate, date)
+                const columnWidth = (daysToNext / totalDays) * 100
+
+                return (
                   <div
                     key={index}
-                    className="flex-1 px-2 py-2 text-center border-r border-gray-200 last:border-r-0"
+                    className="absolute top-0 bottom-0 flex flex-col items-center justify-center border-l border-gray-200"
+                    style={{
+                      left: `${leftPosition}%`,
+                      width: `${columnWidth}%`
+                    }}
                   >
                     <div className="text-xs font-medium text-gray-600">
-                      {viewMode === 'week' 
+                      {viewMode === 'week'
                         ? format(date, 'EEE')
                         : viewMode === 'month'
                         ? format(date, 'MMM dd')
-                        : format(date, 'MMM')
+                        : format(date, 'MMM yyyy')
                       }
                     </div>
                     {viewMode === 'week' && (
                       <div className="text-xs text-gray-400">{format(date, 'dd')}</div>
                     )}
                   </div>
-                ))}
-              </div>
-              
+                )
+              })}
+
               {/* Today indicator */}
               {(() => {
                 const today = new Date()
                 const todayDiff = differenceInDays(today, startDate)
                 const totalDays = differenceInDays(endDate, startDate)
-                
+
                 // Show today line if today falls within the visible date range
                 if (todayDiff >= 0 && todayDiff <= totalDays) {
                   const leftPosition = (todayDiff / totalDays) * 100
                   return (
-                    <div 
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg"
+                    <div
+                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg z-20"
                       style={{
                         left: `${leftPosition}%`
                       }}
@@ -309,31 +325,49 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
                 </div>
               </div>
             </div>
-            <div className="col-span-9 relative p-2">
-              <div 
-                className={`h-8 rounded-md ${getStatusColor(data.project.status)} opacity-80 flex items-center px-2`}
+            <div className="col-span-9 relative py-2">
+              {/* Background grid lines */}
+              {(() => {
+                const totalDays = differenceInDays(endDate, startDate)
+                return (
+                  <div className="absolute inset-0 pointer-events-none">
+                    {dateColumns.map((date, index) => {
+                      const daysDiff = differenceInDays(date, startDate)
+                      const leftPosition = (daysDiff / totalDays) * 100
+                      return (
+                        <div
+                          key={index}
+                          className="absolute top-0 bottom-0 border-l border-gray-200"
+                          style={{ left: `${leftPosition}%` }}
+                        />
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+
+              {/* Project bar */}
+              <div
+                className={`absolute h-8 top-1/2 -translate-y-1/2 rounded-md ${getStatusColor(data.project.status)} opacity-90 flex items-center px-2 z-10`}
                 style={getTaskPosition(data.project)}
               >
                 <div className="text-xs text-white font-medium">
                   {data.project.progress}%
                 </div>
               </div>
-              
+
               {/* Today indicator for project row */}
               {(() => {
                 const today = new Date()
                 const todayDiff = differenceInDays(today, startDate)
                 const totalDays = differenceInDays(endDate, startDate)
-                
+
                 if (todayDiff >= 0 && todayDiff <= totalDays) {
                   const leftPosition = (todayDiff / totalDays) * 100
                   return (
-                    <div 
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-600 shadow-lg pointer-events-none"
-                      style={{
-                        left: `${leftPosition}%`,
-                        zIndex: 40
-                      }}
+                    <div
+                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg pointer-events-none z-20"
+                      style={{ left: `${leftPosition}%` }}
                       title={`Today: ${format(today, 'MMM dd, yyyy')}`}
                     />
                   )
@@ -345,69 +379,82 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
 
           {/* Task Rows */}
           <div className="divide-y divide-gray-200 relative">
-            {/* Today indicator extends through tasks */}
-            {(() => {
-              const today = new Date()
-              const todayDiff = differenceInDays(today, startDate)
-              const totalDays = differenceInDays(endDate, startDate)
-              
-              if (todayDiff >= 0 && todayDiff <= totalDays) {
-                const leftPosition = (todayDiff / totalDays) * 100
-                const offsetLeft = (3/12) * 100 // 3 columns out of 12 for task names
-                return (
-                  <div 
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg pointer-events-none"
-                    style={{
-                      left: `calc(${offsetLeft}% + ${leftPosition * (9/12)}%)` // Position within the 9-column timeline area
-                    }}
-                  />
-                )
-              }
-              return null
-            })()}
-
             {data.tasks.length === 0 ? (
               <div className="p-8 text-center text-gray-500 text-sm">
                 No tasks with dates to display in timeline
               </div>
             ) : (
-              data.tasks.map((task) => (
-                <div key={task.id} className="grid grid-cols-12 gap-0 hover:bg-gray-50">
-                  <div 
-                    className="col-span-3 p-4 border-r border-gray-200 cursor-pointer"
-                    onClick={() => handleTaskClick(task.id)}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div 
-                        className={`w-2 h-2 rounded-full`} 
-                        style={{ backgroundColor: task.categoryColor }} 
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-700 truncate hover:text-primary-600">
-                          {task.title}
+              data.tasks.map((task) => {
+                const totalDays = differenceInDays(endDate, startDate)
+
+                return (
+                  <div key={task.id} className="grid grid-cols-12 gap-0 hover:bg-gray-50">
+                    <div
+                      className="col-span-3 p-4 border-r border-gray-200 cursor-pointer"
+                      onClick={() => handleTaskClick(task.id)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: task.categoryColor }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-gray-700 truncate hover:text-primary-600">
+                            {task.title}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {task.assignee || task.category}
+                      </div>
+                    </div>
+                    <div className="col-span-9 relative py-2">
+                      {/* Background grid lines for alignment */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        {dateColumns.map((date, index) => {
+                          const daysDiff = differenceInDays(date, startDate)
+                          const leftPosition = (daysDiff / totalDays) * 100
+                          return (
+                            <div
+                              key={index}
+                              className="absolute top-0 bottom-0 border-l border-gray-100"
+                              style={{ left: `${leftPosition}%` }}
+                            />
+                          )
+                        })}
+                      </div>
+
+                      {/* Today indicator */}
+                      {(() => {
+                        const today = new Date()
+                        const todayDiff = differenceInDays(today, startDate)
+                        if (todayDiff >= 0 && todayDiff <= totalDays) {
+                          const leftPosition = (todayDiff / totalDays) * 100
+                          return (
+                            <div
+                              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                              style={{ left: `${leftPosition}%` }}
+                            />
+                          )
+                        }
+                        return null
+                      })()}
+
+                      {/* Task bar */}
+                      <div
+                        className={`absolute h-6 top-1/2 -translate-y-1/2 rounded ${getTaskStatusColor(task.status)} opacity-90 flex items-center px-2 cursor-pointer hover:opacity-100 transition-opacity shadow-sm z-10`}
+                        style={getTaskPosition(task)}
+                        onClick={() => handleTaskClick(task.id)}
+                        title={`${task.title}: ${format(task.startDate, 'MMM dd')} - ${format(task.endDate, 'MMM dd')}`}
+                      >
+                        <div className="text-xs text-white font-medium truncate">
+                          {task.progress > 0 ? `${task.progress}%` : ''}
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="col-span-9 relative p-2">
-                    <div 
-                      className={`h-5 rounded ${getTaskStatusColor(task.status)} opacity-70 flex items-center px-1 cursor-pointer hover:opacity-90 transition-opacity`}
-                      style={getTaskPosition(task)}
-                      onClick={() => handleTaskClick(task.id)}
-                      title={`${task.title} - Click for details`}
-                    >
-                      {task.progress > 0 && (
-                        <div className="text-xs text-white font-medium">
-                          {task.progress}%
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
         </div>

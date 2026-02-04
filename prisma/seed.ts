@@ -52,7 +52,7 @@ async function main() {
   const company = await prisma.company.create({
     data: {
       name: 'BuildPro Construction',
-      appName: 'BuildFlow CRM',
+      appName: 'BuildFlo',
       website: 'https://buildpro-construction.com',
       phone: '(555) 123-4567',
       email: 'info@buildpro.com',

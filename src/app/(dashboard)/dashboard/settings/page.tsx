@@ -356,6 +356,8 @@ function SettingsContent() {
     { value: 'EUR', label: 'EUR - Euro' },
     { value: 'GBP', label: 'GBP - British Pound' },
     { value: 'AUD', label: 'AUD - Australian Dollar' },
+    { value: 'NGN', label: 'NGN - Nigerian Naira' },
+    { value: 'KES', label: 'KES - Kenyan Shilling' },
   ]
 
   const isLoading = companyLoading || (activeTab === 'team' && teamLoading) || (activeTab === 'notifications' && notificationLoading)

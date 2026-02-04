@@ -11,7 +11,7 @@ export default function OnboardingPage() {
   const steps = [
     {
       id: 1,
-      title: 'Welcome to BuildFlow CRM',
+      title: 'Welcome to BuildFlo',
       description: 'Your company has been set up with default pipeline stages.',
       icon: Building2,
       content: (

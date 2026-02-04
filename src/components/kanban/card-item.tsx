@@ -6,6 +6,7 @@ import { cn } from '@/utils/cn'
 import { useRouter } from 'next/navigation'
 import ProjectEditModal from '@/components/projects/ProjectEditModal'
 import toast from 'react-hot-toast'
+import { useCurrency } from '@/hooks/useCurrency'
 
 interface CardProps {
   card: {
@@ -26,6 +27,7 @@ export function CardItem({ card, onUpdate }: CardProps) {
   const [showEditModal, setShowEditModal] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const { format: formatCurrency } = useCurrency()
   
   const priorityColors = {
     LOW: 'bg-gray-100 text-gray-800',
@@ -154,7 +156,7 @@ export function CardItem({ card, onUpdate }: CardProps) {
         {card.budget && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <DollarSign className="h-3 w-3" />
-            <span>${card.budget.toLocaleString()}</span>
+            <span>{formatCurrency(card.budget)}</span>
           </div>
         )}
         {card.timeline && (

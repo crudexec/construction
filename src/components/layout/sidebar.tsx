@@ -1,37 +1,52 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { 
-  Building2, 
-  LayoutDashboard, 
-  Users, 
-  FolderOpen, 
+import {
+  Building2,
+  LayoutDashboard,
+  Users,
+  FolderOpen,
   Settings,
   ChevronLeft,
   ChevronRight,
   LogOut,
-  Gavel,
-  Activity
+  Activity,
+  Truck,
+  Package,
+  Warehouse
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
+
+// Create sidebar context
+const SidebarContext = createContext<{
+  isCollapsed: boolean
+  setCollapsed: (collapsed: boolean) => void
+}>({
+  isCollapsed: false,
+  setCollapsed: () => {}
+})
+
+export const useSidebar = () => useContext(SidebarContext)
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Leads', href: '/dashboard/leads', icon: Users },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderOpen },
-  { name: 'Bids', href: '/dashboard/bids', icon: Gavel },
+  { name: 'Vendors & Procurement', href: '/dashboard/vendors', icon: Truck },
+  { name: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
+  { name: 'Assets', href: '/dashboard/assets', icon: Package },
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
-export function Sidebar() {
-  const pathname = usePathname()
+// Provider component
+export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const { user, logout } = useAuthStore()
+  const pathname = usePathname()
 
   // Check if we're on mobile and auto-collapse
   useEffect(() => {
@@ -42,13 +57,46 @@ export function Sidebar() {
         setCollapsed(true)
       }
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
+  // Auto-collapse when viewing project detail pages
+  useEffect(() => {
+    const isProjectDetailPage = pathname?.match(/^\/dashboard\/projects\/[^/]+$/)
+    if (isProjectDetailPage) {
+      setCollapsed(true)
+    }
+  }, [pathname])
+
   const isCollapsed = collapsed || isMobile
+
+  return (
+    <SidebarContext.Provider value={{ isCollapsed, setCollapsed }}>
+      {children}
+    </SidebarContext.Provider>
+  )
+}
+
+export function Sidebar() {
+  const pathname = usePathname()
+  const { user, logout } = useAuthStore()
+  const { isCollapsed, setCollapsed } = useSidebar()
+  const [isMobile, setIsMobile] = useState(false)
+
+  // Check if we're on mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 // md breakpoint
+      setIsMobile(mobile)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   return (
     <div
@@ -62,13 +110,13 @@ export function Sidebar() {
           <div className="flex items-center space-x-2">
             <Building2 className="h-8 w-8 text-white" />
             <span className="text-xl font-bold text-white">
-              {user?.company?.appName || 'BuildFlow CRM'}
+              {user?.company?.appName || 'BuildFlo'}
             </span>
           </div>
         )}
         {!isMobile && (
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setCollapsed(!isCollapsed)}
             className="text-gray-400 hover:text-white"
           >
             {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
