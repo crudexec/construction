@@ -139,7 +139,10 @@ export async function GET(
       })
 
       // Group tasks by milestone
-      const grouped = milestones.map(milestone => {
+      const grouped: Array<{
+        milestone: (typeof milestones[number] & { completedTasksCount: number; totalTasksCount: number; progress: number }) | null;
+        tasks: typeof tasks;
+      }> = milestones.map(milestone => {
         const milestoneTasks = tasks.filter(t => t.milestoneId === milestone.id)
         const completedCount = milestoneTasks.filter(t => t.status === 'COMPLETED').length
         const progress = milestoneTasks.length > 0 ? (completedCount / milestoneTasks.length) * 100 : 0

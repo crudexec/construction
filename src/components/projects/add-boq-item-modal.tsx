@@ -101,7 +101,7 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
   const existingItems = boqData?.items || []
 
   // Get unique categories from existing BOQ items
-  const existingBOQCategories = Array.from(new Set(existingItems.map((item: any) => item.category))).sort()
+  const existingBOQCategories = (Array.from(new Set(existingItems.map((item: any) => item.category))) as string[]).sort()
 
   // Auto-generate item number based on category
   const generateItemNumber = (category: string) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Truck, Package, FileText } from 'lucide-react'
@@ -11,7 +11,7 @@ import { PurchaseOrdersTab } from '@/components/vendors/purchase-orders-tab'
 
 type TabType = 'vendors' | 'catalog' | 'purchase-orders'
 
-export default function VendorsHubPage() {
+function VendorsHubContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab') as TabType | null
@@ -188,5 +188,13 @@ export default function VendorsHubPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function VendorsHubPage() {
+  return (
+    <Suspense fallback={<div className="p-6">Loading...</div>}>
+      <VendorsHubContent />
+    </Suspense>
   )
 }
