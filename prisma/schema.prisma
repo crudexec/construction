@@ -76,6 +76,8 @@ model User {
   walkarounds      Walkaround[]
   taskComments     TaskComment[]
   taskMentions     TaskCommentMention[]
+  vendorComments   VendorComment[] @relation("VendorCommentAuthor")
+  vendorCommentMentions VendorCommentMention[] @relation("VendorCommentMentions")
   vendorReviews    VendorReview[]
   taskAttachments  TaskAttachment[]
   taskPayments     TaskPayment[]
@@ -1131,6 +1133,7 @@ model Vendor {
   purchaseOrders        PurchaseOrder[]
   taskComments          TaskComment[]
   taskAttachments       TaskAttachment[]
+  comments              VendorComment[] @relation("VendorComments")
 
   @@index([companyId])
   @@index([type])
@@ -1150,6 +1153,47 @@ enum VendorStatus {
   SUSPENDED
   BLACKLISTED
   INACTIVE
+}
+
+// Internal comments on vendors (visible only to company users, not vendors)
+model VendorComment {
+  id        String    @id @default(cuid())
+  content   String
+  vendorId  String
+  authorId  String
+  parentId  String?
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  vendor    Vendor         @relation("VendorComments", fields: [vendorId], references: [id], onDelete: Cascade)
+  author    User           @relation("VendorCommentAuthor", fields: [authorId], references: [id])
+  parent    VendorComment? @relation("VendorCommentReplies", fields: [parentId], references: [id])
+  replies   VendorComment[] @relation("VendorCommentReplies")
+  mentions  VendorCommentMention[]
+
+  @@index([vendorId])
+  @@index([authorId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model VendorCommentMention {
+  id              String   @id @default(cuid())
+  commentId       String
+  mentionedUserId String
+  isRead          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  comment         VendorComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  mentionedUser   User          @relation("VendorCommentMentions", fields: [mentionedUserId], references: [id])
+
+  @@index([commentId])
+  @@index([mentionedUserId])
+  @@index([isRead])
+  @@unique([commentId, mentionedUserId])
 }
 
 enum ContractType {

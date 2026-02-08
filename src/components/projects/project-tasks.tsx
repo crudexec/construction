@@ -163,6 +163,13 @@ const categorySchema = Yup.object().shape({
   color: Yup.string().required('Color is required')
 })
 
+const milestoneSchema = Yup.object().shape({
+  title: Yup.string().required('Milestone title is required'),
+  description: Yup.string(),
+  targetDate: Yup.date().nullable(),
+  amount: Yup.number().nullable()
+})
+
 async function fetchProjectTasks(projectId: string, groupBy?: string) {
   const url = groupBy
     ? `/api/project/${projectId}/tasks?groupBy=${groupBy}`
@@ -258,6 +265,19 @@ async function deleteCategory(categoryId: string) {
     credentials: 'include'
   })
   if (!response.ok) throw new Error('Failed to delete category')
+  return response.json()
+}
+
+async function createMilestone(projectId: string, data: any) {
+  const response = await fetch(`/api/project/${projectId}/milestones`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify(data),
+  })
+  if (!response.ok) throw new Error('Failed to create milestone')
   return response.json()
 }
 
@@ -609,6 +629,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isAddCategoryModalOpen, setIsAddCategoryModalOpen] = useState(false)
+  const [isAddMilestoneModalOpen, setIsAddMilestoneModalOpen] = useState(false)
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
   const [sharingTask, setSharingTask] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -1149,6 +1170,18 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete category')
+    }
+  })
+
+  const createMilestoneMutation = useMutation({
+    mutationFn: (data: any) => createMilestone(projectId, data),
+    onSuccess: () => {
+      toast.success('Milestone created successfully!')
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
+      setIsAddMilestoneModalOpen(false)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to create milestone')
     }
   })
 
@@ -2314,19 +2347,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
                             Category
                           </label>
-                          <Field
-                            as="select"
-                            id="categoryId"
-                            name="categoryId"
-                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          >
-                            <option value="">Uncategorized</option>
-                            {Array.isArray(categories) ? categories.map((category: TaskCategory) => (
-                              <option key={category.id} value={category.id}>
-                                {category.name}
-                              </option>
-                            )) : []}
-                          </Field>
+                          <div className="flex gap-2">
+                            <Field
+                              as="select"
+                              id="categoryId"
+                              name="categoryId"
+                              className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            >
+                              <option value="">Uncategorized</option>
+                              {Array.isArray(categories) ? categories.map((category: TaskCategory) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.name}
+                                </option>
+                              )) : []}
+                            </Field>
+                            <button
+                              type="button"
+                              onClick={() => setIsAddCategoryModalOpen(true)}
+                              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              title="Add new category"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
                           <ErrorMessage name="categoryId" component="p" className=" text-sm text-red-600" />
                         </div>
 
@@ -2337,19 +2380,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               <span>Milestone</span>
                             </div>
                           </label>
-                          <Field
-                            as="select"
-                            id="milestoneId"
-                            name="milestoneId"
-                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          >
-                            <option value="">No milestone</option>
-                            {Array.isArray(milestones) ? milestones.map((milestone: any) => (
-                              <option key={milestone.id} value={milestone.id}>
-                                {milestone.title}
-                              </option>
-                            )) : []}
-                          </Field>
+                          <div className="flex gap-2">
+                            <Field
+                              as="select"
+                              id="milestoneId"
+                              name="milestoneId"
+                              className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            >
+                              <option value="">No milestone</option>
+                              {Array.isArray(milestones) ? milestones.map((milestone: any) => (
+                                <option key={milestone.id} value={milestone.id}>
+                                  {milestone.title}
+                                </option>
+                              )) : []}
+                            </Field>
+                            <button
+                              type="button"
+                              onClick={() => setIsAddMilestoneModalOpen(true)}
+                              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              title="Add new milestone"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
                           <ErrorMessage name="milestoneId" component="p" className=" text-sm text-red-600" />
                         </div>
 
@@ -2533,6 +2586,130 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             className="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
                           >
                             {createCategoryMutation.isPending ? 'Creating...' : 'Create Category'}
+                          </button>
+                        </div>
+                      </Form>
+                    )}
+                  </Formik>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Milestone Modal */}
+      {isAddMilestoneModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsAddMilestoneModalOpen(false)} />
+
+            <div className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:p-6">
+              <div className="absolute right-0 top-0 pr-4 pt-4">
+                <button
+                  type="button"
+                  className="rounded-md bg-white text-gray-400 hover:text-gray-500"
+                  onClick={() => setIsAddMilestoneModalOpen(false)}
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="sm:flex sm:items-start">
+                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-6">
+                    Create New Milestone
+                  </h3>
+
+                  <Formik
+                    initialValues={{
+                      title: '',
+                      description: '',
+                      targetDate: '',
+                      amount: ''
+                    }}
+                    validationSchema={milestoneSchema}
+                    onSubmit={(values) => createMilestoneMutation.mutate({
+                      ...values,
+                      amount: values.amount ? parseFloat(values.amount) : null,
+                      targetDate: values.targetDate || null
+                    })}
+                  >
+                    {({ isSubmitting }) => (
+                      <Form className="space-y-4">
+                        <div>
+                          <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+                            Milestone Title *
+                          </label>
+                          <Field
+                            id="title"
+                            name="title"
+                            type="text"
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            placeholder="e.g., Foundation Complete, Framing Done"
+                          />
+                          <ErrorMessage name="title" component="p" className=" text-sm text-red-600" />
+                        </div>
+
+                        <div>
+                          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                            Description
+                          </label>
+                          <Field
+                            as="textarea"
+                            id="description"
+                            name="description"
+                            rows={3}
+                            className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            placeholder="Optional description for this milestone..."
+                          />
+                          <ErrorMessage name="description" component="p" className=" text-sm text-red-600" />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="targetDate" className="block text-sm font-medium text-gray-700">
+                              Target Date
+                            </label>
+                            <Field
+                              id="targetDate"
+                              name="targetDate"
+                              type="date"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            />
+                            <ErrorMessage name="targetDate" component="p" className=" text-sm text-red-600" />
+                          </div>
+
+                          <div>
+                            <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
+                              Amount
+                            </label>
+                            <Field
+                              id="amount"
+                              name="amount"
+                              type="number"
+                              step="0.01"
+                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              placeholder="0.00"
+                            />
+                            <ErrorMessage name="amount" component="p" className=" text-sm text-red-600" />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3 pt-4">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddMilestoneModalOpen(false)}
+                            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isSubmitting || createMilestoneMutation.isPending}
+                            className="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                          >
+                            {createMilestoneMutation.isPending ? 'Creating...' : 'Create Milestone'}
                           </button>
                         </div>
                       </Form>
@@ -2806,19 +2983,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             <label htmlFor="categoryId" className="block text-sm font-medium text-gray-700">
                               Category
                             </label>
-                            <Field
-                              as="select"
-                              id="categoryId"
-                              name="categoryId"
-                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            >
-                              <option value="">Select Category (Optional)</option>
-                              {(categories || []).map((category: TaskCategory) => (
-                                <option key={category.id} value={category.id}>
-                                  {category.name}
-                                </option>
-                              ))}
-                            </Field>
+                            <div className="flex gap-2">
+                              <Field
+                                as="select"
+                                id="categoryId"
+                                name="categoryId"
+                                className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              >
+                                <option value="">Select Category (Optional)</option>
+                                {(categories || []).map((category: TaskCategory) => (
+                                  <option key={category.id} value={category.id}>
+                                    {category.name}
+                                  </option>
+                                ))}
+                              </Field>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddCategoryModalOpen(true)}
+                                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                title="Add new category"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
                             <ErrorMessage name="categoryId" component="p" className=" text-sm text-red-600" />
                           </div>
 
@@ -2829,19 +3016,29 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                                 <span>Milestone</span>
                               </div>
                             </label>
-                            <Field
-                              as="select"
-                              id="milestoneId"
-                              name="milestoneId"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            >
-                              <option value="">No milestone</option>
-                              {(milestones || []).map((milestone: any) => (
-                                <option key={milestone.id} value={milestone.id}>
-                                  {milestone.title}
-                                </option>
-                              ))}
-                            </Field>
+                            <div className="flex gap-2 mt-1">
+                              <Field
+                                as="select"
+                                id="milestoneId"
+                                name="milestoneId"
+                                className="flex-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              >
+                                <option value="">No milestone</option>
+                                {(milestones || []).map((milestone: any) => (
+                                  <option key={milestone.id} value={milestone.id}>
+                                    {milestone.title}
+                                  </option>
+                                ))}
+                              </Field>
+                              <button
+                                type="button"
+                                onClick={() => setIsAddMilestoneModalOpen(true)}
+                                className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                                title="Add new milestone"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
                             <ErrorMessage name="milestoneId" component="p" className="text-sm text-red-600" />
                           </div>
 
