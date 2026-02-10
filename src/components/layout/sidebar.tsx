@@ -2,7 +2,7 @@
 
 import { useState, useEffect, createContext, useContext } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Building2,
   LayoutDashboard,
@@ -82,9 +82,15 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { user, logout } = useAuthStore()
   const { isCollapsed, setCollapsed } = useSidebar()
   const [isMobile, setIsMobile] = useState(false)
+
+  const handleLogout = () => {
+    logout()
+    router.push('/login')
+  }
 
   // Check if we're on mobile
   useEffect(() => {
@@ -166,7 +172,7 @@ export function Sidebar() {
           </div>
         )}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className={cn(
             "w-full flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors group relative",
             isCollapsed ? "justify-center" : "justify-start"

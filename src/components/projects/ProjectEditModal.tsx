@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { X, Save, Loader2, Calendar, MapPin, DollarSign, User, Users, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface ProjectEditModalProps {
   isOpen: boolean
@@ -219,6 +220,15 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
         ? prev.assignedUserIds.filter(id => id !== userId)
         : [...prev.assignedUserIds, userId]
     }))
+  }
+
+  const handleDateChange = (fieldName: string, date: string) => {
+    setFormData(prev => ({ ...prev, [fieldName]: date }))
+
+    // Clear error for this field when user selects a date
+    if (errors[fieldName]) {
+      setErrors((prev: any) => ({ ...prev, [fieldName]: undefined }))
+    }
   }
 
   if (!isOpen) return null
@@ -509,12 +519,10 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
                       <Calendar className="w-4 h-4 inline mr-1" />
                       Start Date
                     </label>
-                    <input
-                      type="date"
-                      name="startDate"
+                    <DatePicker
                       value={formData.startDate}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      onChange={(date) => handleDateChange('startDate', date)}
+                      placeholder="Select start date"
                     />
                   </div>
 
@@ -523,14 +531,10 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
                       <Calendar className="w-4 h-4 inline mr-1" />
                       End Date
                     </label>
-                    <input
-                      type="date"
-                      name="endDate"
+                    <DatePicker
                       value={formData.endDate}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none ${
-                        errors.endDate ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      onChange={(date) => handleDateChange('endDate', date)}
+                      placeholder="Select end date"
                     />
                     {errors.endDate && (
                       <p className="mt-1 text-sm text-red-500">{errors.endDate}</p>

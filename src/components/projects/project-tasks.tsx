@@ -45,6 +45,7 @@ import { useModal } from '@/components/ui/modal-provider'
 import { TaskComments } from '@/components/projects/task-comments'
 import { TaskAttachments } from '@/components/projects/task-attachments'
 import { useCurrency } from '@/hooks/useCurrency'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface ProjectTasksProps {
   projectId: string
@@ -572,14 +573,13 @@ function TableTaskRow({
               </div>
             ) : null
           })()}
-          <input
-            type="date"
+          <DatePicker
             value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
-            onChange={(e) => updateMutation.mutate({ 
-              taskId: task.id, 
-              data: { dueDate: e.target.value ? new Date(e.target.value) : null } 
+            onChange={(date) => updateMutation.mutate({
+              taskId: task.id,
+              data: { dueDate: date ? new Date(date) : null }
             })}
-            className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            placeholder="Select date"
           />
         </div>
       </td>
@@ -2279,7 +2279,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                     validationSchema={taskSchema}
                     onSubmit={(values) => createMutation.mutate(values)}
                   >
-                    {({ isSubmitting }) => (
+                    {({ isSubmitting, values, setFieldValue }) => (
                       <Form className="space-y-4">
                         <div>
                           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -2333,11 +2333,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
                               Due Date
                             </label>
-                            <Field
-                              id="dueDate"
-                              name="dueDate"
-                              type="date"
-                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            <DatePicker
+                              value={values.dueDate}
+                              onChange={(date) => setFieldValue('dueDate', date)}
+                              placeholder="Select due date"
                             />
                             <ErrorMessage name="dueDate" component="p" className=" text-sm text-red-600" />
                           </div>
@@ -2635,7 +2634,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       targetDate: values.targetDate || null
                     })}
                   >
-                    {({ isSubmitting }) => (
+                    {({ isSubmitting, values, setFieldValue }) => (
                       <Form className="space-y-4">
                         <div>
                           <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -2671,11 +2670,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                             <label htmlFor="targetDate" className="block text-sm font-medium text-gray-700">
                               Target Date
                             </label>
-                            <Field
-                              id="targetDate"
-                              name="targetDate"
-                              type="date"
-                              className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                            <DatePicker
+                              value={values.targetDate}
+                              onChange={(date) => setFieldValue('targetDate', date)}
+                              placeholder="Select target date"
                             />
                             <ErrorMessage name="targetDate" component="p" className=" text-sm text-red-600" />
                           </div>
@@ -2915,7 +2913,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                       validationSchema={taskSchema}
                       onSubmit={(values) => updateMutation.mutate({ taskId: selectedTask.id, data: values })}
                     >
-                      {({ isSubmitting }) => (
+                      {({ isSubmitting, values, setFieldValue }) => (
                         <Form className="space-y-4">
                           <div>
                             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
@@ -2969,11 +2967,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                               <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700">
                                 Due Date
                               </label>
-                              <Field
-                                id="dueDate"
-                                name="dueDate"
-                                type="date"
-                                className=" block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                              <DatePicker
+                                value={values.dueDate}
+                                onChange={(date) => setFieldValue('dueDate', date)}
+                                placeholder="Select due date"
                               />
                               <ErrorMessage name="dueDate" component="p" className=" text-sm text-red-600" />
                             </div>

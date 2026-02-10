@@ -6,6 +6,7 @@ import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { X, Loader2, Calendar, FileText, Sparkles } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface AddProjectModalProps {
   isOpen: boolean
@@ -216,7 +217,7 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                 validationSchema={projectSchema}
                 onSubmit={handleSubmit}
               >
-                {({ isSubmitting }) => (
+                {({ isSubmitting, values, setFieldValue }) => (
                   <Form className="space-y-6">
                     {/* Basic Information */}
                     <div className="space-y-4">
@@ -415,12 +416,13 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                           <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
                             Start Date
                           </label>
-                          <Field
-                            id="startDate"
-                            name="startDate"
-                            type="date"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          />
+                          <div className="mt-1">
+                            <DatePicker
+                              value={values.startDate}
+                              onChange={(date) => setFieldValue('startDate', date)}
+                              placeholder="Select start date"
+                            />
+                          </div>
                           <ErrorMessage name="startDate" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
 
@@ -428,12 +430,14 @@ export function AddProjectModal({ isOpen, onClose, onSuccess }: AddProjectModalP
                           <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
                             End Date
                           </label>
-                          <Field
-                            id="endDate"
-                            name="endDate"
-                            type="date"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                          />
+                          <div className="mt-1">
+                            <DatePicker
+                              value={values.endDate}
+                              onChange={(date) => setFieldValue('endDate', date)}
+                              placeholder="Select end date"
+                              minDate={values.startDate ? new Date(values.startDate) : undefined}
+                            />
+                          </div>
                           <ErrorMessage name="endDate" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
                       </div>

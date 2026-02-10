@@ -45,6 +45,7 @@ import VendorProcurementTab from '@/components/vendors/vendor-procurement-tab'
 import { VendorPurchaseOrdersTab } from '@/components/vendors/vendor-purchase-orders-tab'
 import { VendorCommentsTab } from '@/components/vendors/vendor-comments-tab'
 import { useCurrency } from '@/hooks/useCurrency'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface VendorContact {
   id: string
@@ -682,6 +683,34 @@ export default function VendorDetailPage() {
         categoryId: '',
         assigneeId: ''
       })
+    }
+  })
+
+  // Update task status mutation
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, projectId, status }: { taskId: string; projectId: string; status: string }) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/project/${projectId}/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update task status')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor-project-milestones', vendorId] })
     }
   })
 
@@ -1538,13 +1567,36 @@ export default function VendorDetailPage() {
         <div className="bg-white rounded-lg shadow border overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="text-lg font-medium text-gray-900">Assigned Milestones</h3>
-            <button
-              onClick={() => setIsAddMilestoneModalOpen(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Milestone</span>
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  // Open task modal with ability to select milestone
+                  setSelectedMilestoneForTask(null)
+                  setTaskForm({
+                    projectId: '',
+                    milestoneId: '',
+                    title: '',
+                    description: '',
+                    priority: 'MEDIUM',
+                    dueDate: '',
+                    categoryId: '',
+                    assigneeId: ''
+                  })
+                  setIsAddTaskModalOpen(true)
+                }}
+                className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Task</span>
+              </button>
+              <button
+                onClick={() => setIsAddMilestoneModalOpen(true)}
+                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Milestone</span>
+              </button>
+            </div>
           </div>
           {isLoadingMilestones ? (
             <div className="p-12 text-center">
@@ -1664,9 +1716,9 @@ export default function VendorDetailPage() {
                             })
                             setIsAddTaskModalOpen(true)
                           }}
-                          className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                          className="bg-primary-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-primary-700 flex items-center gap-1 font-medium"
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-3.5 w-3.5" />
                           Add Task
                         </button>
                       </div>
@@ -1674,7 +1726,7 @@ export default function VendorDetailPage() {
                       {tasks.length === 0 ? (
                         <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
                           <CheckSquare className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                          <p className="text-sm text-gray-500">No tasks yet</p>
+                          <p className="text-sm text-gray-500 mb-3">No tasks yet</p>
                           <button
                             onClick={() => {
                               setSelectedMilestoneForTask(milestone)
@@ -1690,9 +1742,10 @@ export default function VendorDetailPage() {
                               })
                               setIsAddTaskModalOpen(true)
                             }}
-                            className="mt-2 text-xs text-primary-600 hover:text-primary-800"
+                            className="bg-primary-600 text-white text-sm px-4 py-2 rounded-md hover:bg-primary-700 inline-flex items-center gap-2 font-medium"
                           >
-                            Add the first task
+                            <Plus className="h-4 w-4" />
+                            Add First Task
                           </button>
                         </div>
                       ) : (
@@ -1702,16 +1755,28 @@ export default function VendorDetailPage() {
                               key={task.id}
                               className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
                             >
-                              {/* Task Status Icon */}
-                              <div className="flex-shrink-0 mt-0.5">
+                              {/* Task Status Icon - Clickable to cycle status */}
+                              <button
+                                onClick={() => {
+                                  const nextStatus = task.status === 'TODO' ? 'IN_PROGRESS' :
+                                    task.status === 'IN_PROGRESS' ? 'COMPLETED' : 'TODO'
+                                  updateTaskStatusMutation.mutate({
+                                    taskId: task.id,
+                                    projectId: milestone.project.id,
+                                    status: nextStatus
+                                  })
+                                }}
+                                className="flex-shrink-0 mt-0.5 hover:scale-110 transition-transform"
+                                title={`Click to change status (${task.status === 'TODO' ? 'Mark In Progress' : task.status === 'IN_PROGRESS' ? 'Mark Complete' : 'Mark Todo'})`}
+                              >
                                 {task.status === 'COMPLETED' ? (
                                   <CheckCircle2 className="h-5 w-5 text-green-500" />
                                 ) : task.status === 'IN_PROGRESS' ? (
                                   <Clock className="h-5 w-5 text-blue-500" />
                                 ) : (
-                                  <Circle className="h-5 w-5 text-gray-300" />
+                                  <Circle className="h-5 w-5 text-gray-300 hover:text-gray-400" />
                                 )}
-                              </div>
+                              </button>
 
                               {/* Task Content */}
                               <div className="flex-1 min-w-0">
@@ -1738,25 +1803,39 @@ export default function VendorDetailPage() {
                                           {new Date(task.dueDate).toLocaleDateString()}
                                         </span>
                                       )}
-                                      <span className={`text-xs px-2 py-0.5 rounded ${
-                                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                        task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}>
-                                        {task.status.replace('_', ' ')}
-                                      </span>
                                     </div>
                                   </div>
 
-                                  {/* Task Priority Badge */}
-                                  <span className={`text-xs px-2 py-0.5 rounded flex-shrink-0 ${
-                                    task.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
-                                    task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                                    task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-700'
-                                  }`}>
-                                    {task.priority}
-                                  </span>
+                                  {/* Status Dropdown and Priority */}
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <select
+                                      value={task.status}
+                                      onChange={(e) => {
+                                        updateTaskStatusMutation.mutate({
+                                          taskId: task.id,
+                                          projectId: milestone.project.id,
+                                          status: e.target.value
+                                        })
+                                      }}
+                                      className={`text-xs px-2 py-1 rounded border-0 cursor-pointer font-medium ${
+                                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                                        task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-gray-100 text-gray-700'
+                                      }`}
+                                    >
+                                      <option value="TODO">TODO</option>
+                                      <option value="IN_PROGRESS">IN PROGRESS</option>
+                                      <option value="COMPLETED">COMPLETED</option>
+                                    </select>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                      task.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
+                                      task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                                      task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {task.priority}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -2288,24 +2367,22 @@ export default function VendorDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Start Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={contractForm.startDate}
-                    onChange={(e) => setContractForm({ ...contractForm, startDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
+                    onChange={(date) => setContractForm({ ...contractForm, startDate: date })}
+                    placeholder="Select start date"
+                    maxDate={contractForm.endDate ? new Date(contractForm.endDate) : undefined}
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     End Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={contractForm.endDate}
-                    onChange={(e) => setContractForm({ ...contractForm, endDate: e.target.value })}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    required
+                    onChange={(date) => setContractForm({ ...contractForm, endDate: date })}
+                    placeholder="Select end date"
+                    minDate={contractForm.startDate ? new Date(contractForm.startDate) : undefined}
                   />
                 </div>
                 <div>
@@ -2784,12 +2861,10 @@ export default function VendorDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Payment Date <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="date"
-                    required
+                  <DatePicker
                     value={paymentForm.paymentDate}
-                    onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setPaymentForm({ ...paymentForm, paymentDate: date })}
+                    placeholder="Select payment date"
                   />
                 </div>
 
@@ -3197,11 +3272,10 @@ export default function VendorDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Target Date</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={milestoneForm.targetDate}
-                    onChange={(e) => setMilestoneForm(prev => ({ ...prev, targetDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setMilestoneForm(prev => ({ ...prev, targetDate: date }))}
+                    placeholder="Select target date"
                   />
                 </div>
               </div>
@@ -3254,7 +3328,7 @@ export default function VendorDetailPage() {
       )}
 
       {/* Add Task Modal */}
-      {isAddTaskModalOpen && selectedMilestoneForTask && (
+      {isAddTaskModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto py-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
@@ -3284,7 +3358,7 @@ export default function VendorDetailPage() {
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                if (taskForm.title) {
+                if (taskForm.title && taskForm.projectId) {
                   createTaskMutation.mutate({
                     projectId: taskForm.projectId,
                     milestoneId: taskForm.milestoneId,
@@ -3299,6 +3373,55 @@ export default function VendorDetailPage() {
               }}
               className="p-6 space-y-4"
             >
+              {/* Project Selection - Only show if no milestone pre-selected */}
+              {!selectedMilestoneForTask && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={taskForm.projectId}
+                    onChange={(e) => {
+                      setTaskForm(prev => ({ ...prev, projectId: e.target.value, milestoneId: '', categoryId: '' }))
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    required
+                  >
+                    <option value="">Select a project...</option>
+                    {/* Get unique projects from milestones */}
+                    {Array.from(new Map(projectMilestones.map((m: any) => [m.project.id, m.project])).values()).map((project: any) => (
+                      <option key={project.id} value={project.id}>
+                        {project.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Milestone Selection - Only show if no milestone pre-selected but project is selected */}
+              {!selectedMilestoneForTask && taskForm.projectId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-gray-400" />
+                    Milestone
+                  </label>
+                  <select
+                    value={taskForm.milestoneId}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, milestoneId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">No milestone (standalone task)</option>
+                    {projectMilestones
+                      .filter((m: any) => m.project.id === taskForm.projectId)
+                      .map((milestone: any) => (
+                        <option key={milestone.id} value={milestone.id}>
+                          {milestone.title}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
               {/* Task Title */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -3345,42 +3468,45 @@ export default function VendorDetailPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={taskForm.dueDate}
-                    onChange={(e) => setTaskForm(prev => ({ ...prev, dueDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setTaskForm(prev => ({ ...prev, dueDate: date }))}
+                    placeholder="Select due date"
                   />
                 </div>
               </div>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={taskForm.categoryId}
-                  onChange={(e) => setTaskForm(prev => ({ ...prev, categoryId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">Uncategorized</option>
-                  {projectCategories.map((category: any) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Milestone Info */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <Target className="h-4 w-4 text-gray-400" />
-                  Milestone
-                </label>
-                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
-                  {selectedMilestoneForTask.title}
+              {/* Category - Only show if project is selected */}
+              {taskForm.projectId && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={taskForm.categoryId}
+                    onChange={(e) => setTaskForm(prev => ({ ...prev, categoryId: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Uncategorized</option>
+                    {projectCategories.map((category: any) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
+              )}
+
+              {/* Milestone Info - Only show if milestone was pre-selected */}
+              {selectedMilestoneForTask && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
+                    <Target className="h-4 w-4 text-gray-400" />
+                    Milestone
+                  </label>
+                  <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
+                    {selectedMilestoneForTask.title}
+                  </div>
+                </div>
+              )}
 
               {/* Assign To */}
               <div>
@@ -3399,10 +3525,12 @@ export default function VendorDetailPage() {
                 </select>
               </div>
 
-              {/* Project Info */}
-              <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">
-                Project: <strong>{selectedMilestoneForTask.project.title}</strong>
-              </p>
+              {/* Project Info - Only show if milestone was pre-selected */}
+              {selectedMilestoneForTask && (
+                <p className="text-sm text-gray-500 bg-gray-50 p-3 rounded-md">
+                  Project: <strong>{selectedMilestoneForTask.project.title}</strong>
+                </p>
+              )}
 
               {createTaskMutation.error && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800 text-sm">
@@ -3433,7 +3561,7 @@ export default function VendorDetailPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={createTaskMutation.isPending || !taskForm.title}
+                  disabled={createTaskMutation.isPending || !taskForm.title || !taskForm.projectId}
                   className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                 >
                   {createTaskMutation.isPending ? (

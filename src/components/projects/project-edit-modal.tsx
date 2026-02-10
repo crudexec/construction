@@ -5,6 +5,7 @@ import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
 import { X, Save, Calendar, DollarSign, MapPin, User, Phone, Mail } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface ProjectEditModalProps {
   project: any
@@ -385,24 +386,26 @@ export function ProjectEditModal({ project, isOpen, onClose, onSave }: ProjectEd
                       <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
                         Start Date
                       </label>
-                      <Field
-                        id="startDate"
-                        name="startDate"
-                        type="date"
-                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                      />
+                      <div className="mt-1">
+                        <DatePicker
+                          value={values.startDate}
+                          onChange={(date) => setFieldValue('startDate', date)}
+                          placeholder="Select start date"
+                        />
+                      </div>
                     </div>
 
                     <div>
                       <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
                         End Date
                       </label>
-                      <Field
-                        id="endDate"
-                        name="endDate"
-                        type="date"
-                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                      />
+                      <div className="mt-1">
+                        <DatePicker
+                          value={values.endDate}
+                          onChange={(date) => setFieldValue('endDate', date)}
+                          placeholder="Select end date"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, Package } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrency } from '@/hooks/useCurrency'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface AssetFormData {
   name: string
@@ -240,13 +241,10 @@ export default function NewAssetPage() {
               <label htmlFor="purchaseDate" className="block text-sm font-medium text-gray-700 mb-1">
                 Purchase Date
               </label>
-              <input
-                type="date"
-                id="purchaseDate"
-                name="purchaseDate"
+              <DatePicker
                 value={formData.purchaseDate}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                onChange={(date) => setFormData({...formData, purchaseDate: date})}
+                placeholder="Select purchase date"
               />
             </div>
 
@@ -254,13 +252,10 @@ export default function NewAssetPage() {
               <label htmlFor="warrantyExpiry" className="block text-sm font-medium text-gray-700 mb-1">
                 Warranty Expiry
               </label>
-              <input
-                type="date"
-                id="warrantyExpiry"
-                name="warrantyExpiry"
+              <DatePicker
                 value={formData.warrantyExpiry}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                onChange={(date) => setFormData({...formData, warrantyExpiry: date})}
+                placeholder="Select warranty expiry"
               />
             </div>
           </div>

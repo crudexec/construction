@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast'
 import { generateEstimatePDF } from '@/lib/pdf-generator'
 import { CompactFilters } from '@/components/ui/compact-filters'
+import { DatePicker } from '@/components/ui/date-picker'
 import { useCurrency } from '@/hooks/useCurrency'
 
 interface ProjectEstimatesProps {
@@ -512,7 +513,7 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                       })
                     }}
                   >
-                    {({ values, isSubmitting }) => (
+                    {({ values, isSubmitting, setFieldValue }) => (
                       <Form className="space-y-6">
                         {/* Basic Information */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -534,12 +535,13 @@ export function ProjectEstimates({ projectId }: ProjectEstimatesProps) {
                             <label htmlFor="validUntil" className="block text-sm font-medium text-gray-700">
                               Valid Until
                             </label>
-                            <Field
-                              id="validUntil"
-                              name="validUntil"
-                              type="date"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            />
+                            <div className="mt-1">
+                              <DatePicker
+                                value={values.validUntil}
+                                onChange={(date) => setFieldValue('validUntil', date)}
+                                placeholder="Select expiry date"
+                              />
+                            </div>
                             <ErrorMessage name="validUntil" component="p" className="mt-1 text-sm text-red-600" />
                           </div>
                         </div>

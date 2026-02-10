@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Calendar, DollarSign, Building2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface AddMilestoneModalProps {
   projectId: string
@@ -247,11 +248,10 @@ export function AddMilestoneModal({ projectId, isOpen, onClose, editMilestone }:
                 <Calendar className="inline h-4 w-4 mr-1" />
                 Target Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={formData.targetDate}
-                onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                onChange={(date) => setFormData({ ...formData, targetDate: date })}
+                placeholder="Select target date"
               />
             </div>
           </div>

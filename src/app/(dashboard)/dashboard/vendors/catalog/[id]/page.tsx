@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface PriceComparison {
   id: string
@@ -691,11 +692,10 @@ export default function ProcurementItemDetailPage({ params }: { params: Promise<
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Valid Until</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={newPrice.validUntil}
-                    onChange={(e) => setNewPrice({ ...newPrice, validUntil: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setNewPrice({ ...newPrice, validUntil: date })}
+                    placeholder="Select date"
                   />
                 </div>
                 <div className="flex items-end gap-2">

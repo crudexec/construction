@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
 import { CompactFilters } from '@/components/ui/compact-filters'
+import { DatePicker } from '@/components/ui/date-picker'
 import Link from 'next/link'
 
 interface Activity {
@@ -280,24 +281,22 @@ export default function ActivityPage() {
             <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
               From Date
             </label>
-            <input
-              id="startDate"
-              type="date"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+              onChange={(date) => setStartDate(date)}
+              placeholder="Select start date"
+              maxDate={endDate ? new Date(endDate) : undefined}
             />
           </div>
           <div>
             <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
               To Date
             </label>
-            <input
-              id="endDate"
-              type="date"
+            <DatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
+              onChange={(date) => setEndDate(date)}
+              placeholder="Select end date"
+              minDate={startDate ? new Date(startDate) : undefined}
             />
           </div>
         </div>

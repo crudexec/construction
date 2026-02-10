@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import toast from 'react-hot-toast'
+import { DatePicker } from '@/components/ui/date-picker'
 import Link from 'next/link'
 import { useCurrency } from '@/hooks/useCurrency'
 
@@ -735,11 +736,10 @@ export function ProjectInventory({ projectId }: ProjectInventoryProps) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={purchaseForm.purchaseDate}
-                    onChange={(e) => setPurchaseForm({ ...purchaseForm, purchaseDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setPurchaseForm({ ...purchaseForm, purchaseDate: date })}
+                    placeholder="Select date"
                   />
                 </div>
                 <div>
@@ -812,11 +812,10 @@ export function ProjectInventory({ projectId }: ProjectInventoryProps) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    type="date"
+                  <DatePicker
                     value={usageForm.usageDate}
-                    onChange={(e) => setUsageForm({ ...usageForm, usageDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-primary-500"
+                    onChange={(date) => setUsageForm({ ...usageForm, usageDate: date })}
+                    placeholder="Select date"
                   />
                 </div>
               </div>

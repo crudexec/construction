@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { 
   FileText, 
@@ -19,6 +19,7 @@ import {
 import { format, subDays, startOfMonth, endOfMonth } from 'date-fns'
 import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
+import { DatePicker } from '@/components/ui/date-picker'
 
 // Dynamically import PDF component to avoid SSR issues
 const ProgressReportPDF = dynamic(
@@ -192,12 +193,11 @@ export function ProgressReport({ projectId }: ProgressReportProps) {
                 <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
                   Start Date
                 </label>
-                <input
-                  type="date"
-                  id="startDate"
+                <DatePicker
                   value={filters.startDate}
-                  onChange={(e) => handleFilterChange('startDate', e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  onChange={(date) => handleFilterChange('startDate', date)}
+                  placeholder="Select start date"
+                  className="mt-1"
                 />
               </div>
               
@@ -205,12 +205,11 @@ export function ProgressReport({ projectId }: ProgressReportProps) {
                 <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
                   End Date
                 </label>
-                <input
-                  type="date"
-                  id="endDate"
+                <DatePicker
                   value={filters.endDate}
-                  onChange={(e) => handleFilterChange('endDate', e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  onChange={(date) => handleFilterChange('endDate', date)}
+                  placeholder="Select end date"
+                  className="mt-1"
                 />
               </div>
             </div>

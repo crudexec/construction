@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
+import { DatePicker } from '@/components/ui/date-picker'
 
 interface VendorContact {
   firstName: string
@@ -361,22 +362,20 @@ export default function NewVendorPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Contract Start Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={formData.contractStartDate}
-                onChange={(e) => handleInputChange('contractStartDate', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                onChange={(date) => handleInputChange('contractStartDate', date)}
+                placeholder="Select date"
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Contract End Date
               </label>
-              <input
-                type="date"
+              <DatePicker
                 value={formData.contractEndDate}
-                onChange={(e) => handleInputChange('contractEndDate', e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                onChange={(date) => handleInputChange('contractEndDate', date)}
+                placeholder="Select date"
               />
             </div>
           </div>
