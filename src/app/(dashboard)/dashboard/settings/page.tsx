@@ -154,7 +154,7 @@ async function fetchTeamMembers() {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch('/api/users', {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -163,7 +163,8 @@ async function fetchTeamMembers() {
   })
   if (!response.ok) throw new Error('Failed to fetch team members')
   const data = await response.json()
-  return data.users || []
+  // API returns array directly, not wrapped in { users: [] }
+  return Array.isArray(data) ? data : (data.users || [])
 }
 
 async function inviteTeamMember(data: { email: string; firstName: string; lastName: string; role: string }) {
@@ -315,12 +316,18 @@ function SettingsContent() {
   const inviteMutation = useMutation({
     mutationFn: inviteTeamMember,
     onSuccess: (data) => {
-      toast.success('Invitation created successfully!')
       queryClient.invalidateQueries({ queryKey: ['team-members'] })
       setShowInviteModal(false)
-      // Show invite link in a success modal
-      setInviteLink(data.inviteUrl)
-      setShowInviteLinkModal(true)
+
+      // Check if user was reactivated (previously removed user)
+      if (data.reactivated) {
+        toast.success('User has been reactivated and added back to the team!')
+      } else {
+        toast.success('Invitation created successfully!')
+        // Show invite link in a success modal (only for new invites)
+        setInviteLink(data.inviteUrl)
+        setShowInviteLinkModal(true)
+      }
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to invite team member')

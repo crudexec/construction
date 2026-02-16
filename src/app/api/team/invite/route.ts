@@ -30,6 +30,33 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingUser) {
+      // If user exists but is inactive AND belongs to the same company, reactivate them
+      if (!existingUser.isActive && existingUser.companyId === user.companyId) {
+        const reactivatedUser = await prisma.user.update({
+          where: { id: existingUser.id },
+          data: {
+            isActive: true,
+            firstName: firstName || existingUser.firstName,
+            lastName: lastName || existingUser.lastName,
+            role: role || existingUser.role
+          },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true
+          }
+        })
+
+        return NextResponse.json({
+          user: reactivatedUser,
+          reactivated: true,
+          message: 'User has been reactivated'
+        })
+      }
+
+      // User exists and is active, or belongs to different company
       return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 })
     }
 
