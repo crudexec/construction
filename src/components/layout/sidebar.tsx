@@ -15,7 +15,8 @@ import {
   Activity,
   Truck,
   Package,
-  Warehouse
+  Warehouse,
+  HelpCircle
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
@@ -39,6 +40,7 @@ const navigation = [
   { name: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
   { name: 'Assets', href: '/dashboard/assets', icon: Package },
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },
+  { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ]
 
