@@ -25,18 +25,39 @@ export async function GET(request: NextRequest) {
       preferences = await prisma.notificationPreference.create({
         data: {
           userId: user.id,
+          // Channel preferences
+          emailEnabled: true,
+          inAppEnabled: true,
+          smsEnabled: false,
+          // Email notifications
           emailNewLead: true,
           emailProjectUpdate: true,
           emailTaskAssigned: true,
           emailTaskCompleted: true,
           emailBidReceived: true,
           emailBidStatusChange: true,
+          // In-app/Push notifications
           pushNewLead: false,
           pushProjectUpdate: true,
           pushTaskAssigned: true,
           pushTaskCompleted: false,
           pushBidReceived: true,
-          pushBidStatusChange: true
+          pushBidStatusChange: true,
+          // SMS notifications
+          smsDueDateReminder: false,
+          smsTaskAssigned: true,
+          smsTaskEscalated: true,
+          smsTaskCompleted: false,
+          smsLowStock: false,
+          smsNewLead: false,
+          smsBidReceived: true,
+          smsBidStatusChange: false,
+          smsMention: true,
+          smsPurchaseOrder: false,
+          smsPaymentRecorded: false,
+          smsMilestoneReached: true,
+          smsContractChange: false,
+          smsDocumentShared: false,
         }
       })
     }

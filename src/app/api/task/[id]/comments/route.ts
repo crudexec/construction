@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { getEmailService } from '@/lib/email'
+import { mentionTemplate } from '@/lib/email/templates/notifications'
+import { getSMSService } from '@/lib/sms'
+import { mentionSMS } from '@/lib/sms/templates/notifications'
 
 export async function GET(
   request: NextRequest,
@@ -253,19 +257,126 @@ export async function POST(
 
     // Create notifications for mentioned users
     if (mentions.length > 0) {
-      await prisma.notification.createMany({
-        data: mentions.map(mentionedUserId => ({
-          type: 'mention_in_comment',
-          title: 'You were mentioned in a comment',
-          message: `${user.firstName} ${user.lastName} mentioned you in a comment on task "${task.title}"`,
-          userId: mentionedUserId,
-          metadata: JSON.stringify({
-            taskId,
-            commentId: comment.id,
-            projectId: task.card.id
-          })
-        }))
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'
+      const commentUrl = `${baseUrl}/dashboard/projects/${task.card.id}?task=${taskId}#comment-${comment.id}`
+
+      // Get mentioned users with their preferences
+      const mentionedUsers = await prisma.user.findMany({
+        where: { id: { in: mentions } },
+        include: {
+          notificationPreference: true,
+          company: {
+            select: { appName: true }
+          }
+        }
       })
+
+      const emailService = await getEmailService(user.companyId)
+      const smsService = await getSMSService(user.companyId)
+
+      for (const mentionedUser of mentionedUsers) {
+        const prefs = mentionedUser.notificationPreference
+        const companyName = mentionedUser.company?.appName || 'BuildFlow'
+
+        // Create in-app notification
+        const notification = await prisma.notification.create({
+          data: {
+            type: 'mention_in_comment',
+            title: 'You were mentioned in a comment',
+            message: `${user.firstName} ${user.lastName} mentioned you in a comment on task "${task.title}"`,
+            userId: mentionedUser.id,
+            channel: prefs?.emailEnabled ? 'EMAIL' : 'IN_APP',
+            metadata: JSON.stringify({
+              taskId,
+              commentId: comment.id,
+              projectId: task.card.id
+            })
+          }
+        })
+
+        // Send email if enabled
+        if (prefs?.emailEnabled ?? true) {
+          if (emailService.isConfigured()) {
+            try {
+              // Truncate comment for preview
+              const commentPreview = body.content.length > 100
+                ? body.content.substring(0, 100) + '...'
+                : body.content
+              // Remove mention markdown for cleaner preview
+              const cleanPreview = commentPreview.replace(/@\[([^\]]+)\]\([^)]+\)/g, '@$1')
+
+              const emailTemplate = mentionTemplate({
+                recipientName: mentionedUser.firstName,
+                mentionedBy: `${user.firstName} ${user.lastName}`,
+                context: `Task: ${task.title} in ${task.card.title}`,
+                commentPreview: cleanPreview,
+                contextUrl: commentUrl,
+                companyName
+              })
+
+              const emailResult = await emailService.send({
+                to: mentionedUser.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text
+              })
+
+              if (emailResult.success) {
+                await prisma.notification.update({
+                  where: { id: notification.id },
+                  data: { emailSentAt: new Date() }
+                })
+              } else {
+                await prisma.notification.update({
+                  where: { id: notification.id },
+                  data: { emailError: emailResult.error }
+                })
+              }
+            } catch (emailError) {
+              console.error('Error sending mention email:', emailError)
+            }
+          }
+        }
+
+        // Send SMS if enabled
+        if (prefs?.smsEnabled && prefs?.smsMention) {
+          if (smsService.isConfigured()) {
+            const phoneNumber = prefs.smsPhoneNumber || mentionedUser.phone
+
+            if (phoneNumber) {
+              try {
+                const smsMessage = mentionSMS({
+                  companyName,
+                  mentionedBy: `${user.firstName} ${user.lastName}`,
+                  taskTitle: task.title
+                })
+
+                const smsResult = await smsService.send({
+                  to: phoneNumber,
+                  message: smsMessage
+                })
+
+                if (smsResult.success) {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: {
+                      smsSentAt: new Date(),
+                      smsMessageId: smsResult.messageId
+                    }
+                  })
+                } else {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: { smsError: smsResult.error }
+                  })
+                }
+              } catch (smsError) {
+                console.error('Error sending mention SMS:', smsError)
+              }
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json(comment)

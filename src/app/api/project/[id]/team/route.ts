@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { getEmailService } from '@/lib/email'
+import { newLeadTemplate } from '@/lib/email/templates/notifications'
+import { getSMSService } from '@/lib/sms'
+import { newLeadSMS } from '@/lib/sms/templates/notifications'
 
 // GET: Get all team members for a project
 export async function GET(
@@ -127,6 +131,118 @@ export async function POST(
         }
       }
     })
+
+    // Send notification to the assigned user (if not the same user adding themselves)
+    if (userId !== user.id) {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'
+        const leadUrl = `${baseUrl}/dashboard/projects/${id}`
+
+        // Get target user with notification preferences
+        const assignedUser = await prisma.user.findUnique({
+          where: { id: userId },
+          include: {
+            notificationPreference: true,
+            company: {
+              select: { appName: true }
+            }
+          }
+        })
+
+        if (assignedUser) {
+          const prefs = assignedUser.notificationPreference
+          const companyName = assignedUser.company?.appName || 'BuildFlow'
+
+          // Create in-app notification
+          const notification = await prisma.notification.create({
+            data: {
+              type: 'NEW_LEAD_ASSIGNED',
+              title: `Assigned to: ${project.title}`,
+              message: `${user.firstName} ${user.lastName} assigned you to "${project.title}".`,
+              userId: assignedUser.id,
+              channel: prefs?.emailEnabled ? 'EMAIL' : 'IN_APP',
+              metadata: JSON.stringify({
+                projectId: id,
+                assignedBy: user.id
+              })
+            }
+          })
+
+          // Send email if enabled
+          if (prefs?.emailNewLead ?? true) {
+            const emailService = await getEmailService(user.companyId)
+
+            if (emailService.isConfigured()) {
+              const emailTemplate = newLeadTemplate({
+                recipientName: assignedUser.firstName,
+                leadName: project.title,
+                leadSource: project.contactName || undefined,
+                leadValue: project.budget ? `${project.budget}` : undefined,
+                leadUrl,
+                companyName
+              })
+
+              const emailResult = await emailService.send({
+                to: assignedUser.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text
+              })
+
+              if (emailResult.success) {
+                await prisma.notification.update({
+                  where: { id: notification.id },
+                  data: { emailSentAt: new Date() }
+                })
+              } else {
+                await prisma.notification.update({
+                  where: { id: notification.id },
+                  data: { emailError: emailResult.error }
+                })
+              }
+            }
+          }
+
+          // Send SMS if enabled
+          if (prefs?.smsEnabled && prefs?.smsNewLead) {
+            const smsService = await getSMSService(user.companyId)
+
+            if (smsService.isConfigured()) {
+              const phoneNumber = prefs.smsPhoneNumber || assignedUser.phone
+
+              if (phoneNumber) {
+                const smsMessage = newLeadSMS({
+                  companyName,
+                  projectName: project.title
+                })
+
+                const smsResult = await smsService.send({
+                  to: phoneNumber,
+                  message: smsMessage
+                })
+
+                if (smsResult.success) {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: {
+                      smsSentAt: new Date(),
+                      smsMessageId: smsResult.messageId
+                    }
+                  })
+                } else {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: { smsError: smsResult.error }
+                  })
+                }
+              }
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error sending lead assignment notification:', notificationError)
+      }
+    }
 
     return NextResponse.json({ message: 'User added to project team successfully' })
   } catch (error) {

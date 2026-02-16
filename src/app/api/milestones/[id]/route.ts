@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { getEmailService } from '@/lib/email'
+import { milestoneTemplate } from '@/lib/email/templates/notifications'
+import { getSMSService } from '@/lib/sms'
+import { milestoneCompletedSMS } from '@/lib/sms/templates/notifications'
 
 export async function GET(
   request: NextRequest,
@@ -99,7 +103,20 @@ export async function PATCH(
         project: {
           select: {
             id: true,
-            title: true
+            title: true,
+            ownerId: true,
+            assignedUsers: {
+              select: { id: true }
+            }
+          }
+        },
+        vendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true,
+            email: true,
+            phone: true
           }
         }
       }
@@ -165,6 +182,198 @@ export async function PATCH(
         userId: user.id
       }
     })
+
+    // Send milestone completion notification if status changed to COMPLETED
+    if (status === 'COMPLETED' && milestone.status !== 'COMPLETED') {
+      try {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3000'
+        const milestoneUrl = `${baseUrl}/dashboard/projects/${milestone.project.id}?tab=milestones`
+
+        // Get company info
+        const company = await prisma.company.findUnique({
+          where: { id: user.companyId },
+          select: { appName: true }
+        })
+        const companyName = company?.appName || 'BuildFlow'
+
+        // Notify project owner if different from person completing
+        if (milestone.project.ownerId && milestone.project.ownerId !== user.id) {
+          const owner = await prisma.user.findUnique({
+            where: { id: milestone.project.ownerId },
+            include: {
+              notificationPreference: true
+            }
+          })
+
+          if (owner) {
+            const prefs = owner.notificationPreference
+
+            // Create notification
+            const notification = await prisma.notification.create({
+              data: {
+                type: 'MILESTONE_COMPLETED',
+                title: `Milestone Completed: ${updatedMilestone.title}`,
+                message: `Milestone "${updatedMilestone.title}" in ${milestone.project.title} has been completed.`,
+                userId: owner.id,
+                channel: prefs?.emailEnabled ? 'EMAIL' : 'IN_APP',
+                metadata: JSON.stringify({
+                  milestoneId,
+                  projectId: milestone.project.id
+                })
+              }
+            })
+
+            // Send email if enabled
+            if (prefs?.emailEnabled ?? true) {
+              const emailService = await getEmailService(user.companyId)
+
+              if (emailService.isConfigured()) {
+                const emailTemplate = milestoneTemplate({
+                  recipientName: owner.firstName,
+                  milestoneName: updatedMilestone.title,
+                  projectName: milestone.project.title,
+                  status: 'completed',
+                  milestoneUrl,
+                  companyName
+                })
+
+                const emailResult = await emailService.send({
+                  to: owner.email,
+                  subject: emailTemplate.subject,
+                  html: emailTemplate.html,
+                  text: emailTemplate.text
+                })
+
+                if (emailResult.success) {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: { emailSentAt: new Date() }
+                  })
+                }
+              }
+            }
+
+            // Send SMS if enabled
+            if (prefs?.smsEnabled && prefs?.smsMilestoneReached) {
+              const smsService = await getSMSService(user.companyId)
+
+              if (smsService.isConfigured()) {
+                const phoneNumber = prefs.smsPhoneNumber || owner.phone
+
+                if (phoneNumber) {
+                  const smsMessage = milestoneCompletedSMS({
+                    companyName,
+                    milestoneTitle: updatedMilestone.title,
+                    projectName: milestone.project.title
+                  })
+
+                  const smsResult = await smsService.send({
+                    to: phoneNumber,
+                    message: smsMessage
+                  })
+
+                  if (smsResult.success) {
+                    await prisma.notification.update({
+                      where: { id: notification.id },
+                      data: {
+                        smsSentAt: new Date(),
+                        smsMessageId: smsResult.messageId
+                      }
+                    })
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        // Notify vendor if milestone has a vendor assigned
+        if (milestone.vendor?.email) {
+          const vendorPrefs = await prisma.vendorNotificationPreference.findUnique({
+            where: { vendorId: milestone.vendor.id }
+          })
+
+          const vendorMilestoneUrl = `${baseUrl}/vendor/dashboard`
+
+          const notification = await prisma.notification.create({
+            data: {
+              type: 'MILESTONE_COMPLETED',
+              title: `Milestone Completed: ${updatedMilestone.title}`,
+              message: `Milestone "${updatedMilestone.title}" in ${milestone.project.title} has been marked as completed.`,
+              vendorId: milestone.vendor.id,
+              channel: 'EMAIL',
+              metadata: JSON.stringify({
+                milestoneId,
+                projectId: milestone.project.id
+              })
+            }
+          })
+
+          if (vendorPrefs?.emailEnabled ?? true) {
+            const emailService = await getEmailService(user.companyId)
+
+            if (emailService.isConfigured()) {
+              const emailTemplate = milestoneTemplate({
+                recipientName: milestone.vendor.companyName || milestone.vendor.name,
+                milestoneName: updatedMilestone.title,
+                projectName: milestone.project.title,
+                status: 'completed',
+                milestoneUrl: vendorMilestoneUrl,
+                companyName
+              })
+
+              const emailResult = await emailService.send({
+                to: milestone.vendor.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html,
+                text: emailTemplate.text
+              })
+
+              if (emailResult.success) {
+                await prisma.notification.update({
+                  where: { id: notification.id },
+                  data: { emailSentAt: new Date() }
+                })
+              }
+            }
+          }
+
+          // Send SMS to vendor if enabled
+          if (vendorPrefs?.smsEnabled && vendorPrefs?.milestoneUpdate) {
+            const smsService = await getSMSService(user.companyId)
+
+            if (smsService.isConfigured()) {
+              const phoneNumber = vendorPrefs.smsPhoneNumber || milestone.vendor.phone
+
+              if (phoneNumber) {
+                const smsMessage = milestoneCompletedSMS({
+                  companyName,
+                  milestoneTitle: updatedMilestone.title,
+                  projectName: milestone.project.title
+                })
+
+                const smsResult = await smsService.send({
+                  to: phoneNumber,
+                  message: smsMessage
+                })
+
+                if (smsResult.success) {
+                  await prisma.notification.update({
+                    where: { id: notification.id },
+                    data: {
+                      smsSentAt: new Date(),
+                      smsMessageId: smsResult.messageId
+                    }
+                  })
+                }
+              }
+            }
+          }
+        }
+      } catch (notificationError) {
+        console.error('Error sending milestone completion notification:', notificationError)
+      }
+    }
 
     return NextResponse.json(updatedMilestone)
 

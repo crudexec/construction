@@ -2,6 +2,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getSMSService, isWithinQuietHours } from '@/lib/sms'
+import { lowStockAlertSMS } from '@/lib/sms/templates/notifications'
 
 // GET /api/cron/check-stock-levels - Check for low stock and send alerts
 // This should be called by a cron job (e.g., Vercel cron)
@@ -89,9 +91,20 @@ export async function GET(request: NextRequest) {
         const recipientIds: string[] = JSON.parse(config.recipientIds || '[]')
         const remaining = inventoryEntry.purchasedQty - inventoryEntry.usedQty
 
+        // Get SMS service for this company
+        const smsService = await getSMSService(companyId)
+
         // Create notifications for each recipient
         for (const recipientId of recipientIds) {
-          await prisma.notification.create({
+          // Get recipient with notification preferences
+          const recipient = await prisma.user.findUnique({
+            where: { id: recipientId },
+            include: { notificationPreference: true },
+          })
+
+          if (!recipient) continue
+
+          const notification = await prisma.notification.create({
             data: {
               type: 'LOW_STOCK_ALERT',
               title: 'Low Stock Alert',
@@ -110,6 +123,58 @@ export async function GET(request: NextRequest) {
           })
 
           notificationsCreated.push(`${inventoryEntry.item.name} (${inventoryEntry.project.title}) -> ${recipientId}`)
+
+          // Send SMS if enabled
+          const prefs = recipient.notificationPreference
+          const shouldSendSMS = (prefs?.smsEnabled ?? false) &&
+            (prefs?.smsLowStock ?? false) &&
+            smsService.isConfigured()
+
+          if (shouldSendSMS) {
+            const isQuiet = isWithinQuietHours(
+              prefs?.smsQuietHoursStart ?? null,
+              prefs?.smsQuietHoursEnd ?? null
+            )
+
+            if (!isQuiet) {
+              const phoneNumber = prefs?.smsPhoneNumber || recipient.phone
+
+              if (phoneNumber) {
+                try {
+                  const smsMessage = lowStockAlertSMS({
+                    companyName: inventoryEntry.project.company.appName || 'BuildFlo',
+                    itemName: inventoryEntry.item.name,
+                    projectName: inventoryEntry.project.title,
+                    remainingQty: remaining,
+                    minStockLevel: inventoryEntry.minStockLevel ?? 0,
+                    unit: inventoryEntry.item.unit,
+                  })
+
+                  const smsResult = await smsService.send({
+                    to: phoneNumber,
+                    message: smsMessage,
+                  })
+
+                  if (smsResult.success) {
+                    await prisma.notification.update({
+                      where: { id: notification.id },
+                      data: {
+                        smsSentAt: new Date(),
+                        smsMessageId: smsResult.messageId,
+                      },
+                    })
+                  } else {
+                    await prisma.notification.update({
+                      where: { id: notification.id },
+                      data: { smsError: smsResult.error },
+                    })
+                  }
+                } catch (smsError) {
+                  console.error(`SMS error for low stock alert: ${smsError}`)
+                }
+              }
+            }
+          }
         }
       }
     }

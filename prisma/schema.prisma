@@ -36,6 +36,7 @@ model Company {
   procurementItems ProcurementItem[]
   stockAlertConfigs StockAlertConfig[]
   emailConfig      EmailConfig?
+  smsConfig        SMSConfig?
   purchaseOrders   PurchaseOrder[]
   inventoryCategories InventoryCategory[]
   inventoryMaterials  InventoryMaterial[]
@@ -511,7 +512,15 @@ model Feedback {
 enum NotificationChannel {
   IN_APP
   EMAIL
-  BOTH
+  SMS
+  EMAIL_SMS
+  ALL
+}
+
+// SMS Provider options
+enum SMSProvider {
+  NONE
+  AFRICAS_TALKING
 }
 
 model Notification {
@@ -522,14 +531,27 @@ model Notification {
   isRead           Boolean             @default(false)
   metadata         String?             // JSON for action links, etc.
   channel          NotificationChannel @default(IN_APP)
+
+  // Email tracking
   emailSentAt      DateTime?
   emailError       String?             // Error message if email failed
-  userId           String
+
+  // SMS tracking
+  smsSentAt        DateTime?
+  smsError         String?             // Error message if SMS failed
+  smsMessageId     String?             // Provider message ID for tracking
+
+  // User or Vendor recipient
+  userId           String?             // Nullable for vendor notifications
+  vendorId         String?             // For vendor notifications
+
   createdAt        DateTime            @default(now())
 
-  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor           Vendor?             @relation("VendorNotifications", fields: [vendorId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([vendorId])
   @@index([isRead])
   @@index([type])
   @@index([createdAt])
@@ -831,6 +853,14 @@ model NotificationPreference {
   // Channel preferences
   emailEnabled         Boolean  @default(true)
   inAppEnabled         Boolean  @default(true)
+  smsEnabled           Boolean  @default(false)
+
+  // SMS phone number (can differ from User.phone)
+  smsPhoneNumber       String?
+
+  // SMS quiet hours (24-hour format, e.g., 22 for 10 PM)
+  smsQuietHoursStart   Int?     // Hour (0-23) to stop SMS
+  smsQuietHoursEnd     Int?     // Hour (0-23) to resume SMS
 
   // Due date notification timing
   dueDateReminder2Day  Boolean  @default(true)
@@ -856,6 +886,22 @@ model NotificationPreference {
   pushBidStatusChange  Boolean  @default(true)
   pushTaskEscalated    Boolean  @default(true)
   pushLowStock         Boolean  @default(true)
+
+  // SMS notifications
+  smsDueDateReminder   Boolean  @default(false)
+  smsTaskAssigned      Boolean  @default(true)
+  smsTaskEscalated     Boolean  @default(true)
+  smsTaskCompleted     Boolean  @default(false)
+  smsLowStock          Boolean  @default(false)
+  smsNewLead           Boolean  @default(false)
+  smsBidReceived       Boolean  @default(true)
+  smsBidStatusChange   Boolean  @default(false)
+  smsMention           Boolean  @default(true)
+  smsPurchaseOrder     Boolean  @default(false)
+  smsPaymentRecorded   Boolean  @default(false)
+  smsMilestoneReached  Boolean  @default(true)
+  smsContractChange    Boolean  @default(false)
+  smsDocumentShared    Boolean  @default(false)
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -1134,6 +1180,8 @@ model Vendor {
   taskComments          TaskComment[]
   taskAttachments       TaskAttachment[]
   comments              VendorComment[] @relation("VendorComments")
+  notifications         Notification[] @relation("VendorNotifications")
+  notificationPreference VendorNotificationPreference?
 
   @@index([companyId])
   @@index([type])
@@ -1800,6 +1848,49 @@ model EmailConfig {
   updatedAt             DateTime            @updatedAt
 
   company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// Company-level SMS service configuration
+model SMSConfig {
+  id                    String              @id @default(cuid())
+  companyId             String              @unique
+  provider              SMSProvider         @default(NONE)
+  apiKey                String?             // Encrypted API key
+  username              String?             // Africa's Talking username
+  shortCode             String?             // Sender ID / Short code
+  // Status
+  isActive              Boolean             @default(false)
+  lastTestedAt          DateTime?
+  testError             String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  company               Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// Vendor notification preferences
+model VendorNotificationPreference {
+  id                    String   @id @default(cuid())
+  vendorId              String   @unique
+
+  // Channel preferences
+  emailEnabled          Boolean  @default(true)
+  smsEnabled            Boolean  @default(false)
+  smsPhoneNumber        String?  // Override vendor.phone for SMS
+
+  // Notification types
+  taskAssigned          Boolean  @default(true)
+  taskDueReminder       Boolean  @default(true)
+  milestoneUpdate       Boolean  @default(true)
+  contractChange        Boolean  @default(true)
+  paymentReceived       Boolean  @default(true)
+  purchaseOrderReceived Boolean  @default(true)
+  documentShared        Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  vendor                Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
 }
 
 // ===========================================

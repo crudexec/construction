@@ -28,6 +28,8 @@ import toast from 'react-hot-toast'
 import { useModal } from '@/components/ui/modal-provider'
 import { useAuthStore } from '@/store/auth'
 import { TemplateManager } from '@/components/templates/template-manager'
+import { EmailConfigForm } from '@/components/settings/email-config-form'
+import { SMSConfigForm } from '@/components/settings/sms-config-form'
 
 interface Company {
   id: string
@@ -55,12 +57,34 @@ interface User {
 }
 
 interface NotificationPreference {
+  // Email preferences
+  emailEnabled: boolean
   emailNewLead: boolean
   emailProjectUpdate: boolean
   emailTaskAssigned: boolean
   emailTaskCompleted: boolean
+  emailTaskEscalated: boolean
   emailBidReceived: boolean
   emailBidStatusChange: boolean
+  emailLowStock: boolean
+  // SMS preferences
+  smsEnabled: boolean
+  smsPhoneNumber: string | null
+  smsDueDateReminder: boolean
+  smsTaskAssigned: boolean
+  smsTaskEscalated: boolean
+  smsTaskCompleted: boolean
+  smsLowStock: boolean
+  smsNewLead: boolean
+  smsBidReceived: boolean
+  smsBidStatusChange: boolean
+  smsMention: boolean
+  smsPurchaseOrder: boolean
+  smsPaymentRecorded: boolean
+  smsMilestoneReached: boolean
+  smsContractChange: boolean
+  smsDocumentShared: boolean
+  // In-app/Push preferences
   pushNewLead: boolean
   pushProjectUpdate: boolean
   pushTaskAssigned: boolean
@@ -993,93 +1017,163 @@ function SettingsContent() {
           <TemplateManager />
         )}
 
-        {activeTab === 'notifications' && notificationData?.preferences && (
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Notification Preferences</h3>
-            <p className="text-gray-600 mb-6">Choose how you want to be notified about important events and updates.</p>
-
-            <div className="space-y-6">
-              {/* Email Notifications */}
+        {activeTab === 'notifications' && (
+          <div className="space-y-8">
+            {/* Email Configuration Section (Admin Only) */}
+            {user?.role === 'ADMIN' && (
               <div>
-                <div className="flex items-center mb-4">
-                  <Mail className="h-5 w-5 text-gray-400 mr-2" />
-                  <h4 className="font-medium text-gray-900">Email Notifications</h4>
-                </div>
-                <div className="space-y-3 pl-7">
-                  {[
-                    { key: 'emailNewLead', label: 'New Lead Assigned', description: 'Get notified when a new lead is assigned to you' },
-                    { key: 'emailProjectUpdate', label: 'Project Updates', description: 'Updates on projects you\'re working on' },
-                    { key: 'emailTaskAssigned', label: 'Task Assignment', description: 'When a task is assigned to you' },
-                    { key: 'emailTaskCompleted', label: 'Task Completion', description: 'When a task you created is completed' },
-                    { key: 'emailBidReceived', label: 'New Bid Received', description: 'When someone submits a bid on your request' },
-                    { key: 'emailBidStatusChange', label: 'Bid Status Changes', description: 'When a bid status is updated' }
-                  ].map(({ key, label, description }) => (
-                    <label key={key} className="flex items-start">
-                      <div className="flex items-center h-5">
-                        <input
-                          type="checkbox"
-                          checked={notificationData.preferences[key as keyof NotificationPreference] as boolean}
-                          onChange={(e) => {
-                            updateNotificationMutation.mutate({
-                              [key]: e.target.checked
-                            })
-                          }}
-                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-700">{label}</div>
-                        <div className="text-xs text-gray-500">{description}</div>
-                      </div>
-                    </label>
-                  ))}
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Email Service Configuration</h3>
+                <p className="text-gray-600 mb-6">Configure your email provider to send notification emails.</p>
+                <EmailConfigForm />
+              </div>
+            )}
+
+            {/* SMS Configuration Section (Admin Only) */}
+            {user?.role === 'ADMIN' && (
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">SMS Service Configuration</h3>
+                <p className="text-gray-600 mb-6">Configure Africa&apos;s Talking to send SMS notifications.</p>
+                <SMSConfigForm />
+              </div>
+            )}
+
+            {/* Notification Preferences */}
+            {notificationData?.preferences && (
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-medium text-gray-900 mb-6">Notification Preferences</h3>
+                <p className="text-gray-600 mb-6">Choose how you want to be notified about important events and updates.</p>
+
+                <div className="space-y-6">
+                  {/* Email Notifications */}
+                  <div>
+                    <div className="flex items-center mb-4">
+                      <Mail className="h-5 w-5 text-gray-400 mr-2" />
+                      <h4 className="font-medium text-gray-900">Email Notifications</h4>
+                    </div>
+                    <div className="space-y-3 pl-7">
+                      {[
+                        { key: 'emailNewLead', label: 'New Lead Assigned', description: 'Get notified when a new lead is assigned to you' },
+                        { key: 'emailProjectUpdate', label: 'Project Updates', description: 'Updates on projects you\'re working on' },
+                        { key: 'emailTaskAssigned', label: 'Task Assignment', description: 'When a task is assigned to you' },
+                        { key: 'emailTaskCompleted', label: 'Task Completion', description: 'When a task you created is completed' },
+                        { key: 'emailTaskEscalated', label: 'Task Escalation', description: 'When a task is escalated' },
+                        { key: 'emailBidReceived', label: 'New Bid Received', description: 'When someone submits a bid on your request' },
+                        { key: 'emailBidStatusChange', label: 'Bid Status Changes', description: 'When a bid status is updated' },
+                        { key: 'emailLowStock', label: 'Low Stock Alerts', description: 'When inventory items are running low' }
+                      ].map(({ key, label, description }) => (
+                        <label key={key} className="flex items-start">
+                          <div className="flex items-center h-5">
+                            <input
+                              type="checkbox"
+                              checked={notificationData.preferences[key as keyof NotificationPreference] as boolean}
+                              onChange={(e) => {
+                                updateNotificationMutation.mutate({
+                                  [key]: e.target.checked
+                                })
+                              }}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-700">{label}</div>
+                            <div className="text-xs text-gray-500">{description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SMS Notifications */}
+                  <div>
+                    <div className="flex items-center mb-4">
+                      <Smartphone className="h-5 w-5 text-gray-400 mr-2" />
+                      <h4 className="font-medium text-gray-900">SMS Notifications</h4>
+                    </div>
+                    <div className="space-y-3 pl-7">
+                      {[
+                        { key: 'smsTaskAssigned', label: 'Task Assignment', description: 'Receive SMS when a task is assigned to you' },
+                        { key: 'smsTaskCompleted', label: 'Task Completion', description: 'SMS when a task you created is completed' },
+                        { key: 'smsTaskEscalated', label: 'Task Escalation', description: 'Urgent SMS for escalated tasks' },
+                        { key: 'smsDueDateReminder', label: 'Due Date Reminders', description: 'SMS reminders for upcoming due dates' },
+                        { key: 'smsNewLead', label: 'New Lead Assigned', description: 'SMS when a new lead is assigned to you' },
+                        { key: 'smsBidReceived', label: 'New Bid Received', description: 'SMS notification for new bids' },
+                        { key: 'smsBidStatusChange', label: 'Bid Status Changes', description: 'SMS when bid status is updated' },
+                        { key: 'smsMention', label: 'Mentions', description: 'SMS when someone mentions you' },
+                        { key: 'smsPurchaseOrder', label: 'Purchase Orders', description: 'SMS for PO approvals and updates' },
+                        { key: 'smsPaymentRecorded', label: 'Payments', description: 'SMS when payments are recorded' },
+                        { key: 'smsMilestoneReached', label: 'Milestone Completed', description: 'SMS when milestones are completed' },
+                        { key: 'smsContractChange', label: 'Contract Updates', description: 'SMS for contract changes' },
+                        { key: 'smsDocumentShared', label: 'Document Sharing', description: 'SMS when documents are shared with you' },
+                        { key: 'smsLowStock', label: 'Low Stock Alerts', description: 'SMS for inventory low stock warnings' }
+                      ].map(({ key, label, description }) => (
+                        <label key={key} className="flex items-start">
+                          <div className="flex items-center h-5">
+                            <input
+                              type="checkbox"
+                              checked={notificationData.preferences[key] as boolean || false}
+                              onChange={(e) => {
+                                updateNotificationMutation.mutate({
+                                  [key]: e.target.checked
+                                })
+                              }}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-700">{label}</div>
+                            <div className="text-xs text-gray-500">{description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Push/In-App Notifications */}
+                  <div>
+                    <div className="flex items-center mb-4">
+                      <Bell className="h-5 w-5 text-gray-400 mr-2" />
+                      <h4 className="font-medium text-gray-900">In-App Notifications</h4>
+                    </div>
+                    <div className="space-y-3 pl-7">
+                      {[
+                        { key: 'pushNewLead', label: 'New Lead Assigned', description: 'Instant notification for new leads' },
+                        { key: 'pushProjectUpdate', label: 'Project Updates', description: 'Real-time project updates' },
+                        { key: 'pushTaskAssigned', label: 'Task Assignment', description: 'Instant notification for task assignments' },
+                        { key: 'pushTaskCompleted', label: 'Task Completion', description: 'When tasks are marked complete' },
+                        { key: 'pushBidReceived', label: 'New Bid Received', description: 'Instant notification for new bids' },
+                        { key: 'pushBidStatusChange', label: 'Bid Status Changes', description: 'When bid status changes' }
+                      ].map(({ key, label, description }) => (
+                        <label key={key} className="flex items-start">
+                          <div className="flex items-center h-5">
+                            <input
+                              type="checkbox"
+                              checked={notificationData.preferences[key as keyof NotificationPreference] as boolean}
+                              onChange={(e) => {
+                                updateNotificationMutation.mutate({
+                                  [key]: e.target.checked
+                                })
+                              }}
+                              className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                            />
+                          </div>
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-700">{label}</div>
+                            <div className="text-xs text-gray-500">{description}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {updateNotificationMutation.isSuccess && (
+                    <div className="flex items-center text-green-600 text-sm">
+                      <Check className="h-4 w-4 mr-2" />
+                      Preferences saved automatically
+                    </div>
+                  )}
                 </div>
               </div>
-
-              {/* Push Notifications */}
-              <div>
-                <div className="flex items-center mb-4">
-                  <Smartphone className="h-5 w-5 text-gray-400 mr-2" />
-                  <h4 className="font-medium text-gray-900">Push Notifications</h4>
-                </div>
-                <div className="space-y-3 pl-7">
-                  {[
-                    { key: 'pushNewLead', label: 'New Lead Assigned', description: 'Instant notification for new leads' },
-                    { key: 'pushProjectUpdate', label: 'Project Updates', description: 'Real-time project updates' },
-                    { key: 'pushTaskAssigned', label: 'Task Assignment', description: 'Instant notification for task assignments' },
-                    { key: 'pushTaskCompleted', label: 'Task Completion', description: 'When tasks are marked complete' },
-                    { key: 'pushBidReceived', label: 'New Bid Received', description: 'Instant notification for new bids' },
-                    { key: 'pushBidStatusChange', label: 'Bid Status Changes', description: 'When bid status changes' }
-                  ].map(({ key, label, description }) => (
-                    <label key={key} className="flex items-start">
-                      <div className="flex items-center h-5">
-                        <input
-                          type="checkbox"
-                          checked={notificationData.preferences[key as keyof NotificationPreference] as boolean}
-                          onChange={(e) => {
-                            updateNotificationMutation.mutate({
-                              [key]: e.target.checked
-                            })
-                          }}
-                          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className="ml-3">
-                        <div className="text-sm font-medium text-gray-700">{label}</div>
-                        <div className="text-xs text-gray-500">{description}</div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {updateNotificationMutation.isSuccess && (
-                <div className="flex items-center text-green-600 text-sm">
-                  <Check className="h-4 w-4 mr-2" />
-                  Preferences saved automatically
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
 

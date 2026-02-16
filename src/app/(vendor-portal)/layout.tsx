@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   FileText,
   Star,
+  Settings,
   LogOut,
   Menu,
   X
@@ -18,6 +19,7 @@ const navigation = [
   { name: 'Dashboard', href: '/vendor/dashboard', icon: LayoutDashboard },
   { name: 'Contracts', href: '/vendor/contracts', icon: FileText },
   { name: 'Ratings', href: '/vendor/ratings', icon: Star },
+  { name: 'Settings', href: '/vendor/settings', icon: Settings },
 ]
 
 export default function VendorPortalLayout({

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { getEmailService } from '@/lib/email'
+import { teamInviteTemplate } from '@/lib/email/templates/notifications'
 import crypto from 'crypto'
 
 export async function POST(request: NextRequest) {
@@ -44,11 +46,55 @@ export async function POST(request: NextRequest) {
     })
 
     if (existingInvite) {
-      // Return the existing invite URL instead of error
+      // Return the existing invite URL and resend the email
       const host = request.headers.get('host') || 'localhost:3000'
       const protocol = host.includes('localhost') ? 'http' : 'https'
       const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${existingInvite.token}`
-      
+
+      // Resend the invitation email
+      let emailSent = false
+      try {
+        const company = await prisma.company.findUnique({
+          where: { id: user.companyId },
+          select: { appName: true }
+        })
+        const companyName = company?.appName || 'BuildFlow'
+        const emailService = await getEmailService(user.companyId)
+
+        if (emailService.isConfigured()) {
+          const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email
+
+          const emailTemplate = teamInviteTemplate({
+            recipientName: existingInvite.firstName || 'Team Member',
+            recipientEmail: existingInvite.email,
+            invitedBy: inviterName,
+            role: existingInvite.role,
+            inviteUrl,
+            expiresAt: existingInvite.expiresAt.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            }),
+            companyName
+          })
+
+          const emailResult = await emailService.send({
+            to: existingInvite.email,
+            subject: emailTemplate.subject,
+            html: emailTemplate.html,
+            text: emailTemplate.text
+          })
+
+          emailSent = emailResult.success
+          if (!emailResult.success) {
+            console.error('Failed to resend invite email:', emailResult.error)
+          }
+        }
+      } catch (emailError) {
+        console.error('Error resending invite email:', emailError)
+      }
+
       return NextResponse.json({
         invite: {
           id: existingInvite.id,
@@ -59,7 +105,9 @@ export async function POST(request: NextRequest) {
           token: existingInvite.token,
           expiresAt: existingInvite.expiresAt
         },
-        inviteUrl
+        inviteUrl,
+        emailResent: emailSent,
+        message: emailSent ? 'Invitation email resent successfully' : 'Existing invite found (email may not have been sent)'
       })
     }
 
@@ -114,6 +162,57 @@ export async function POST(request: NextRequest) {
       console.error('Failed to log invitation activity:', activityError)
     }
 
+    // Send invitation email to the invited user
+    let emailSent = false
+    try {
+      // Get company info
+      const company = await prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { appName: true }
+      })
+      const companyName = company?.appName || 'BuildFlow'
+
+      const emailService = await getEmailService(user.companyId)
+
+      if (emailService.isConfigured()) {
+        const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email
+
+        const emailTemplate = teamInviteTemplate({
+          recipientName: firstName || 'Team Member',
+          recipientEmail: email,
+          invitedBy: inviterName,
+          role: role || 'STAFF',
+          inviteUrl,
+          expiresAt: expiresAt.toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          companyName
+        })
+
+        const emailResult = await emailService.send({
+          to: email,
+          subject: emailTemplate.subject,
+          html: emailTemplate.html,
+          text: emailTemplate.text
+        })
+
+        emailSent = emailResult.success
+        if (!emailResult.success) {
+          console.error('Failed to send invite email:', emailResult.error)
+        } else {
+          console.log('Invite email sent successfully to:', email)
+        }
+      } else {
+        console.warn('Email service not configured for company:', user.companyId)
+      }
+    } catch (emailError) {
+      // Don't fail invitation if email sending fails
+      console.error('Failed to send invitation email:', emailError)
+    }
+
     return NextResponse.json({
       invite: {
         id: invite.id,
@@ -124,7 +223,9 @@ export async function POST(request: NextRequest) {
         token: invite.token,
         expiresAt: invite.expiresAt
       },
-      inviteUrl
+      inviteUrl,
+      emailSent,
+      message: emailSent ? 'Invitation sent successfully' : 'Invitation created but email could not be sent'
     })
   } catch (error) {
     console.error('Error creating team invite:', error)

@@ -2,8 +2,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { NotificationChannel } from '@prisma/client'
 import { getEmailService } from '@/lib/email'
 import { taskDueReminderTemplate } from '@/lib/email/templates/notifications'
+import { getSMSService, isWithinQuietHours } from '@/lib/sms'
+import { taskDueReminderSMS } from '@/lib/sms/templates/notifications'
 
 // GET /api/cron/due-date-notifications - Send due date reminder notifications
 // This should be called by a cron job daily (e.g., Vercel cron at 8am)
@@ -39,6 +42,7 @@ export async function GET(request: NextRequest) {
       companyId: string
       notificationsSent: number
       emailsSent: number
+      smsSent: number
       errors: string[]
     }[] = []
 
@@ -47,11 +51,13 @@ export async function GET(request: NextRequest) {
         companyId: company.id,
         notificationsSent: 0,
         emailsSent: 0,
+        smsSent: 0,
         errors: [] as string[],
       }
 
       try {
         const emailService = await getEmailService(company.id)
+        const smsService = await getSMSService(company.id)
 
         // Find tasks due in 2 days, 1 day, today, or overdue
         const twoDaysFromNow = new Date(today)
@@ -139,7 +145,7 @@ export async function GET(request: NextRequest) {
               ? `"${task.title}" in ${task.card.title} is due today.`
               : `"${task.title}" in ${task.card.title} is due in ${daysUntilDue} day(s).`,
             userId: task.assigneeId!,
-            channel: prefs?.emailEnabled ? 'BOTH' : 'IN_APP',
+            channel: prefs?.emailEnabled ? NotificationChannel.EMAIL : NotificationChannel.IN_APP,
             metadata: JSON.stringify({
               taskId: task.id,
               projectId: task.cardId,
@@ -149,14 +155,7 @@ export async function GET(request: NextRequest) {
 
           // Create notification
           const notification = await prisma.notification.create({
-            data: notificationData as {
-              type: string
-              title: string
-              message: string
-              userId: string
-              channel: 'IN_APP' | 'EMAIL' | 'BOTH'
-              metadata: string
-            },
+            data: notificationData,
           })
 
           companyResult.notificationsSent++
@@ -208,6 +207,62 @@ export async function GET(request: NextRequest) {
               }
             } catch (emailError) {
               companyResult.errors.push(`Email error for ${task.assignee.email}: ${emailError}`)
+            }
+          }
+
+          // Send SMS if enabled and configured
+          const shouldSendSMS = (prefs?.smsEnabled ?? false) &&
+            (prefs?.smsDueDateReminder ?? false) &&
+            smsService.isConfigured()
+
+          if (shouldSendSMS) {
+            // Check quiet hours
+            const isQuiet = isWithinQuietHours(
+              prefs?.smsQuietHoursStart ?? null,
+              prefs?.smsQuietHoursEnd ?? null
+            )
+
+            if (!isQuiet) {
+              try {
+                // Get phone number from preferences or user profile
+                const phoneNumber = prefs?.smsPhoneNumber || task.assignee.phone
+
+                if (phoneNumber) {
+                  const smsMessage = taskDueReminderSMS({
+                    companyName: company.appName,
+                    taskTitle: task.title,
+                    projectName: task.card.title,
+                    daysUntilDue,
+                  })
+
+                  const smsResult = await smsService.send({
+                    to: phoneNumber,
+                    message: smsMessage,
+                  })
+
+                  if (smsResult.success) {
+                    companyResult.smsSent++
+
+                    await prisma.notification.update({
+                      where: { id: notification.id },
+                      data: {
+                        smsSentAt: new Date(),
+                        smsMessageId: smsResult.messageId,
+                      },
+                    })
+                  } else {
+                    await prisma.notification.update({
+                      where: { id: notification.id },
+                      data: {
+                        smsError: smsResult.error,
+                      },
+                    })
+                    companyResult.errors.push(`Failed to SMS ${phoneNumber}: ${smsResult.error}`)
+                  }
+                }
+              } catch (smsError) {
+                companyResult.errors.push(`SMS error: ${smsError}`)
+              }
             }
           }
         }
