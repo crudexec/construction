@@ -22,7 +22,7 @@ export async function GET(
     const { id: projectId } = await params
 
     const project = await prisma.card.findFirst({
-      where: { 
+      where: {
         id: projectId,
         companyId: user.companyId
       },
@@ -71,6 +71,12 @@ export async function GET(
                 id: true,
                 firstName: true,
                 lastName: true
+              }
+            },
+            milestone: {
+              select: {
+                id: true,
+                title: true
               }
             },
             createdAt: true,
@@ -179,12 +185,68 @@ export async function GET(
           },
           take: 50
         },
+        projectMilestones: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            targetDate: true,
+            status: true,
+            completedDate: true,
+            order: true,
+            tasks: {
+              select: {
+                id: true,
+                status: true
+              }
+            }
+          },
+          orderBy: {
+            order: 'asc'
+          }
+        },
+        projectVendors: {
+          select: {
+            id: true,
+            status: true,
+            vendor: {
+              select: {
+                id: true,
+                companyName: true,
+                name: true
+              }
+            }
+          }
+        },
+        purchaseOrders: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            total: true,
+            createdAt: true
+          },
+          orderBy: {
+            createdAt: 'desc'
+          },
+          take: 5
+        },
+        boqItems: {
+          select: {
+            id: true,
+            totalCost: true,
+            actualCost: true
+          }
+        },
         _count: {
           select: {
             tasks: true,
             documents: true,
             estimates: true,
-            budgetItems: true
+            budgetItems: true,
+            projectMilestones: true,
+            purchaseOrders: true,
+            boqItems: true
           }
         }
       }
@@ -195,34 +257,228 @@ export async function GET(
     }
 
     // Calculate project metrics
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+    // Budget & Expense calculations
     const totalBudget = project.budgetItems
       .filter(item => !item.isExpense)
       .reduce((sum, item) => sum + item.amount, 0)
-    
+
     const totalExpenses = project.budgetItems
       .filter(item => item.isExpense)
       .reduce((sum, item) => sum + item.amount, 0)
 
+    const paidExpenses = project.budgetItems
+      .filter(item => item.isExpense && item.isPaid)
+      .reduce((sum, item) => sum + item.amount, 0)
+
+    const unpaidExpenses = totalExpenses - paidExpenses
+
+    // Group expenses by category
+    const expensesByCategory = project.budgetItems
+      .filter(item => item.isExpense)
+      .reduce((acc: Record<string, number>, item) => {
+        const category = item.category || 'Other'
+        acc[category] = (acc[category] || 0) + item.amount
+        return acc
+      }, {})
+
+    // Task calculations
     const completedTasks = project.tasks.filter(task => task.status === 'COMPLETED').length
+    const inProgressTasks = project.tasks.filter(task => task.status === 'IN_PROGRESS').length
+    const todoTasks = project.tasks.filter(task => task.status === 'TODO').length
     const totalTasks = project.tasks.length
     const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
-    const overdueTasks = project.tasks.filter(task => 
-      task.dueDate && 
-      new Date(task.dueDate) < new Date() && 
-      task.status !== 'COMPLETED'
-    ).length
+    // Overdue tasks
+    const overdueTasks = project.tasks.filter(task =>
+      task.dueDate &&
+      new Date(task.dueDate) < today &&
+      task.status !== 'COMPLETED' &&
+      task.status !== 'CANCELLED'
+    )
+
+    // Upcoming tasks (due within 7 days)
+    const upcomingTasks = project.tasks.filter(task =>
+      task.dueDate &&
+      new Date(task.dueDate) >= today &&
+      new Date(task.dueDate) <= weekFromNow &&
+      task.status !== 'COMPLETED' &&
+      task.status !== 'CANCELLED'
+    ).sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
+
+    // Recently completed tasks (last 7 days)
+    const recentlyCompleted = project.tasks.filter(task =>
+      task.status === 'COMPLETED' &&
+      task.completedAt &&
+      new Date(task.completedAt) >= new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+    ).slice(0, 5)
+
+    // High priority unfinished tasks
+    const highPriorityTasks = project.tasks.filter(task =>
+      (task.priority === 'HIGH' || task.priority === 'URGENT') &&
+      task.status !== 'COMPLETED' &&
+      task.status !== 'CANCELLED'
+    )
+
+    // Milestone calculations
+    const completedMilestones = project.projectMilestones.filter(m => m.status === 'COMPLETED').length
+    const totalMilestones = project.projectMilestones.length
+    const upcomingMilestones = project.projectMilestones
+      .filter(m => m.targetDate && new Date(m.targetDate) >= today && m.status !== 'COMPLETED')
+      .sort((a, b) => new Date(a.targetDate!).getTime() - new Date(b.targetDate!).getTime())
+      .slice(0, 3)
+      .map(m => ({ ...m, name: m.title, dueDate: m.targetDate })) // Map to expected format
+
+    const overdueMilestones = project.projectMilestones.filter(m =>
+      m.targetDate &&
+      new Date(m.targetDate) < today &&
+      m.status !== 'COMPLETED'
+    ).map(m => ({ ...m, name: m.title, dueDate: m.targetDate })) // Map to expected format
+
+    // Timeline calculations
+    let timelineProgress = 0
+    let daysRemaining = null
+    let daysElapsed = null
+    let totalDays = null
+    let isOverdue = false
+
+    if (project.startDate) {
+      const startDate = new Date(project.startDate)
+
+      if (project.endDate) {
+        const endDate = new Date(project.endDate)
+        totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+        daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+        daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+        isOverdue = daysRemaining < 0
+        timelineProgress = totalDays > 0 ? Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100)) : 0
+      } else {
+        daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24))
+      }
+    }
+
+    // Budget utilization
+    const budgetUtilization = project.budget && project.budget > 0
+      ? (totalExpenses / project.budget) * 100
+      : 0
+
+    // Vendor stats
+    const activeVendors = project.projectVendors.filter(v => v.status === 'ASSIGNED' || v.status === 'IN_PROGRESS').length
+
+    // Purchase order stats
+    const pendingPOs = project.purchaseOrders.filter(po => po.status === 'PENDING_APPROVAL' || po.status === 'APPROVED' || po.status === 'SENT').length
+    const totalPOValue = project.purchaseOrders.reduce((sum, po) => sum + (po.total || 0), 0)
+
+    // BOQ stats
+    const completedBOQItems = project.boqItems.filter(item => item.actualCost !== null).length
+    const totalBOQValue = project.boqItems.reduce((sum, item) => sum + (item.totalCost || 0), 0)
+
+    // Document stats
+    const recentDocuments = project.documents.slice(0, 5)
+    const documentsByType = project.documents.reduce((acc: Record<string, number>, doc) => {
+      const type = doc.mimeType?.split('/')[0] || 'other'
+      acc[type] = (acc[type] || 0) + 1
+      return acc
+    }, {})
+
+    // Project health score (0-100)
+    let healthScore = 100
+    const healthFactors: string[] = []
+
+    // Deduct for overdue tasks (up to 30 points)
+    if (overdueTasks.length > 0) {
+      const overdueDeduction = Math.min(30, overdueTasks.length * 5)
+      healthScore -= overdueDeduction
+      healthFactors.push(`${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}`)
+    }
+
+    // Deduct for overdue milestones (up to 20 points)
+    if (overdueMilestones.length > 0) {
+      const milestoneDeduction = Math.min(20, overdueMilestones.length * 10)
+      healthScore -= milestoneDeduction
+      healthFactors.push(`${overdueMilestones.length} overdue milestone${overdueMilestones.length > 1 ? 's' : ''}`)
+    }
+
+    // Deduct for budget overrun (up to 25 points)
+    if (budgetUtilization > 100) {
+      const budgetDeduction = Math.min(25, (budgetUtilization - 100) / 2)
+      healthScore -= budgetDeduction
+      healthFactors.push('Budget overrun')
+    }
+
+    // Deduct for timeline overdue (up to 25 points)
+    if (isOverdue && daysRemaining !== null) {
+      const timelineDeduction = Math.min(25, Math.abs(daysRemaining) * 2)
+      healthScore -= timelineDeduction
+      healthFactors.push('Past deadline')
+    }
+
+    healthScore = Math.max(0, Math.round(healthScore))
 
     const projectWithMetrics = {
       ...project,
       metrics: {
+        // Core metrics
         totalBudget,
         totalExpenses,
+        paidExpenses,
+        unpaidExpenses,
         profit: totalBudget - totalExpenses,
+        budgetUtilization: Math.round(budgetUtilization),
+        expensesByCategory,
+
+        // Task metrics
         progress: Math.round(progress),
         completedTasks,
+        inProgressTasks,
+        todoTasks,
         totalTasks,
-        overdueTasks
+        overdueTasks: overdueTasks.length,
+        upcomingTasksCount: upcomingTasks.length,
+        highPriorityCount: highPriorityTasks.length,
+
+        // Milestone metrics
+        completedMilestones,
+        totalMilestones,
+        milestonesProgress: totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0,
+
+        // Timeline metrics
+        timelineProgress: Math.round(timelineProgress),
+        daysRemaining,
+        daysElapsed,
+        totalDays,
+        isOverdue,
+
+        // Vendor & procurement
+        activeVendors,
+        totalVendors: project.projectVendors.length,
+        pendingPOs,
+        totalPOValue,
+
+        // BOQ
+        completedBOQItems,
+        totalBOQItems: project.boqItems.length,
+        totalBOQValue,
+
+        // Documents
+        totalDocuments: project.documents.length,
+        documentsByType,
+
+        // Health
+        healthScore,
+        healthFactors
+      },
+      insights: {
+        overdueTasks: overdueTasks.slice(0, 5),
+        upcomingTasks: upcomingTasks.slice(0, 5),
+        recentlyCompleted,
+        highPriorityTasks: highPriorityTasks.slice(0, 5),
+        upcomingMilestones,
+        overdueMilestones,
+        recentDocuments
       }
     }
 

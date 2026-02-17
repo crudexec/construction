@@ -40,6 +40,9 @@ model Company {
   purchaseOrders   PurchaseOrder[]
   inventoryCategories InventoryCategory[]
   inventoryMaterials  InventoryMaterial[]
+
+  // Property Management
+  properties       Property[]
 }
 
 model User {
@@ -109,6 +112,9 @@ model User {
 
   // Inventory Management
   inventoryTransactions InventoryTransaction[]
+
+  // Property Management
+  managedProperties    Property[]      @relation("PropertyManager")
 
   @@index([email])
   @@index([companyId])
@@ -190,6 +196,9 @@ model Card {
   boqItems         BOQItem[]
   boqRevisions     BOQRevision[]
   inventoryAllocations InventoryTransaction[] @relation("InventoryProjectAllocation")
+
+  // Property Management - if this project becomes a property
+  convertedProperty Property?       @relation("PropertySourceProject")
 
   @@index([stageId])
   @@index([companyId])
@@ -2039,4 +2048,147 @@ model InventoryTransaction {
   @@index([projectId])
   @@index([userId])
   @@index([createdAt])
+}
+
+// ===========================================
+// PROPERTY MANAGEMENT (Property Operations Phase)
+// ===========================================
+
+enum PropertyType {
+  RESIDENTIAL_SINGLE
+  RESIDENTIAL_MULTI
+  APARTMENT_COMPLEX
+  COMMERCIAL_OFFICE
+  COMMERCIAL_RETAIL
+  COMMERCIAL_INDUSTRIAL
+  MIXED_USE
+  LAND
+}
+
+enum PropertyStatus {
+  ACTIVE
+  UNDER_CONSTRUCTION
+  RENOVATION
+  INACTIVE
+  SOLD
+}
+
+enum UnitType {
+  STUDIO
+  ONE_BED
+  TWO_BED
+  THREE_BED
+  FOUR_BED_PLUS
+  OFFICE
+  RETAIL
+  WAREHOUSE
+  OTHER
+}
+
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  NOTICE_GIVEN
+  MAKE_READY
+  DOWN
+  MODEL
+}
+
+model Property {
+  id                    String          @id @default(cuid())
+
+  // Basic info
+  name                  String
+  type                  PropertyType
+  status                PropertyStatus  @default(ACTIVE)
+
+  // Address
+  address               String
+  city                  String
+  state                 String
+  zipCode               String
+  country               String          @default("Kenya")
+  latitude              Float?
+  longitude             Float?
+
+  // Details
+  yearBuilt             Int?
+  totalUnits            Int             @default(1)
+  totalSqft             Float?
+  lotSize               Float?
+  stories               Int?
+  parkingSpaces         Int?
+
+  // Financial
+  purchasePrice         Float?
+  purchaseDate          DateTime?
+  currentValue          Float?
+
+  // Management
+  managerId             String?
+  manager               User?           @relation("PropertyManager", fields: [managerId], references: [id])
+
+  // Source (if converted from construction project)
+  sourceProjectId       String?         @unique
+  sourceProject         Card?           @relation("PropertySourceProject", fields: [sourceProjectId], references: [id])
+
+  // Metadata
+  description           String?
+  photos                String?         // JSON array of photo URLs
+  amenities             String[]        @default([])
+  notes                 String?
+
+  companyId             String
+  company               Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  // Related
+  units                 Unit[]
+
+  @@index([companyId])
+  @@index([type])
+  @@index([status])
+  @@index([managerId])
+}
+
+model Unit {
+  id                    String          @id @default(cuid())
+  propertyId            String
+  property              Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  unitNumber            String
+  type                  UnitType
+  status                UnitStatus      @default(VACANT)
+
+  // Specs
+  bedrooms              Int?
+  bathrooms             Float?
+  sqft                  Float?
+  floor                 Int?
+
+  // Rent
+  marketRent            Float?
+  currentRent           Float?
+  depositAmount         Float?
+
+  // Features
+  features              String[]        @default([])
+
+  // Current occupancy (denormalized for quick access)
+  currentLeaseId        String?
+  currentTenantId       String?
+
+  // Metadata
+  description           String?
+  photos                String?         // JSON array of photo URLs
+  notes                 String?
+
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@unique([propertyId, unitNumber])
+  @@index([propertyId])
+  @@index([type])
+  @@index([status])
 }

@@ -36,7 +36,10 @@ import {
   CheckCircle,
   XCircle,
   Target,
-  Paperclip
+  Paperclip,
+  Search,
+  Link2,
+  GitBranch
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { TaskAnalytics } from '@/components/admin/task-analytics'
@@ -50,6 +53,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 interface ProjectTasksProps {
   projectId: string
   shouldOpenAddModal?: boolean
+  openTaskId?: string | null
 }
 
 interface TaskCategory {
@@ -622,7 +626,7 @@ function TableTaskRow({
   )
 }
 
-export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProps) {
+export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: ProjectTasksProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
@@ -997,6 +1001,18 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
     : (Array.isArray(tasksData) ? tasksData : [])
 
   const milestonesWithTasks = tasksData?.groupBy === 'milestone' ? tasksData.groups : []
+
+  // Open specific task modal when openTaskId is provided
+  useEffect(() => {
+    if (openTaskId && tasks.length > 0) {
+      const taskToOpen = tasks.find((t: Task) => t.id === openTaskId)
+      if (taskToOpen) {
+        setSelectedTask(taskToOpen)
+        setIsEditModalOpen(true)
+        setEditModalTab('details')
+      }
+    }
+  }, [openTaskId, tasks])
 
   const { data: categories = [] } = useQuery({
     queryKey: ['project-categories', projectId],
@@ -2426,44 +2442,158 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                         </div>
 
                         <div>
-                          <label htmlFor="dependencyIds" className="block text-sm font-medium text-gray-700">
-                            Task Dependencies
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <div className="flex items-center gap-2">
+                              <GitBranch className="h-4 w-4 text-gray-400" />
+                              Task Dependencies
+                            </div>
                           </label>
                           <Field name="dependencyIds">
                             {({ field, form }: any) => {
+                              const [depSearch, setDepSearch] = useState('')
+                              const [showDepDropdown, setShowDepDropdown] = useState(false)
+
                               const availableTasks = tasks.filter((task: Task) => {
-                                // Exclude the current task and completed tasks from being dependencies
                                 return task.status !== 'COMPLETED'
                               })
-                              
-                              const handleDependencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-                                const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
-                                form.setFieldValue('dependencyIds', selectedOptions)
+
+                              const filteredTasks = availableTasks.filter((task: Task) =>
+                                task.title.toLowerCase().includes(depSearch.toLowerCase())
+                              )
+
+                              const selectedDeps = field.value || []
+                              const selectedTasks = availableTasks.filter((t: Task) => selectedDeps.includes(t.id))
+
+                              const toggleDependency = (taskId: string) => {
+                                const current = field.value || []
+                                if (current.includes(taskId)) {
+                                  form.setFieldValue('dependencyIds', current.filter((id: string) => id !== taskId))
+                                } else {
+                                  form.setFieldValue('dependencyIds', [...current, taskId])
+                                }
                               }
-                              
+
+                              const getStatusConfig = (status: string) => {
+                                switch (status) {
+                                  case 'TODO': return { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' }
+                                  case 'IN_PROGRESS': return { bg: 'bg-blue-100', text: 'text-blue-600', dot: 'bg-blue-500' }
+                                  case 'REVIEW': return { bg: 'bg-purple-100', text: 'text-purple-600', dot: 'bg-purple-500' }
+                                  case 'BLOCKED': return { bg: 'bg-red-100', text: 'text-red-600', dot: 'bg-red-500' }
+                                  default: return { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' }
+                                }
+                              }
+
                               return (
-                                <div className="">
-                                  <select
-                                    {...field}
-                                    multiple
-                                    size={Math.min(5, Math.max(2, availableTasks.length))}
-                                    onChange={handleDependencyChange}
-                                    className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                  >
-                                    {availableTasks.map((task: Task) => (
-                                      <option key={task.id} value={task.id}>
-                                        {task.title} ({task.status.replace('_', ' ')})
-                                      </option>
-                                    ))}
-                                  </select>
-                                  <p className="text-xs text-gray-500 ">
-                                    Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
+                                <div className="space-y-3">
+                                  {/* Selected Dependencies */}
+                                  {selectedTasks.length > 0 && (
+                                    <div className="space-y-2">
+                                      <p className="text-xs text-gray-500">This task depends on:</p>
+                                      <div className="flex flex-wrap gap-2">
+                                        {selectedTasks.map((task: Task) => {
+                                          const config = getStatusConfig(task.status)
+                                          return (
+                                            <div
+                                              key={task.id}
+                                              className="group flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-lg text-sm"
+                                            >
+                                              <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                                              <span className="text-primary-700 font-medium truncate max-w-[150px]">
+                                                {task.title}
+                                              </span>
+                                              <button
+                                                type="button"
+                                                onClick={() => toggleDependency(task.id)}
+                                                className="p-0.5 rounded hover:bg-primary-200 text-primary-400 hover:text-primary-600 transition-colors"
+                                              >
+                                                <X className="h-3.5 w-3.5" />
+                                              </button>
+                                            </div>
+                                          )
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Search & Select */}
+                                  <div className="relative">
+                                    <div className="relative">
+                                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                      <input
+                                        type="text"
+                                        placeholder="Search tasks to add as dependency..."
+                                        value={depSearch}
+                                        onChange={(e) => setDepSearch(e.target.value)}
+                                        onFocus={() => setShowDepDropdown(true)}
+                                        className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                      />
+                                    </div>
+
+                                    {showDepDropdown && (
+                                      <>
+                                        <div
+                                          className="fixed inset-0 z-10"
+                                          onClick={() => setShowDepDropdown(false)}
+                                        />
+                                        <div className="absolute z-20 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
+                                          {filteredTasks.length === 0 ? (
+                                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                              {depSearch ? 'No matching tasks found' : 'No available tasks'}
+                                            </div>
+                                          ) : (
+                                            filteredTasks.map((task: Task) => {
+                                              const isSelected = selectedDeps.includes(task.id)
+                                              const config = getStatusConfig(task.status)
+                                              return (
+                                                <button
+                                                  key={task.id}
+                                                  type="button"
+                                                  onClick={() => toggleDependency(task.id)}
+                                                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                                                    isSelected ? 'bg-primary-50' : ''
+                                                  }`}
+                                                >
+                                                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                    isSelected
+                                                      ? 'bg-primary-500 border-primary-500'
+                                                      : 'border-gray-300'
+                                                  }`}>
+                                                    {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                  </div>
+                                                  <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">
+                                                      {task.title}
+                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-0.5">
+                                                      <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text}`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+                                                        {task.status.replace('_', ' ')}
+                                                      </span>
+                                                      {task.assignee && (
+                                                        <span className="text-xs text-gray-400">
+                                                          {task.assignee.firstName}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </button>
+                                              )
+                                            })
+                                          )}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+
+                                  <p className="text-xs text-gray-500 flex items-center gap-1">
+                                    <Link2 className="h-3 w-3" />
+                                    Dependencies must be completed before this task can start
                                   </p>
                                 </div>
                               )
                             }}
                           </Field>
-                          <ErrorMessage name="dependencyIds" component="p" className=" text-sm text-red-600" />
+                          <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
                         </div>
 
                         <div className="flex justify-end space-x-3 pt-4">
@@ -3060,47 +3190,158 @@ export function ProjectTasks({ projectId, shouldOpenAddModal }: ProjectTasksProp
                           </div>
 
                           <div>
-                            <label htmlFor="dependencyIds" className="block text-sm font-medium text-gray-700">
-                              Task Dependencies
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <div className="flex items-center gap-2">
+                                <GitBranch className="h-4 w-4 text-gray-400" />
+                                Task Dependencies
+                              </div>
                             </label>
                             <Field name="dependencyIds">
                               {({ field, form }: any) => {
+                                const [depSearchEdit, setDepSearchEdit] = useState('')
+                                const [showDepDropdownEdit, setShowDepDropdownEdit] = useState(false)
+
                                 const availableTasks = tasks.filter((task: Task) => {
-                                  // Exclude the current task being edited and completed tasks
                                   return task.id !== selectedTask.id && task.status !== 'COMPLETED'
                                 })
-                                
-                                const currentDependencies = selectedTask.dependsOn?.map(d => d.id) || []
-                                
-                                const handleDependencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-                                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value)
-                                  form.setFieldValue('dependencyIds', selectedOptions)
+
+                                const filteredTasks = availableTasks.filter((task: Task) =>
+                                  task.title.toLowerCase().includes(depSearchEdit.toLowerCase())
+                                )
+
+                                const selectedDeps = field.value || []
+                                const selectedTasks = availableTasks.filter((t: Task) => selectedDeps.includes(t.id))
+
+                                const toggleDependency = (taskId: string) => {
+                                  const current = field.value || []
+                                  if (current.includes(taskId)) {
+                                    form.setFieldValue('dependencyIds', current.filter((id: string) => id !== taskId))
+                                  } else {
+                                    form.setFieldValue('dependencyIds', [...current, taskId])
+                                  }
                                 }
-                                
+
+                                const getStatusConfig = (status: string) => {
+                                  switch (status) {
+                                    case 'TODO': return { bg: 'bg-slate-100', text: 'text-slate-600', dot: 'bg-slate-400' }
+                                    case 'IN_PROGRESS': return { bg: 'bg-blue-100', text: 'text-blue-600', dot: 'bg-blue-500' }
+                                    case 'REVIEW': return { bg: 'bg-purple-100', text: 'text-purple-600', dot: 'bg-purple-500' }
+                                    case 'BLOCKED': return { bg: 'bg-red-100', text: 'text-red-600', dot: 'bg-red-500' }
+                                    default: return { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400' }
+                                  }
+                                }
+
                                 return (
-                                  <div className="">
-                                    <select
-                                      name={field.name}
-                                      multiple
-                                      size={Math.min(5, Math.max(2, availableTasks.length))}
-                                      onChange={handleDependencyChange}
-                                      value={field.value || []}
-                                      className="block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                                    >
-                                      {availableTasks.map((task: Task) => (
-                                        <option key={task.id} value={task.id}>
-                                          {task.title} ({task.status.replace('_', ' ')})
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <p className="text-xs text-gray-500 ">
-                                      Hold Ctrl/Cmd to select multiple tasks. This task will wait for selected tasks to complete.
+                                  <div className="space-y-3">
+                                    {/* Selected Dependencies */}
+                                    {selectedTasks.length > 0 && (
+                                      <div className="space-y-2">
+                                        <p className="text-xs text-gray-500">This task depends on:</p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {selectedTasks.map((task: Task) => {
+                                            const config = getStatusConfig(task.status)
+                                            return (
+                                              <div
+                                                key={task.id}
+                                                className="group flex items-center gap-2 px-3 py-1.5 bg-primary-50 border border-primary-200 rounded-lg text-sm"
+                                              >
+                                                <div className={`w-2 h-2 rounded-full ${config.dot}`} />
+                                                <span className="text-primary-700 font-medium truncate max-w-[150px]">
+                                                  {task.title}
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => toggleDependency(task.id)}
+                                                  className="p-0.5 rounded hover:bg-primary-200 text-primary-400 hover:text-primary-600 transition-colors"
+                                                >
+                                                  <X className="h-3.5 w-3.5" />
+                                                </button>
+                                              </div>
+                                            )
+                                          })}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Search & Select */}
+                                    <div className="relative">
+                                      <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        <input
+                                          type="text"
+                                          placeholder="Search tasks to add as dependency..."
+                                          value={depSearchEdit}
+                                          onChange={(e) => setDepSearchEdit(e.target.value)}
+                                          onFocus={() => setShowDepDropdownEdit(true)}
+                                          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                        />
+                                      </div>
+
+                                      {showDepDropdownEdit && (
+                                        <>
+                                          <div
+                                            className="fixed inset-0 z-10"
+                                            onClick={() => setShowDepDropdownEdit(false)}
+                                          />
+                                          <div className="absolute z-20 mt-1 w-full bg-white rounded-lg shadow-lg border border-gray-200 max-h-48 overflow-y-auto">
+                                            {filteredTasks.length === 0 ? (
+                                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                                {depSearchEdit ? 'No matching tasks found' : 'No available tasks'}
+                                              </div>
+                                            ) : (
+                                              filteredTasks.map((task: Task) => {
+                                                const isSelected = selectedDeps.includes(task.id)
+                                                const config = getStatusConfig(task.status)
+                                                return (
+                                                  <button
+                                                    key={task.id}
+                                                    type="button"
+                                                    onClick={() => toggleDependency(task.id)}
+                                                    className={`w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-gray-50 transition-colors ${
+                                                      isSelected ? 'bg-primary-50' : ''
+                                                    }`}
+                                                  >
+                                                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                      isSelected
+                                                        ? 'bg-primary-500 border-primary-500'
+                                                        : 'border-gray-300'
+                                                    }`}>
+                                                      {isSelected && <Check className="h-3 w-3 text-white" />}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                      <p className="text-sm font-medium text-gray-900 truncate">
+                                                        {task.title}
+                                                      </p>
+                                                      <div className="flex items-center gap-2 mt-0.5">
+                                                        <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${config.bg} ${config.text}`}>
+                                                          <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
+                                                          {task.status.replace('_', ' ')}
+                                                        </span>
+                                                        {task.assignee && (
+                                                          <span className="text-xs text-gray-400">
+                                                            {task.assignee.firstName}
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    </div>
+                                                  </button>
+                                                )
+                                              })
+                                            )}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                                      <Link2 className="h-3 w-3" />
+                                      Dependencies must be completed before this task can start
                                     </p>
                                   </div>
                                 )
                               }}
                             </Field>
-                            <ErrorMessage name="dependencyIds" component="p" className=" text-sm text-red-600" />
+                            <ErrorMessage name="dependencyIds" component="p" className="mt-1 text-sm text-red-600" />
                           </div>
 
                           <div className="flex justify-end space-x-3 pt-4">

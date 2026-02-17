@@ -49,9 +49,11 @@
 ### Lead Pipeline Management
 - **Visual Kanban Board:** Drag-and-drop lead management
 - **Custom Stages:** Tailor pipeline to your sales process
-- **Lead Scoring:** Prioritize high-value opportunities
+- **Lead Scoring:** Prioritize with Low, Medium, High, Urgent priority levels
 - **Activity Tracking:** Never miss a follow-up
 - **Quick Actions:** Call, email, or schedule directly from cards
+- **Budget & Timeline:** Track estimated budgets and timelines per lead
+- **Contact Management:** Full contact details with phone, email, and address
 
 **Key Stat:** Convert 35% more leads with organized pipeline
 
@@ -67,177 +69,348 @@
    - **Setup:** Show project with tasks, team, and progress
 
 ### Comprehensive Project Control
-- **Project Dashboard:** Real-time project health metrics
-- **Task Management:** Assign, track, and complete tasks
-- **Team Collaboration:** Integrated team communication
-- **Budget Tracking:** Monitor costs vs. estimates
-- **Timeline View:** Gantt charts and milestones
-- **Document Management:** Centralized project files
+- **Project Dashboard:** Real-time project health metrics with multiple tabs
+- **Task Management:** Assign, track, and complete tasks with dependencies
+- **Team Collaboration:** Integrated team communication and messaging
+- **Budget Tracking:** Monitor costs vs. estimates with financial tracking
+- **Timeline View:** Visual timeline and calendar views
+- **Milestones:** Track project milestones with payment stages
+- **BOQ Management:** Detailed Bill of Quantities with revision tracking
+- **Daily Logs:** Track daily work progress with photos and notes
+- **Progress Reports:** Automated PDF report generation
 
 **Key Stat:** Complete projects 25% faster
 
 ---
 
-## Slide 6: Bid Management
+## Slide 6: Vendor & Subcontractor Management
 **Screenshots Needed:**
-1. **Main:** Bids list page
-   - **Path:** `/dashboard/bids`
-   - **Setup:** Show multiple bid requests in different statuses
-2. **Inset:** Bid detail/creation page
-   - **Path:** `/dashboard/bids/[id]`
+1. **Main:** Vendors list page
+   - **Path:** `/dashboard/vendors`
+   - **Setup:** Show multiple vendors with different specialties
+2. **Inset:** Vendor detail page
+   - **Path:** `/dashboard/vendors/[id]`
 
-### Professional Bid Management
-- **Bid Templates:** Reusable bid structures
-- **Cost Breakdowns:** Detailed line-item pricing
-- **Bid Tracking:** Monitor win/loss rates
-- **Version Control:** Track bid revisions
-- **Client Portal:** Share bids professionally
-- **E-Signatures:** Get approvals faster
+### Complete Vendor Ecosystem
+- **Vendor Database:** Centralized contractor and supplier management
+- **Contact Management:** Multiple contacts per vendor
+- **Contract Tracking:** Manage agreements and payment terms
+- **Performance Ratings:** Track vendor ratings and reviews
+- **Task Assignment:** Assign tasks directly to subcontractors
+- **Procurement Integration:** Link vendors to purchase orders
+- **Payment Tracking:** Monitor vendor payments and history
+- **Vendor Portal:** Dedicated portal for subcontractor access
 
-**Key Stat:** Win 40% more bids with professional proposals
+**Key Stat:** Reduce vendor management time by 50%
 
 ---
 
-## Slide 7: Financial Tracking
+## Slide 7: Vendor Portal
 **Screenshots Needed:**
-1. **Main:** Project budget/financial view
-   - **Path:** `/dashboard/projects/[id]` (budget tab if available)
-2. **Inset:** Estimates page
-   - **Path:** `/dashboard/estimates`
+1. **Main:** Vendor portal dashboard
+   - **Path:** `/vendor/dashboard`
+   - **Setup:** Log in as a vendor to show their view
+2. **Inset:** Vendor tasks page
+   - **Path:** `/vendor/tasks`
+
+### Empower Your Subcontractors
+- **Dedicated Login:** Separate secure access for vendors
+- **Assigned Tasks:** View and update assigned task status
+- **Milestone Tracking:** See milestone progress and deadlines
+- **Contract Access:** View contracts and payment history
+- **Performance Ratings:** See their ratings and feedback
+- **Notification Settings:** Customize alert preferences
+- **Mobile-Ready:** Access from any device on the job site
+
+**Key Stat:** 70% faster vendor communication
+
+---
+
+## Slide 8: Inventory Management
+**Screenshots Needed:**
+1. **Main:** Inventory page with materials list
+   - **Path:** `/dashboard/inventory`
+   - **Setup:** Show materials with different stock levels
+2. **Inset:** Stock transaction modal
+   - **Action:** Click on stock in/out buttons
+
+### Real-Time Inventory Control
+- **Material Database:** Track all materials with SKU numbers
+- **Stock Monitoring:** Real-time quantity tracking
+- **Category Organization:** Organize by material type
+- **Stock In/Out:** Easy transaction logging
+- **Purchase Tracking:** Link to purchase orders
+- **Usage History:** Track material usage per project
+- **Transaction History:** Complete audit trail
+- **Low Stock Alerts:** Automated notifications when supplies run low
+- **Unit Cost Tracking:** Monitor material costs over time
+
+**Key Stat:** Reduce material waste by 30%
+
+---
+
+## Slide 9: Asset Management
+**Screenshots Needed:**
+1. **Main:** Assets page with equipment list
+   - **Path:** `/dashboard/assets`
+   - **Setup:** Show various assets (vehicles, equipment, tools)
+2. **Inset:** Asset detail page
+   - **Path:** `/dashboard/assets/[id]`
+
+### Track Every Asset
+- **Asset Types:** Vehicles, Equipment, and Tools
+- **Status Tracking:** Available, In Use, Under Maintenance, Retired, Lost/Damaged
+- **Assignee Tracking:** Know who has what equipment
+- **Serial Numbers:** Detailed asset identification
+- **Purchase Cost Tracking:** Monitor asset investments
+- **Asset Requests:** Checkout and return workflow
+- **Approval System:** Manager approval for asset requests
+- **Maintenance Scheduling:** Plan and track equipment maintenance
+- **Photo Documentation:** Visual asset records
+
+**Key Stat:** 95% asset utilization visibility
+
+---
+
+## Slide 10: Procurement & Purchase Orders
+**Screenshots Needed:**
+1. **Main:** Purchase orders list
+   - **Path:** `/dashboard/vendors` (Purchase Orders tab)
+   - **Setup:** Show POs in different statuses
+2. **Inset:** Create purchase order modal
+   - **Action:** Click create new PO
+
+### Streamlined Purchasing
+- **Purchase Order Creation:** Generate POs from procurement items
+- **Vendor Price Comparison:** Compare pricing across suppliers
+- **Preferred Vendors:** Set and track preferred suppliers
+- **PO Status Tracking:** Draft, Sent, Received, Approved
+- **Send to Vendors:** Direct PO delivery to suppliers
+- **Receive & Approve:** Track delivery and approval workflow
+- **Payment Integration:** Link POs to payments
+- **Pricing History:** Track cost trends over time
+
+**Key Stat:** 40% faster procurement cycle
+
+---
+
+## Slide 11: Financial Tracking
+**Screenshots Needed:**
+1. **Main:** Project financial tab
+   - **Path:** `/dashboard/projects/[id]` (Financial tab)
+2. **Inset:** Budget overview
+   - **Path:** `/dashboard/projects/[id]` (Overview showing budget)
 
 ### Real-Time Financial Insights
-- **Budget vs. Actual:** Track project profitability
-- **Expense Tracking:** Log and categorize costs
-- **Invoice Management:** Create and send invoices
+- **Budget vs. Actual:** Track project profitability in real-time
+- **Expense Tracking:** Log and categorize all project costs
+- **Milestone Payments:** Track payment stages and invoicing
 - **Profit Margins:** Monitor per-project ROI
-- **Financial Reports:** P&L, cash flow, projections
-- **Integration Ready:** Connect with QuickBooks
+- **Task-Level Budgets:** Allocate budgets to individual tasks
+- **Vendor Payment Tracking:** Monitor subcontractor payments
+- **Financial Reports:** Generate P&L summaries
+- **Multi-Currency Support:** Handle projects in different currencies
 
 **Key Stat:** Increase profit margins by 20%
 
 ---
 
-## Slide 8: Team Collaboration
+## Slide 12: Team Collaboration
 **Screenshots Needed:**
-1. **Main:** Team/Users management page
-   - **Path:** `/dashboard/settings` (team section)
+1. **Main:** Team management in settings
+   - **Path:** `/dashboard/settings` (Team tab)
 2. **Inset:** Activity feed
    - **Path:** `/dashboard/activity`
 
 ### Keep Your Team Connected
-- **Role-Based Access:** Control who sees what
-- **Activity Feed:** Real-time updates across projects
-- **Task Assignment:** Clear responsibilities
-- **Mobile Access:** Work from anywhere
-- **Subcontractor Portal:** External team access
-- **Time Tracking:** Monitor productivity
+- **Role-Based Access:** Admin, Staff, Subcontractor, and Client roles
+- **User Invitations:** Email-based team invitations
+- **Activity Feed:** Comprehensive audit log of all actions
+- **Task Assignment:** Clear responsibilities with notifications
+- **Mobile Access:** Work from anywhere on any device
+- **User Activation:** Enable/disable user access as needed
+- **Activity Filtering:** Search and filter by user, type, or date
+- **Real-Time Updates:** See team activity as it happens
 
 **Key Stat:** Reduce miscommunication by 60%
 
 ---
 
-## Slide 9: Client Portal
+## Slide 13: Client Portal
 **Screenshots Needed:**
 1. **Main:** Client project view
    - **Path:** `/client/project/[token]`
    - **Setup:** Show client's view of project
-2. **Inset:** Client messaging interface
+2. **Inset:** Project metrics and gallery
 
 ### Professional Client Experience
-- **Branded Portal:** Your company, your brand
-- **Project Updates:** Keep clients informed
-- **Document Sharing:** Secure file exchange
-- **Approval Workflows:** Get sign-offs faster
-- **Progress Photos:** Visual project updates
-- **Messaging System:** Centralized communication
+- **Shareable Links:** Generate secure project access tokens
+- **Project Overview:** Status, progress, and key metrics
+- **Task Visibility:** See task completion by category
+- **Photo Gallery:** Browse project images and documentation
+- **Document Downloads:** Access project files and reports
+- **Team Information:** Know who's working on their project
+- **Budget Visibility:** Transparent financial overview
+- **Company Branding:** Your logo and company details
 
 **Key Stat:** 90% client satisfaction rating
 
 ---
 
-## Slide 10: Document Management
+## Slide 14: Advanced Task Management
 **Screenshots Needed:**
-1. **Main:** Documents page with folders
-   - **Path:** `/dashboard/documents`
-   - **Setup:** Show folder structure with various file types
+1. **Main:** Tasks tab in project
+   - **Path:** `/dashboard/projects/[id]` (Tasks tab)
+   - **Setup:** Show tasks with different statuses and priorities
+2. **Inset:** Task detail modal
+   - **Action:** Click on a task to open details
 
-### Organized Document Control
-- **Cloud Storage:** Access files anywhere
-- **Folder Structure:** Organize by project/client
-- **Version Control:** Track document changes
-- **Secure Sharing:** Control access permissions
-- **File Preview:** View without downloading
-- **Search Function:** Find documents instantly
+### Powerful Task Control
+- **Task Categories:** Organize by work type
+- **Priority Levels:** Low, Medium, High, Urgent
+- **Task Dependencies:** Link related tasks
+- **Comments & Discussion:** In-task communication
+- **File Attachments:** Attach documents and photos
+- **Payment Tracking:** Track task-level payments
+- **Budget Allocation:** Assign budgets per task
+- **Task Escalation:** Automated escalation handling
+- **Duplicate Tasks:** Clone tasks for efficiency
+- **Shared Task Links:** Share individual tasks externally
 
-**Key Stat:** Save 5 hours/week on document management
+**Key Stat:** 45% faster task completion
 
 ---
 
-## Slide 11: Reporting & Analytics
+## Slide 15: Daily Logs & Site Documentation
 **Screenshots Needed:**
-1. **Main:** Reports dashboard (if available)
-   - **Path:** `/dashboard/reports`
-2. **Alternative:** Activity page showing metrics
+1. **Main:** Daily logs section
+   - **Path:** `/dashboard/projects/[id]` (Daily logs section)
+2. **Inset:** Walkaround/inspection photos
+
+### Comprehensive Field Documentation
+- **Daily Work Logs:** Track daily progress and activities
+- **Time Logging:** Record hours worked per task
+- **Work Descriptions:** Detailed activity notes
+- **Photo Documentation:** Capture site progress visually
+- **Site Inspections:** Walkaround with photos and audio notes
+- **Team Activity:** Track who did what each day
+- **Historical Records:** Complete daily log archive
+- **Progress Reports:** Generate automated PDF reports
+
+**Key Stat:** Save 5 hours/week on documentation
+
+---
+
+## Slide 16: Notifications & Alerts
+**Screenshots Needed:**
+1. **Main:** Notification settings
+   - **Path:** `/dashboard/settings` (Notifications tab)
+2. **Inset:** Notification bell in header
+
+### Never Miss an Update
+- **Email Notifications:** New leads, project updates, task assignments
+- **SMS Notifications:** Due dates, task assignments, escalations
+- **Push Notifications:** Real-time in-app alerts
+- **Due Date Reminders:** Automatic deadline notifications
+- **Stock Alerts:** Low inventory warnings
+- **Bid Status Updates:** Know when bids are viewed or accepted
+- **Customizable Triggers:** Choose what you want to be notified about
+- **Escalation Alerts:** Critical issue notifications
+
+**Key Stat:** 99% on-time task awareness
+
+---
+
+## Slide 17: Help Center & Onboarding
+**Screenshots Needed:**
+1. **Main:** Help center page
+   - **Path:** `/dashboard/help`
+2. **Inset:** Onboarding wizard
+   - **Path:** `/onboarding`
+
+### Get Started Fast
+- **In-App Help Center:** Comprehensive documentation
+- **Getting Started Guide:** Step-by-step onboarding
+- **Feature Guides:** Detailed how-to for every module
+- **FAQ Sections:** Quick answers to common questions
+- **Search Functionality:** Find help topics instantly
+- **Onboarding Wizard:** Guided initial setup
+- **Pipeline Customization:** Configure your workflow
+- **Team Invitation Prompts:** Easy team setup
+
+**Key Stat:** 80% of users productive in day one
+
+---
+
+## Slide 18: Reporting & Analytics
+**Screenshots Needed:**
+1. **Main:** Activity page with metrics
    - **Path:** `/dashboard/activity`
+2. **Alternative:** Progress report from project
+   - **Path:** `/dashboard/projects/[id]` (Reports tab)
 
 ### Data-Driven Decisions
-- **Dashboard Analytics:** KPIs at a glance
-- **Custom Reports:** Build reports you need
-- **Lead Analytics:** Conversion funnel insights
-- **Project Metrics:** Performance tracking
-- **Financial Reports:** Revenue and profit analysis
-- **Export Options:** PDF, Excel, CSV formats
+- **Activity Analytics:** Comprehensive audit logging
+- **Progress Reports:** Automated PDF generation
+- **Project Metrics:** Task completion, budget usage, timeline status
+- **User Activity Tracking:** See team productivity
+- **Filter & Search:** Advanced data exploration
+- **Export Options:** PDF report generation
+- **Date Range Filtering:** Analyze specific periods
+- **Type-Based Filtering:** Focus on specific activities
 
 **Key Stat:** Make decisions 3x faster with real-time data
 
 ---
 
-## Slide 12: Mobile Experience
+## Slide 19: Mobile Experience
 **Screenshots Needed:**
 1. **Mobile views:** Take mobile screenshots of:
-   - Dashboard
+   - Dashboard kanban board
    - Project detail
    - Task management
+   - Vendor portal
    - **Note:** Use browser developer tools mobile view
 
 ### Work From Anywhere
 - **Responsive Design:** Perfect on any device
 - **Field Updates:** Log progress on-site
 - **Photo Uploads:** Document work instantly
-- **Offline Mode:** Work without internet
+- **Vendor Portal:** Subcontractors work mobile too
 - **Push Notifications:** Never miss updates
-- **GPS Integration:** Track site visits
+- **Touch-Optimized:** Easy tap and swipe navigation
+- **Compact Views:** All features in mobile-friendly format
 
 ---
 
-## Slide 13: Integrations & API
+## Slide 20: Integrations & API
 **No Screenshot - Use logos/icons**
 
 ### Connect Your Tools
-- **Email Integration:** Gmail, Outlook sync
-- **Calendar Sync:** Google Calendar, Outlook
-- **Accounting:** QuickBooks, Xero ready
-- **Storage:** Dropbox, Google Drive
-- **Communications:** Slack, Teams
-- **API Access:** Build custom integrations
+- **Email Integration:** Built-in email configuration (SendGrid, Resend, SMTP)
+- **SMS Integration:** SMS provider configuration for notifications
+- **Calendar Sync:** Project timeline and deadlines
+- **File Storage:** Document management built-in
+- **API Ready:** RESTful API for custom integrations
+- **Webhook Support:** Real-time data sync capabilities
 
 ---
 
-## Slide 14: Security & Compliance
-**Screenshot Needed:** Settings/Security page if available
+## Slide 21: Security & Compliance
+**Screenshot Needed:** Settings/Security page
 - **Path:** `/dashboard/settings`
 
 ### Enterprise-Grade Security
 - 🔒 **Bank-level encryption** (256-bit SSL)
-- 🛡️ **SOC 2 Compliant** infrastructure
-- 📊 **GDPR Compliant** data handling
-- 🔐 **Two-factor authentication** available
-- 💾 **Automated backups** every 6 hours
-- 🏢 **99.9% uptime** guarantee
+- 🛡️ **Role-Based Access Control** with multiple permission levels
+- 🔐 **Secure Authentication** with session management
+- 💾 **Automated backups** with data protection
+- 🏢 **Audit Trail** comprehensive activity logging
+- 👥 **User Management** with activation controls
 
 ---
 
-## Slide 15: Pricing Plans
+## Slide 22: Pricing Plans
 **No Screenshot - Create pricing table**
 
 ### Simple, Transparent Pricing
@@ -256,7 +429,7 @@
 
 ---
 
-## Slide 16: Success Stories
+## Slide 23: Success Stories
 **Screenshot Needed:** Testimonial section from landing page
 - **Path:** `/` (scroll to testimonial)
 
@@ -276,34 +449,34 @@
 
 ---
 
-## Slide 17: Implementation Process
+## Slide 24: Implementation Process
 **No Screenshot - Use timeline graphic**
 
 ### Get Started in Days, Not Months
 
 **Week 1: Onboarding**
-- ✅ Account setup and configuration
-- ✅ Data import from existing tools
-- ✅ Team training session
-
-**Week 2: Customization**
+- ✅ Account setup with onboarding wizard
 - ✅ Pipeline customization
-- ✅ Template creation
-- ✅ Workflow optimization
+- ✅ Team invitations sent
+
+**Week 2: Data & Configuration**
+- ✅ Import existing leads and projects
+- ✅ Vendor database setup
+- ✅ Inventory initialization
 
 **Week 3: Launch**
 - ✅ Go live with first projects
 - ✅ Team adoption monitoring
-- ✅ Success checkpoint
+- ✅ Vendor portal activation
 
 **Ongoing: Success**
-- ✅ Regular check-ins
+- ✅ In-app help center support
+- ✅ Feature updates and improvements
 - ✅ Continuous optimization
-- ✅ New feature training
 
 ---
 
-## Slide 18: ROI Calculator
+## Slide 25: ROI Calculator
 **No Screenshot - Create calculation graphic**
 
 ### Your Return on Investment
@@ -311,14 +484,15 @@
 **For a 10-person construction company:**
 - **Time Saved:** 40 hours/week @ $50/hour = **$8,000/month**
 - **More Projects Won:** 2 extra projects/month @ $5,000 profit = **$10,000/month**
-- **Reduced Errors:** Avoid 1 mistake/month = **$2,000/month**
-- **Total Value:** **$20,000/month**
+- **Reduced Material Waste:** Inventory tracking = **$1,500/month**
+- **Better Vendor Management:** Procurement savings = **$1,000/month**
+- **Total Value:** **$20,500/month**
 - **BuildFlow Cost:** **$149/month**
-- **ROI:** **13,322%**
+- **ROI:** **13,758%**
 
 ---
 
-## Slide 19: Comparison Chart
+## Slide 26: Comparison Chart
 **No Screenshot - Create comparison table**
 
 ### BuildFlow vs. Alternatives
@@ -330,14 +504,16 @@
 | No Training Required | ✅ | ❌ | ✅ | ❌ |
 | Mobile Ready | ✅ | ⚠️ | ❌ | ⚠️ |
 | Client Portal | ✅ | ❌ | ❌ | ⚠️ |
-| Bid Management | ✅ | ❌ | ❌ | ⚠️ |
+| Vendor Portal | ✅ | ❌ | ❌ | ❌ |
+| Inventory Management | ✅ | ❌ | ⚠️ | ⚠️ |
+| Asset Tracking | ✅ | ❌ | ❌ | ⚠️ |
 | Project Tracking | ✅ | ⚠️ | ⚠️ | ✅ |
 | Document Management | ✅ | ⚠️ | ❌ | ✅ |
 | Cost | $149/mo | $200+/mo | Free | $500+/mo |
 
 ---
 
-## Slide 20: Call to Action
+## Slide 27: Call to Action
 **Screenshot Needed:** Landing page with CTA buttons
 - **Path:** `/` (hero section with buttons)
 
@@ -359,7 +535,7 @@
 
 ---
 
-## Slide 21: Thank You
+## Slide 28: Thank You
 **Screenshot Needed:** Logo/branding from navigation
 - **Path:** Any page showing logo
 
@@ -382,27 +558,42 @@ The Future of Construction Management
 ### Desktop (1920x1080 recommended):
 1. ✅ Landing page (full page, especially hero with animations)
 2. ✅ Dashboard with kanban board (populated with leads)
-3. ✅ Leads page with multiple stages
+3. ✅ Leads page (table view with multiple leads)
 4. ✅ Projects list view
-5. ✅ Single project detail page
-6. ✅ Bids/Estimates page
-7. ✅ Bid detail/creation page
-8. ✅ Documents/Files page
-9. ✅ Team/Users management
-10. ✅ Activity feed
-11. ✅ Client portal view
-12. ✅ Settings page
-13. ✅ Reports/Analytics page
+5. ✅ Single project detail page (Overview tab)
+6. ✅ Project Tasks tab
+7. ✅ Project Timeline tab
+8. ✅ Project Financial tab
+9. ✅ Vendors list page
+10. ✅ Vendor detail page
+11. ✅ Vendor portal dashboard
+12. ✅ Vendor portal tasks page
+13. ✅ Inventory page with materials
+14. ✅ Assets page with equipment
+15. ✅ Asset requests page
+16. ✅ Purchase orders tab
+17. ✅ Activity feed page
+18. ✅ Client portal view
+19. ✅ Settings page (Company tab)
+20. ✅ Settings page (Team tab)
+21. ✅ Settings page (Notifications tab)
+22. ✅ Help center page
+23. ✅ Onboarding wizard
 
 ### Mobile (375x812 iPhone X/11 size):
-1. ✅ Mobile dashboard
+1. ✅ Mobile dashboard kanban
 2. ✅ Mobile project view
 3. ✅ Mobile task management
+4. ✅ Mobile vendor portal
 
 ### Modals/Overlays:
 1. ✅ Lead detail modal
-2. ✅ Task creation modal
-3. ✅ File upload modal
+2. ✅ Task detail modal
+3. ✅ Stock transaction modal
+4. ✅ Asset request modal
+5. ✅ Create purchase order modal
+6. ✅ Portal settings modal
+7. ✅ User invite modal
 
 ## Tips for Screenshots:
 
@@ -455,7 +646,9 @@ The Future of Construction Management
 
 - **Lead Management:** "Never lose another lead"
 - **Project Tracking:** "Every project, under control"
-- **Bid Management:** "Win more, work less"
+- **Vendor Management:** "Your subcontractors, perfectly coordinated"
+- **Inventory Control:** "Know what you have, where it is"
+- **Asset Tracking:** "Every tool and vehicle, accounted for"
 - **Team Collaboration:** "Your team, perfectly synchronized"
 - **Client Portal:** "Keep clients happy and informed"
 - **Financial Tracking:** "Know your numbers, grow your profits"
@@ -464,10 +657,41 @@ The Future of Construction Management
 
 - Lost leads → Organized pipeline
 - Project chaos → Clear visibility
-- Slow bidding → Quick proposals
+- Vendor confusion → Coordinated subcontractors
+- Missing materials → Inventory control
+- Lost equipment → Asset tracking
 - Team confusion → Perfect coordination
 - Client complaints → Proactive updates
 - Profit leaks → Financial control
+
+---
+
+# Feature Summary by Module
+
+## Core Modules (Available):
+| Module | Status | Key Features |
+|--------|--------|--------------|
+| Dashboard | ✅ Live | Kanban board, pipeline management |
+| Leads | ✅ Live | List view, filtering, priority management |
+| Projects | ✅ Live | Multi-tab management, tasks, timeline, files |
+| Vendors | ✅ Live | Database, contracts, ratings, portal access |
+| Vendor Portal | ✅ Live | Separate login, tasks, milestones, contracts |
+| Inventory | ✅ Live | Stock tracking, transactions, alerts |
+| Assets | ✅ Live | Equipment tracking, requests, maintenance |
+| Procurement | ✅ Live | Purchase orders, vendor pricing |
+| Activity | ✅ Live | Comprehensive audit log |
+| Settings | ✅ Live | Company, team, notifications, templates |
+| Client Portal | ✅ Live | Shareable project access |
+| Help Center | ✅ Live | In-app documentation |
+| Onboarding | ✅ Live | Setup wizard |
+
+## Planned Modules (Coming Soon):
+| Module | Status | Planned Features |
+|--------|--------|------------------|
+| Reports | 🔜 Coming | Analytics, custom reports, exports |
+| Calendar | 🔜 Coming | Scheduling, availability, sync |
+| Documents | 🔜 Coming | Folder management, version control |
+| Messages | 🔜 Coming | Team messaging, client communication |
 
 ---
 

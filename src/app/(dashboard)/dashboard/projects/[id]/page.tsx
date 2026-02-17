@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft,
   Calendar,
@@ -24,7 +25,11 @@ import {
   TrendingUp,
   Layers,
   Building2,
-  Calculator
+  Calculator,
+  Clock,
+  Check,
+  X,
+  DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
 import { ProjectOverview } from '@/components/projects/project-overview'
@@ -40,6 +45,7 @@ import { ProgressReport } from '@/components/projects/progress-report'
 import { ProjectVendors } from '@/components/projects/project-vendors'
 import { ProjectMilestones } from '@/components/projects/project-milestones'
 import { ProjectBOQ } from '@/components/projects/project-boq'
+import { ProjectFinancial } from '@/components/projects/project-financial'
 import { useModal } from '@/components/ui/modal-provider'
 
 async function fetchProject(id: string) {
@@ -66,11 +72,13 @@ export default function ProjectDetailPage() {
   const { showAlert } = useModal()
 
   const tabFromUrl = searchParams.get('tab')
+  const taskIdFromUrl = searchParams.get('taskId')
   const initialTab = tabFromUrl && ['overview', 'tasks', 'timeline', 'calendar', 'files', 'messages', 'bids', 'vendors', 'milestones', 'boq', 'reports'].includes(tabFromUrl)
     ? tabFromUrl
     : 'overview'
 
   const [activeTab, setActiveTab] = useState(initialTab)
+  const [openTaskId, setOpenTaskId] = useState<string | null>(taskIdFromUrl)
   const [showAddTask, setShowAddTask] = useState(false)
   const [showTeamModal, setShowTeamModal] = useState(false)
   const [showClientPortalModal, setShowClientPortalModal] = useState(false)
@@ -80,11 +88,20 @@ export default function ProjectDetailPage() {
   const [isGeneratingAccess, setIsGeneratingAccess] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [copiedToClipboard, setCopiedToClipboard] = useState(false)
 
   useEffect(() => {
     const tabFromUrl = searchParams.get('tab')
+    const taskIdFromUrl = searchParams.get('taskId')
+
     if (tabFromUrl && ['overview', 'tasks', 'timeline', 'calendar', 'files', 'messages', 'bids', 'vendors', 'milestones', 'boq', 'reports'].includes(tabFromUrl)) {
       setActiveTab(tabFromUrl)
+    }
+
+    // If there's a taskId, switch to tasks tab and set openTaskId
+    if (taskIdFromUrl) {
+      setActiveTab('tasks')
+      setOpenTaskId(taskIdFromUrl)
     }
   }, [searchParams])
 
@@ -114,7 +131,6 @@ export default function ProjectDetailPage() {
     setShowAddTask(true)
     setTimeout(() => setShowAddTask(false), 100)
   }
-
 
   const handleTeamClick = () => {
     setShowTeamModal(true)
@@ -197,6 +213,8 @@ export default function ProjectDetailPage() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
+      setCopiedToClipboard(true)
+      setTimeout(() => setCopiedToClipboard(false), 2000)
       showAlert('Link copied to clipboard!', 'success')
     } catch (error) {
       console.error('Failed to copy:', error)
@@ -245,43 +263,72 @@ export default function ProjectDetailPage() {
   }, [unreadData])
 
   const tabs = [
-    { id: 'overview', name: 'Overview', icon: Layers, color: 'text-slate-600' },
-    { id: 'milestones', name: 'Milestones', icon: Target, color: 'text-amber-600' },
-    { id: 'tasks', name: 'Tasks', icon: CheckSquare, color: 'text-blue-600' },
-    { id: 'timeline', name: 'Timeline', icon: BarChart3, color: 'text-purple-600' },
-    { id: 'calendar', name: 'Calendar', icon: Calendar, color: 'text-rose-600' },
-    { id: 'boq', name: 'BOQ', icon: Calculator, color: 'text-purple-600' },
-    { id: 'files', name: 'Files', icon: FileText, color: 'text-cyan-600' },
-    { id: 'messages', name: 'Messages', icon: MessageSquare, color: 'text-indigo-600', count: unreadMessageCount },
-    { id: 'vendors', name: 'Vendors', icon: Truck, color: 'text-teal-600' },
-    { id: 'reports', name: 'Reports', icon: TrendingUp, color: 'text-pink-600' },
+    { id: 'overview', name: 'Overview', icon: Layers },
+    { id: 'milestones', name: 'Milestones', icon: Target },
+    { id: 'tasks', name: 'Tasks', icon: CheckSquare },
+    { id: 'timeline', name: 'Timeline', icon: BarChart3 },
+    { id: 'calendar', name: 'Calendar', icon: Calendar },
+    { id: 'boq', name: 'BOQ', icon: Calculator },
+    { id: 'financial', name: 'Financial', icon: DollarSign },
+    { id: 'files', name: 'Files', icon: FileText },
+    { id: 'messages', name: 'Messages', icon: MessageSquare, count: unreadMessageCount },
+    { id: 'vendors', name: 'Vendors', icon: Truck },
+    { id: 'reports', name: 'Reports', icon: TrendingUp },
   ]
 
+  // Loading State
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 border-3 border-slate-200 rounded-full animate-spin border-t-orange-500"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex flex-col items-center gap-6"
+        >
+          {/* Animated construction icon */}
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+              <Building2 className="w-8 h-8 text-white" />
+            </div>
+            <motion.div
+              className="absolute inset-0 rounded-2xl border-2 border-amber-500/50"
+              animate={{ scale: [1, 1.2, 1], opacity: [1, 0, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+            />
+          </div>
+          <div className="text-center">
+            <p className="text-slate-600 font-medium">Loading project...</p>
+            <p className="text-slate-400 text-sm mt-1">Fetching the latest data</p>
+          </div>
+        </motion.div>
       </div>
     )
   }
 
+  // Not Found State
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="text-center max-w-md px-6">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center max-w-md"
+        >
           <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="h-10 w-10 text-slate-400" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-800 mb-3">Project Not Found</h2>
-          <p className="text-slate-500 mb-6">The project you're looking for doesn't exist or you don't have access to it.</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">Project Not Found</h2>
+          <p className="text-slate-500 mb-8 leading-relaxed">
+            The project you're looking for doesn't exist or you don't have access to it.
+          </p>
           <Link
             href="/dashboard/projects"
-            className="inline-flex items-center gap-2 bg-slate-800 text-white px-6 py-3 rounded-lg font-medium hover:bg-slate-700 transition-colors"
+            className="inline-flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold hover:bg-slate-800 transition-all hover:shadow-lg hover:shadow-slate-900/20 hover:-translate-y-0.5"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Projects
           </Link>
-        </div>
+        </motion.div>
       </div>
     )
   }
@@ -293,162 +340,221 @@ export default function ProjectDetailPage() {
 
   const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'ACTIVE': return { bg: 'bg-emerald-500', text: 'text-emerald-500', light: 'bg-emerald-50', label: 'Active' }
-      case 'COMPLETED': return { bg: 'bg-blue-500', text: 'text-blue-500', light: 'bg-blue-50', label: 'Completed' }
-      case 'ON_HOLD': return { bg: 'bg-amber-500', text: 'text-amber-500', light: 'bg-amber-50', label: 'On Hold' }
-      default: return { bg: 'bg-slate-500', text: 'text-slate-500', light: 'bg-slate-50', label: status }
+      case 'ACTIVE': return {
+        bg: 'bg-emerald-500',
+        text: 'text-emerald-700',
+        light: 'bg-emerald-50',
+        ring: 'ring-emerald-500/20',
+        label: 'Active',
+        icon: Clock
+      }
+      case 'COMPLETED': return {
+        bg: 'bg-blue-500',
+        text: 'text-blue-700',
+        light: 'bg-blue-50',
+        ring: 'ring-blue-500/20',
+        label: 'Completed',
+        icon: Check
+      }
+      case 'ON_HOLD': return {
+        bg: 'bg-amber-500',
+        text: 'text-amber-700',
+        light: 'bg-amber-50',
+        ring: 'ring-amber-500/20',
+        label: 'On Hold',
+        icon: Clock
+      }
+      case 'CANCELLED': return {
+        bg: 'bg-red-500',
+        text: 'text-red-700',
+        light: 'bg-red-50',
+        ring: 'ring-red-500/20',
+        label: 'Cancelled',
+        icon: X
+      }
+      default: return {
+        bg: 'bg-slate-500',
+        text: 'text-slate-700',
+        light: 'bg-slate-50',
+        ring: 'ring-slate-500/20',
+        label: status,
+        icon: Clock
+      }
     }
   }
 
   const getPriorityConfig = (priority: string) => {
     switch (priority) {
-      case 'URGENT': return { bg: 'bg-red-500', dot: 'bg-red-500', label: 'Urgent' }
-      case 'HIGH': return { bg: 'bg-orange-500', dot: 'bg-orange-500', label: 'High' }
-      case 'MEDIUM': return { bg: 'bg-blue-500', dot: 'bg-blue-500', label: 'Medium' }
-      default: return { bg: 'bg-slate-400', dot: 'bg-slate-400', label: 'Low' }
+      case 'URGENT': return { color: 'text-red-500', bg: 'bg-red-500', label: 'Urgent' }
+      case 'HIGH': return { color: 'text-orange-500', bg: 'bg-orange-500', label: 'High' }
+      case 'MEDIUM': return { color: 'text-amber-500', bg: 'bg-amber-500', label: 'Medium' }
+      default: return { color: 'text-slate-400', bg: 'bg-slate-400', label: 'Low' }
     }
   }
 
   const statusConfig = getStatusConfig(project.status)
   const priorityConfig = getPriorityConfig(project.priority)
+  const StatusIcon = statusConfig.icon
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Hero Header */}
-      <div className="relative bg-gradient-to-br from-slate-800 via-slate-900 to-slate-800 overflow-hidden">
-        {/* Blueprint Grid Pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/>
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid)" />
-          </svg>
-        </div>
+      {/* Compact Header */}
+      <header className="relative bg-slate-900">
+        {/* Subtle background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900" />
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+          backgroundSize: '24px 24px'
+        }} />
 
-        {/* Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500"></div>
+        {/* Top accent */}
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500 to-transparent" />
 
-        <div className="relative px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-          {/* Back Button & Actions Row */}
-          <div className="flex items-center justify-between mb-6">
+        <div className="relative px-4 sm:px-6 lg:px-8">
+          {/* Main Header Row */}
+          <div className="py-4 flex items-center gap-4">
+            {/* Back Button */}
             <Link
               href="/dashboard/projects"
-              className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex-shrink-0"
             >
-              <div className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-              </div>
-              <span className="text-sm font-medium hidden sm:inline">All Projects</span>
+              <ArrowLeft className="h-4 w-4" />
             </Link>
 
-            <div className="flex items-center gap-2">
-              <button
+            {/* Title & Meta - Flexible */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-3 mb-1">
+                <motion.h1
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-lg sm:text-xl font-bold text-white truncate"
+                >
+                  {project.title}
+                </motion.h1>
+
+                {/* Status Badge */}
+                <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusConfig.light} ${statusConfig.text} flex-shrink-0`}>
+                  <StatusIcon className="w-2.5 h-2.5" />
+                  {statusConfig.label}
+                </span>
+
+                {/* Priority Dot */}
+                <span className={`w-2 h-2 rounded-full ${priorityConfig.bg} flex-shrink-0`} title={`${priorityConfig.label} Priority`} />
+              </div>
+
+              {/* Compact Meta Row */}
+              <div className="flex items-center gap-4 text-xs text-slate-400">
+                {project.contactName && (
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Building2 className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                    <span className="truncate">{project.contactName}</span>
+                  </span>
+                )}
+                {(project.projectCity || project.projectAddress) && (
+                  <span className="hidden md:flex items-center gap-1.5 truncate">
+                    <MapPin className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                    <span className="truncate">{project.projectCity || project.projectAddress}</span>
+                  </span>
+                )}
+                {project.startDate && (
+                  <span className="hidden lg:flex items-center gap-1.5">
+                    <Calendar className="h-3 w-3 text-slate-500 flex-shrink-0" />
+                    <span>
+                      {new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {project.endDate && ` - ${new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Stats - Desktop */}
+            <div className="hidden lg:flex items-center gap-6 px-6 border-l border-white/10">
+              {/* Progress */}
+              <div className="text-center">
+                <div className="flex items-baseline justify-center gap-0.5">
+                  <span className="text-2xl font-bold text-white tabular-nums">{progress}</span>
+                  <span className="text-sm text-slate-400">%</span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">Progress</span>
+              </div>
+
+              {/* Tasks */}
+              <div className="text-center">
+                <div className="flex items-baseline justify-center gap-0.5">
+                  <span className="text-2xl font-bold text-white tabular-nums">{completedTasks}</span>
+                  <span className="text-sm text-slate-400">/{totalTasks}</span>
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-slate-500">Tasks</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => setShowEditModal(true)}
                 className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all"
                 title="Edit project"
               >
                 <Edit3 className="h-4 w-4" />
-              </button>
+              </motion.button>
 
               <div className="relative portal-dropdown">
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setShowPortalDropdown(!showPortalDropdown)}
                   disabled={isGeneratingAccess}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-400 text-white font-medium text-sm transition-all shadow-lg shadow-orange-500/20"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-white font-semibold text-sm transition-all"
                 >
                   {isGeneratingAccess ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                    />
                   ) : (
                     <Settings className="h-4 w-4" />
                   )}
-                  <span className="hidden sm:inline">Options</span>
-                  <ChevronDown className="h-3 w-3" />
-                </button>
+                  <ChevronDown className={`h-3 w-3 transition-transform ${showPortalDropdown ? 'rotate-180' : ''}`} />
+                </motion.button>
 
-                {showPortalDropdown && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="p-1">
-                      <button
-                        onClick={() => { setShowPortalDropdown(false); handleTeamClick() }}
-                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3 transition-colors"
-                      >
-                        <Users className="h-4 w-4 text-slate-400" />
-                        <span>Manage Team</span>
-                      </button>
-                      <button
-                        onClick={() => { setShowPortalDropdown(false); handleClientPortal() }}
-                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3 transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 text-slate-400" />
-                        <span>Client Portal</span>
-                      </button>
-                      <button
-                        onClick={() => { setShowPortalDropdown(false); setShowPortalSettingsModal(true) }}
-                        className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-3 transition-colors"
-                      >
-                        <Settings className="h-4 w-4 text-slate-400" />
-                        <span>Portal Settings</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                <AnimatePresence>
+                  {showPortalDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-2xl ring-1 ring-black/5 z-50 overflow-hidden"
+                    >
+                      <div className="p-1">
+                        {[
+                          { icon: Users, label: 'Manage Team', onClick: () => { setShowPortalDropdown(false); handleTeamClick() } },
+                          { icon: ExternalLink, label: 'Client Portal', onClick: () => { setShowPortalDropdown(false); handleClientPortal() } },
+                          { icon: Settings, label: 'Portal Settings', onClick: () => { setShowPortalDropdown(false); setShowPortalSettingsModal(true) } },
+                        ].map((item, idx) => (
+                          <button
+                            key={idx}
+                            onClick={item.onClick}
+                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg flex items-center gap-2.5 transition-colors"
+                          >
+                            <item.icon className="h-4 w-4 text-slate-400" />
+                            <span>{item.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           </div>
 
-          {/* Project Title & Meta */}
-          <div className="mb-8">
-            <div className="flex flex-wrap items-center gap-3 mb-3">
-              <div className={`w-2 h-2 rounded-full ${priorityConfig.dot} animate-pulse`}></div>
-              <span className="text-xs font-semibold tracking-wider text-slate-400 uppercase">
-                {priorityConfig.label} Priority
-              </span>
-              <span className="text-slate-600">|</span>
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${statusConfig.light} ${statusConfig.text}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.bg}`}></span>
-                {statusConfig.label}
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 tracking-tight">
-              {project.title}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
-              {project.contactName && (
-                <div className="flex items-center gap-2">
-                  <Building2 className="h-4 w-4" />
-                  <span>{project.contactName}</span>
-                </div>
-              )}
-              {project.projectAddress && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  <span className="truncate max-w-[200px]">
-                    {project.projectCity || project.projectAddress}
-                    {project.projectState && `, ${project.projectState}`}
-                  </span>
-                </div>
-              )}
-              {project.startDate && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  <span>
-                    {new Date(project.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    {project.endDate && ` - ${new Date(project.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Tabs Navigation - Flush to bottom */}
-        <div className="px-4 sm:px-6 lg:px-8">
-          <nav className="flex gap-1 overflow-x-auto scrollbar-hide">
+          {/* Tab Navigation */}
+          <nav className="flex gap-1 overflow-x-auto scrollbar-hide border-t border-white/5 -mb-px">
             {tabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
@@ -456,152 +562,196 @@ export default function ProjectDetailPage() {
                 <button
                   key={tab.id}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`relative flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
+                  className={`relative flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
                     isActive
-                      ? 'text-white border-orange-500 bg-white/5'
-                      : 'text-slate-400 border-transparent hover:text-white hover:bg-white/5'
+                      ? 'text-white'
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 flex-shrink-0 ${isActive ? 'text-orange-400' : ''}`} />
-                  <span>{tab.name}</span>
+                  <Icon className={`h-3.5 w-3.5 flex-shrink-0 ${isActive ? 'text-amber-400' : ''}`} />
+                  <span className="hidden sm:inline">{tab.name}</span>
                   {tab.count && tab.count > 0 && (
-                    <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center">
                       {tab.count}
                     </span>
+                  )}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeTab"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500"
+                    />
                   )}
                 </button>
               )
             })}
           </nav>
         </div>
-      </div>
+      </header>
 
       {/* Main Content */}
-      <div className="bg-slate-50 min-h-[calc(100vh-300px)]">
-        <main className="p-4 lg:p-6 pb-24 lg:pb-6">
+      <main className="relative">
+        <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-8">
           <div className="max-w-6xl mx-auto">
-            {activeTab === 'overview' && (
-              <ProjectOverview
-                project={project}
-                onAddTask={handleAddTask}
-                onTeamClick={handleTeamClick}
-                progress={progress}
-                totalTasks={totalTasks}
-                completedTasks={completedTasks}
-                inProgressTasks={inProgressTasks}
-              />
-            )}
-            {activeTab === 'tasks' && <ProjectTasks projectId={projectId} shouldOpenAddModal={showAddTask} />}
-            {activeTab === 'timeline' && <ProjectTimeline projectId={projectId} />}
-            {activeTab === 'calendar' && <ProjectCalendar projectId={projectId} />}
-            {activeTab === 'files' && <ProjectFiles projectId={projectId} />}
-            {activeTab === 'messages' && <ProjectMessages projectId={projectId} />}
-            {activeTab === 'vendors' && <ProjectVendors projectId={projectId} />}
-            {activeTab === 'milestones' && <ProjectMilestones projectId={projectId} />}
-            {activeTab === 'boq' && <ProjectBOQ projectId={projectId} />}
-            {activeTab === 'reports' && <ProgressReport projectId={projectId} />}
-          </div>
-        </main>
-      </div>
-
-      {/* Client Portal Modal */}
-      {showClientPortalModal && clientAccessData && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4">
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={() => setShowClientPortalModal(false)} />
-
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-              <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-white">Client Portal Access</h3>
-                  <button
-                    onClick={() => setShowClientPortalModal(false)}
-                    className="text-slate-400 hover:text-white transition-colors"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6 space-y-5">
-                <div>
-                  <p className="text-sm text-slate-600 mb-3">
-                    Share this link with your client to give them access to project updates:
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={clientAccessData.clientUrl}
-                      readOnly
-                      className="flex-1 text-sm bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-slate-700 font-mono text-xs"
-                    />
-                    <button
-                      onClick={() => copyToClipboard(clientAccessData.clientUrl)}
-                      className="p-3 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                      title="Copy link"
-                    >
-                      <Copy className="h-4 w-4 text-slate-600" />
-                    </button>
-                    <a
-                      href={clientAccessData.clientUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-3 bg-orange-500 hover:bg-orange-600 rounded-lg transition-colors"
-                      title="Open client portal"
-                    >
-                      <ExternalLink className="h-4 w-4 text-white" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                  <div className="flex items-start gap-3">
-                    <Eye className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div className="text-sm text-blue-800">
-                      <p className="font-semibold mb-2">What clients can see:</p>
-                      <ul className="space-y-1.5 text-blue-700">
-                        <li className="flex items-center gap-2">
-                          <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                          Project overview and progress
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                          Task status and completion
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                          Photos and documents
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                          Milestones
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={disableClientAccess}
-                    className="flex-1 bg-red-50 text-red-600 border border-red-200 px-4 py-2.5 rounded-lg hover:bg-red-100 text-sm font-medium transition-colors"
-                  >
-                    Disable Access
-                  </button>
-                  <button
-                    onClick={() => setShowClientPortalModal(false)}
-                    className="flex-1 bg-slate-900 text-white px-4 py-2.5 rounded-lg hover:bg-slate-800 text-sm font-medium transition-colors"
-                  >
-                    Done
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'overview' && (
+                  <ProjectOverview
+                    project={project}
+                    onAddTask={handleAddTask}
+                    onTeamClick={handleTeamClick}
+                    progress={progress}
+                    totalTasks={totalTasks}
+                    completedTasks={completedTasks}
+                    inProgressTasks={inProgressTasks}
+                  />
+                )}
+                {activeTab === 'tasks' && <ProjectTasks projectId={projectId} shouldOpenAddModal={showAddTask} openTaskId={openTaskId} />}
+                {activeTab === 'timeline' && <ProjectTimeline projectId={projectId} />}
+                {activeTab === 'calendar' && <ProjectCalendar projectId={projectId} />}
+                {activeTab === 'files' && <ProjectFiles projectId={projectId} />}
+                {activeTab === 'messages' && <ProjectMessages projectId={projectId} />}
+                {activeTab === 'vendors' && <ProjectVendors projectId={projectId} />}
+                {activeTab === 'milestones' && <ProjectMilestones projectId={projectId} />}
+                {activeTab === 'boq' && <ProjectBOQ projectId={projectId} />}
+                {activeTab === 'financial' && <ProjectFinancial projectId={projectId} project={project} />}
+                {activeTab === 'reports' && <ProgressReport projectId={projectId} />}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
-      )}
+      </main>
+
+      {/* Client Portal Modal */}
+      <AnimatePresence>
+        {showClientPortalModal && clientAccessData && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 overflow-y-auto"
+          >
+            <div className="flex min-h-screen items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm"
+                onClick={() => setShowClientPortalModal(false)}
+              />
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+              >
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-slate-800 to-slate-900 p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                        <ExternalLink className="w-5 h-5 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-white">Client Portal Access</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowClientPortalModal(false)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Modal Content */}
+                <div className="p-6 space-y-5">
+                  <div>
+                    <p className="text-sm text-slate-600 mb-3">
+                      Share this link with your client to give them access to project updates:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 font-mono text-xs text-slate-600 truncate">
+                        {clientAccessData.clientUrl}
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => copyToClipboard(clientAccessData.clientUrl)}
+                        className={`p-3 rounded-xl transition-all ${
+                          copiedToClipboard
+                            ? 'bg-emerald-100 text-emerald-600'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                        title="Copy link"
+                      >
+                        {copiedToClipboard ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      </motion.button>
+                      <motion.a
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        href={clientAccessData.clientUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-3 bg-amber-500 hover:bg-amber-400 rounded-xl transition-colors shadow-lg shadow-amber-500/20"
+                        title="Open client portal"
+                      >
+                        <ExternalLink className="h-4 w-4 text-white" />
+                      </motion.a>
+                    </div>
+                  </div>
+
+                  {/* Info box */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <Eye className="h-4 w-4 text-blue-600" />
+                      </div>
+                      <div className="text-sm">
+                        <p className="font-semibold text-blue-900 mb-2">What clients can see:</p>
+                        <ul className="space-y-1.5 text-blue-700">
+                          {['Project overview and progress', 'Task status and completion', 'Photos and documents', 'Milestones'].map((item, idx) => (
+                            <li key={idx} className="flex items-center gap-2">
+                              <span className="w-1 h-1 bg-blue-500 rounded-full" />
+                              {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-2">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={disableClientAccess}
+                      className="flex-1 bg-red-50 text-red-600 border border-red-200 px-4 py-3 rounded-xl hover:bg-red-100 text-sm font-semibold transition-colors"
+                    >
+                      Disable Access
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowClientPortalModal(false)}
+                      className="flex-1 bg-slate-900 text-white px-4 py-3 rounded-xl hover:bg-slate-800 text-sm font-semibold transition-colors shadow-lg shadow-slate-900/20"
+                    >
+                      Done
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Project Edit Modal */}
       {showEditModal && (
@@ -632,34 +782,6 @@ export default function ProjectDetailPage() {
           onSettingsUpdate={() => refetch()}
         />
       )}
-
-      <style jsx>{`
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes zoom-in-95 {
-          from { transform: scale(0.95); }
-          to { transform: scale(1); }
-        }
-        @keyframes slide-in-from-top-2 {
-          from { transform: translateY(-8px); }
-          to { transform: translateY(0); }
-        }
-        .animate-in {
-          animation: fade-in 0.2s ease-out, zoom-in-95 0.2s ease-out;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .safe-area-inset-bottom {
-          padding-bottom: env(safe-area-inset-bottom);
-        }
-      `}</style>
     </div>
   )
 }
