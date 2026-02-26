@@ -5,11 +5,11 @@ import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
 import * as Yup from 'yup'
-import { 
-  Building, 
-  Users, 
-  Bell, 
-  Shield, 
+import {
+  Building,
+  Users,
+  Bell,
+  Shield,
   CreditCard,
   Download,
   Upload,
@@ -22,7 +22,10 @@ import {
   FileText,
   Key,
   Copy,
-  Link2
+  Link2,
+  Tag,
+  Tags,
+  Layers
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useModal } from '@/components/ui/modal-provider'
@@ -30,6 +33,8 @@ import { useAuthStore } from '@/store/auth'
 import { TemplateManager } from '@/components/templates/template-manager'
 import { EmailConfigForm } from '@/components/settings/email-config-form'
 import { SMSConfigForm } from '@/components/settings/sms-config-form'
+import { VendorCategoryManager } from '@/components/settings/vendor-category-manager'
+import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 
 interface Company {
   id: string
@@ -376,6 +381,8 @@ function SettingsContent() {
     { id: 'company', name: 'Company', icon: Building },
     { id: 'team', name: 'Team', icon: Users },
     { id: 'templates', name: 'Templates', icon: FileText },
+    { id: 'vendor-categories', name: 'Vendor Categories', icon: Layers },
+    { id: 'service-tags', name: 'Service Tags', icon: Tags },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'security', name: 'Security', icon: Shield },
     { id: 'billing', name: 'Billing', icon: CreditCard },
@@ -1022,6 +1029,14 @@ function SettingsContent() {
 
         {activeTab === 'templates' && (
           <TemplateManager />
+        )}
+
+        {activeTab === 'vendor-categories' && (
+          <VendorCategoryManager />
+        )}
+
+        {activeTab === 'service-tags' && (
+          <VendorServiceTagManager />
         )}
 
         {activeTab === 'notifications' && (

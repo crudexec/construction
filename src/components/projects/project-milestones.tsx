@@ -17,7 +17,10 @@ import {
   ChevronDown,
   ChevronRight,
   CheckCircle2,
-  Circle
+  Circle,
+  ListChecks,
+  User,
+  Users
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -41,6 +44,36 @@ interface Task {
   }
 }
 
+interface ChecklistItem {
+  id: string
+  title: string
+  description?: string
+  status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED'
+  order: number
+  dueDate?: string
+  completedAt?: string
+  completedBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  }
+}
+
+interface UserRef {
+  id: string
+  firstName: string
+  lastName: string
+}
+
+interface ContactRef {
+  id: string
+  firstName: string
+  lastName: string
+  email?: string
+  phone?: string
+  position?: string
+}
+
 interface Milestone {
   id: string
   title: string
@@ -60,11 +93,18 @@ interface Milestone {
     firstName: string
     lastName: string
   }
+  responsibleUser?: UserRef
+  documenterUser?: UserRef
+  assignedContact?: ContactRef
   createdAt: string
   tasks?: Task[]
+  checklistItems?: ChecklistItem[]
   completedTasksCount?: number
   totalTasksCount?: number
   progress?: number
+  checklistProgress?: number
+  completedChecklistItems?: number
+  totalChecklistItems?: number
 }
 
 interface Vendor {
@@ -107,19 +147,41 @@ async function fetchVendors(companyId?: string): Promise<Vendor[]> {
   return response.json()
 }
 
+async function fetchTeamMembers(): Promise<UserRef[]> {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch('/api/team', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    }
+  })
+
+  if (!response.ok) return []
+  const data = await response.json()
+  return data.members || data || []
+}
+
 export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
   const queryClient = useQueryClient()
   const { format: formatCurrency } = useCurrency()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null)
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
+  const [newChecklistItem, setNewChecklistItem] = useState<{ milestoneId: string; title: string } | null>(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     amount: '',
     targetDate: '',
     vendorId: '',
-    status: 'PENDING' as Milestone['status']
+    status: 'PENDING' as Milestone['status'],
+    responsibleUserId: '',
+    documenterUserId: '',
+    assignedContactId: ''
   })
 
   const toggleMilestone = (milestoneId: string) => {
@@ -143,6 +205,11 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
   const { data: vendors = [] } = useQuery({
     queryKey: ['vendors'],
     queryFn: () => fetchVendors()
+  })
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: () => fetchTeamMembers()
   })
 
   const createMutation = useMutation({
@@ -238,6 +305,96 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
     }
   })
 
+  // Checklist item mutations
+  const addChecklistItemMutation = useMutation({
+    mutationFn: async ({ milestoneId, title }: { milestoneId: string; title: string }) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/milestones/${milestoneId}/checklist`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to add checklist item')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
+      setNewChecklistItem(null)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to add checklist item')
+    }
+  })
+
+  const updateChecklistItemMutation = useMutation({
+    mutationFn: async ({ milestoneId, itemId, data }: { milestoneId: string; itemId: string; data: Partial<ChecklistItem> }) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/milestones/${milestoneId}/checklist/${itemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update checklist item')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update checklist item')
+    }
+  })
+
+  const deleteChecklistItemMutation = useMutation({
+    mutationFn: async ({ milestoneId, itemId }: { milestoneId: string; itemId: string }) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/milestones/${milestoneId}/checklist/${itemId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete checklist item')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['project-milestones', projectId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete checklist item')
+    }
+  })
+
   const openModal = (milestone?: Milestone) => {
     if (milestone) {
       setEditingMilestone(milestone)
@@ -247,7 +404,10 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
         amount: milestone.amount?.toString() || '',
         targetDate: milestone.targetDate ? new Date(milestone.targetDate).toISOString().split('T')[0] : '',
         vendorId: milestone.vendor?.id || '',
-        status: milestone.status
+        status: milestone.status,
+        responsibleUserId: milestone.responsibleUser?.id || '',
+        documenterUserId: milestone.documenterUser?.id || '',
+        assignedContactId: milestone.assignedContact?.id || ''
       })
     } else {
       setEditingMilestone(null)
@@ -257,7 +417,10 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
         amount: '',
         targetDate: '',
         vendorId: '',
-        status: 'PENDING'
+        status: 'PENDING',
+        responsibleUserId: '',
+        documenterUserId: '',
+        assignedContactId: ''
       })
     }
     setIsModalOpen(true)
@@ -272,7 +435,10 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
       amount: '',
       targetDate: '',
       vendorId: '',
-      status: 'PENDING'
+      status: 'PENDING',
+      responsibleUserId: '',
+      documenterUserId: '',
+      assignedContactId: ''
     })
   }
 
@@ -396,18 +562,16 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
                   <div className="p-4">
                     <div className="flex items-start gap-4">
                       {/* Expand/Collapse Button */}
-                      {taskCount > 0 && (
-                        <button
-                          onClick={() => toggleMilestone(milestone.id)}
-                          className="flex-shrink-0 mt-1 p-0.5 hover:bg-gray-200 rounded"
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-gray-500" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-500" />
-                          )}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => toggleMilestone(milestone.id)}
+                        className="flex-shrink-0 mt-1 p-0.5 hover:bg-gray-200 rounded"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
+                        )}
+                      </button>
 
                       {/* Status Icon */}
                       <div className="flex-shrink-0 mt-1">
@@ -418,11 +582,17 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                               <h3 className="text-sm font-medium text-gray-900">{milestone.title}</h3>
                               {taskCount > 0 && (
                                 <span className="text-xs text-gray-500">
                                   ({completedCount}/{taskCount} tasks)
+                                </span>
+                              )}
+                              {milestone.checklistItems && milestone.checklistItems.length > 0 && (
+                                <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                                  <ListChecks className="h-3 w-3" />
+                                  {milestone.completedChecklistItems || milestone.checklistItems.filter(i => i.status === 'COMPLETED').length}/{milestone.totalChecklistItems || milestone.checklistItems.length}
                                 </span>
                               )}
                             </div>
@@ -516,61 +686,212 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
                     </div>
                   </div>
 
-                  {/* Tasks List (Collapsible) */}
-                  {isExpanded && milestone.tasks && milestone.tasks.length > 0 && (
-                    <div className="px-4 pb-4 ml-12">
-                      <div className="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
-                        {milestone.tasks.map((task) => (
-                          <div key={task.id} className="p-3 flex items-start gap-3 hover:bg-gray-100">
-                            {/* Task Status Icon */}
-                            <div className="flex-shrink-0 mt-0.5">
-                              {task.status === 'COMPLETED' ? (
-                                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Circle className="h-4 w-4 text-gray-400" />
-                              )}
-                            </div>
-
-                            {/* Task Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <p className={`text-sm font-medium ${
-                                    task.status === 'COMPLETED' ? 'text-gray-500 line-through' : 'text-gray-900'
-                                  }`}>
-                                    {task.title}
+                  {/* Expanded Content (Checklist & Tasks) */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 ml-12 space-y-4">
+                      {/* Checklist Items */}
+                      <div className="bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="p-3 border-b border-gray-200 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ListChecks className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">Checklist</span>
+                            {milestone.checklistItems && milestone.checklistItems.length > 0 && (
+                              <span className="text-xs text-gray-500">
+                                ({milestone.completedChecklistItems || milestone.checklistItems.filter(i => i.status === 'COMPLETED').length}/{milestone.totalChecklistItems || milestone.checklistItems.length})
+                              </span>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setNewChecklistItem({ milestoneId: milestone.id, title: '' })}
+                            className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add Item
+                          </button>
+                        </div>
+                        <div className="divide-y divide-gray-200">
+                          {milestone.checklistItems && milestone.checklistItems.map((item) => (
+                            <div key={item.id} className="p-3 flex items-start gap-3 hover:bg-gray-100 group">
+                              <button
+                                onClick={() => updateChecklistItemMutation.mutate({
+                                  milestoneId: milestone.id,
+                                  itemId: item.id,
+                                  data: { status: item.status === 'COMPLETED' ? 'PENDING' : 'COMPLETED' }
+                                })}
+                                className="flex-shrink-0 mt-0.5"
+                              >
+                                {item.status === 'COMPLETED' ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                ) : item.status === 'IN_PROGRESS' ? (
+                                  <Clock className="h-4 w-4 text-blue-500" />
+                                ) : item.status === 'SKIPPED' ? (
+                                  <X className="h-4 w-4 text-gray-400" />
+                                ) : (
+                                  <Circle className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                                )}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm ${item.status === 'COMPLETED' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                                  {item.title}
+                                </p>
+                                {item.completedBy && item.completedAt && (
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Completed by {item.completedBy.firstName} {item.completedBy.lastName} on {new Date(item.completedAt).toLocaleDateString()}
                                   </p>
-                                  {task.description && (
-                                    <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => deleteChecklistItemMutation.mutate({ milestoneId: milestone.id, itemId: item.id })}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-600 rounded"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                          {/* Add new checklist item input */}
+                          {newChecklistItem?.milestoneId === milestone.id && (
+                            <div className="p-3 flex items-center gap-2">
+                              <Circle className="h-4 w-4 text-gray-300 flex-shrink-0" />
+                              <input
+                                type="text"
+                                value={newChecklistItem.title}
+                                onChange={(e) => setNewChecklistItem({ ...newChecklistItem, title: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newChecklistItem.title.trim()) {
+                                    addChecklistItemMutation.mutate({ milestoneId: milestone.id, title: newChecklistItem.title.trim() })
+                                  } else if (e.key === 'Escape') {
+                                    setNewChecklistItem(null)
+                                  }
+                                }}
+                                placeholder="Add checklist item..."
+                                className="flex-1 text-sm border-none bg-transparent focus:outline-none focus:ring-0 p-0"
+                                autoFocus
+                              />
+                              <button
+                                onClick={() => {
+                                  if (newChecklistItem.title.trim()) {
+                                    addChecklistItemMutation.mutate({ milestoneId: milestone.id, title: newChecklistItem.title.trim() })
+                                  }
+                                }}
+                                disabled={!newChecklistItem.title.trim() || addChecklistItemMutation.isPending}
+                                className="text-xs text-primary-600 hover:text-primary-700 disabled:opacity-50"
+                              >
+                                Add
+                              </button>
+                              <button
+                                onClick={() => setNewChecklistItem(null)}
+                                className="text-xs text-gray-500 hover:text-gray-700"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                          {(!milestone.checklistItems || milestone.checklistItems.length === 0) && newChecklistItem?.milestoneId !== milestone.id && (
+                            <div className="p-3 text-center text-xs text-gray-500">
+                              No checklist items yet
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Tasks List */}
+                      {milestone.tasks && milestone.tasks.length > 0 && (
+                        <div className="bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="p-3 border-b border-gray-200 flex items-center gap-2">
+                            <Target className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">Tasks</span>
+                            <span className="text-xs text-gray-500">
+                              ({milestone.tasks.filter(t => t.status === 'COMPLETED').length}/{milestone.tasks.length})
+                            </span>
+                          </div>
+                          <div className="divide-y divide-gray-200">
+                            {milestone.tasks.map((task) => (
+                              <div key={task.id} className="p-3 flex items-start gap-3 hover:bg-gray-100">
+                                <div className="flex-shrink-0 mt-0.5">
+                                  {task.status === 'COMPLETED' ? (
+                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <Circle className="h-4 w-4 text-gray-400" />
                                   )}
-                                  <div className="flex items-center gap-3 mt-2">
-                                    {task.assignee && (
-                                      <span className="text-xs text-gray-600">
-                                        {task.assignee.firstName} {task.assignee.lastName}
-                                      </span>
-                                    )}
-                                    {task.dueDate && (
-                                      <span className="text-xs text-gray-500">
-                                        Due: {new Date(task.dueDate).toLocaleDateString()}
-                                      </span>
-                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <p className={`text-sm font-medium ${
+                                        task.status === 'COMPLETED' ? 'text-gray-500 line-through' : 'text-gray-900'
+                                      }`}>
+                                        {task.title}
+                                      </p>
+                                      {task.description && (
+                                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+                                      )}
+                                      <div className="flex items-center gap-3 mt-2">
+                                        {task.assignee && (
+                                          <span className="text-xs text-gray-600">
+                                            {task.assignee.firstName} {task.assignee.lastName}
+                                          </span>
+                                        )}
+                                        {task.dueDate && (
+                                          <span className="text-xs text-gray-500">
+                                            Due: {new Date(task.dueDate).toLocaleDateString()}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                      task.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
+                                      task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                                      task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-gray-100 text-gray-700'
+                                    }`}>
+                                      {task.priority}
+                                    </span>
                                   </div>
                                 </div>
-
-                                {/* Task Priority Badge */}
-                                <span className={`text-xs px-2 py-0.5 rounded ${
-                                  task.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
-                                  task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                                  task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {task.priority}
-                                </span>
                               </div>
-                            </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      )}
+
+                      {/* Assigned Contacts Info */}
+                      {(milestone.responsibleUser || milestone.documenterUser || milestone.assignedContact) && (
+                        <div className="bg-gray-50 rounded-lg border border-gray-200 p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Users className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700">Assignments</span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {milestone.responsibleUser && (
+                              <div className="flex items-center gap-2">
+                                <User className="h-3 w-3 text-blue-500" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Responsible</p>
+                                  <p className="text-sm text-gray-900">{milestone.responsibleUser.firstName} {milestone.responsibleUser.lastName}</p>
+                                </div>
+                              </div>
+                            )}
+                            {milestone.documenterUser && (
+                              <div className="flex items-center gap-2">
+                                <Edit className="h-3 w-3 text-green-500" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Documenter</p>
+                                  <p className="text-sm text-gray-900">{milestone.documenterUser.firstName} {milestone.documenterUser.lastName}</p>
+                                </div>
+                              </div>
+                            )}
+                            {milestone.assignedContact && (
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-3 w-3 text-purple-500" />
+                                <div>
+                                  <p className="text-xs text-gray-500">Vendor Contact</p>
+                                  <p className="text-sm text-gray-900">{milestone.assignedContact.firstName} {milestone.assignedContact.lastName}</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -668,6 +989,52 @@ export function ProjectMilestones({ projectId }: ProjectMilestonesProps) {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Contact Linking Section */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Assignment & Responsibility
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Responsible Person
+                    </label>
+                    <select
+                      value={formData.responsibleUserId}
+                      onChange={(e) => setFormData({ ...formData, responsibleUserId: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="">Not assigned</option>
+                      {teamMembers.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.firstName} {member.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Internal person responsible</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Documenter
+                    </label>
+                    <select
+                      value={formData.documenterUserId}
+                      onChange={(e) => setFormData({ ...formData, documenterUserId: e.target.value })}
+                      className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                    >
+                      <option value="">Not assigned</option>
+                      {teamMembers.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.firstName} {member.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Person who updates progress</p>
+                  </div>
+                </div>
               </div>
 
               {editingMilestone && (

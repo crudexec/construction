@@ -56,6 +56,42 @@ export async function GET(
             lastName: true
           }
         },
+        responsibleUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        documenterUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        assignedContact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            position: true
+          }
+        },
+        checklistItems: {
+          include: {
+            completedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
+        },
         ...(includeTasks && {
           tasks: {
             select: {
@@ -86,20 +122,28 @@ export async function GET(
       ]
     })
 
-    // If tasks are included, calculate progress
-    const milestonesWithProgress = includeTasks ? milestones.map(milestone => {
+    // Calculate progress for tasks and checklist items
+    const milestonesWithProgress = milestones.map(milestone => {
       const tasks = (milestone as any).tasks || []
-      const completedCount = tasks.filter((t: any) => t.status === 'COMPLETED').length
-      const totalCount = tasks.length
-      const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+      const completedTasksCount = tasks.filter((t: any) => t.status === 'COMPLETED').length
+      const totalTasksCount = tasks.length
+      const taskProgress = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0
+
+      const checklistItems = milestone.checklistItems || []
+      const completedChecklistItems = checklistItems.filter((i: any) => i.status === 'COMPLETED').length
+      const totalChecklistItems = checklistItems.length
+      const checklistProgress = totalChecklistItems > 0 ? Math.round((completedChecklistItems / totalChecklistItems) * 100) : 0
 
       return {
         ...milestone,
-        completedTasksCount: completedCount,
-        totalTasksCount: totalCount,
-        progress
+        completedTasksCount,
+        totalTasksCount,
+        progress: taskProgress,
+        completedChecklistItems,
+        totalChecklistItems,
+        checklistProgress
       }
-    }) : milestones
+    })
 
     return NextResponse.json(milestonesWithProgress)
 

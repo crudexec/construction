@@ -22,7 +22,75 @@ export async function PATCH(
     const { id: commentId } = await params
     const body = await request.json()
 
-    // Verify comment exists and user is the author
+    // Handle pin/unpin action (any company user can pin/unpin)
+    if (body.action === 'pin' || body.action === 'unpin') {
+      const comment = await prisma.vendorComment.findFirst({
+        where: {
+          id: commentId,
+          deletedAt: null
+        },
+        include: {
+          vendor: {
+            select: {
+              id: true,
+              companyId: true
+            }
+          }
+        }
+      })
+
+      if (!comment) {
+        return NextResponse.json({ error: 'Comment not found' }, { status: 404 })
+      }
+
+      // Verify the vendor belongs to user's company
+      if (comment.vendor.companyId !== user.companyId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+      }
+
+      const updatedComment = await prisma.vendorComment.update({
+        where: { id: commentId },
+        data: {
+          isPinned: body.action === 'pin',
+          pinnedAt: body.action === 'pin' ? new Date() : null,
+          pinnedById: body.action === 'pin' ? user.id : null
+        },
+        include: {
+          author: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              avatar: true
+            }
+          },
+          pinnedBy: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          mentions: {
+            include: {
+              mentionedUser: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true
+                }
+              }
+            }
+          }
+        }
+      })
+
+      return NextResponse.json(updatedComment)
+    }
+
+    // Regular content update - user must be the author
     const comment = await prisma.vendorComment.findFirst({
       where: {
         id: commentId,

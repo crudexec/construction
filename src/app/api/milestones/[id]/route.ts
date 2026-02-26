@@ -47,11 +47,47 @@ export async function GET(
             lastName: true
           }
         },
+        responsibleUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        documenterUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        assignedContact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            position: true
+          }
+        },
         project: {
           select: {
             id: true,
             title: true
           }
+        },
+        checklistItems: {
+          include: {
+            completedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
         }
       }
     })
@@ -60,7 +96,17 @@ export async function GET(
       return NextResponse.json({ error: 'Milestone not found' }, { status: 404 })
     }
 
-    return NextResponse.json(milestone)
+    // Calculate checklist progress
+    const totalItems = milestone.checklistItems.length
+    const completedItems = milestone.checklistItems.filter(item => item.status === 'COMPLETED').length
+    const checklistProgress = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0
+
+    return NextResponse.json({
+      ...milestone,
+      checklistProgress,
+      completedChecklistItems: completedItems,
+      totalChecklistItems: totalItems
+    })
 
   } catch (error) {
     console.error('Error fetching milestone:', error)
@@ -126,7 +172,19 @@ export async function PATCH(
       return NextResponse.json({ error: 'Milestone not found' }, { status: 404 })
     }
 
-    const { title, description, amount, targetDate, completedDate, status, vendorId, order } = body
+    const {
+      title,
+      description,
+      amount,
+      targetDate,
+      completedDate,
+      status,
+      vendorId,
+      order,
+      responsibleUserId,
+      documenterUserId,
+      assignedContactId
+    } = body
 
     // If vendorId is provided, verify vendor exists and belongs to the company
     if (vendorId) {
@@ -142,6 +200,50 @@ export async function PATCH(
       }
     }
 
+    // If responsibleUserId is provided, verify user exists in the company
+    if (responsibleUserId) {
+      const responsibleUser = await prisma.user.findFirst({
+        where: {
+          id: responsibleUserId,
+          companyId: user.companyId
+        }
+      })
+
+      if (!responsibleUser) {
+        return NextResponse.json({ error: 'Responsible user not found' }, { status: 404 })
+      }
+    }
+
+    // If documenterUserId is provided, verify user exists in the company
+    if (documenterUserId) {
+      const documenterUser = await prisma.user.findFirst({
+        where: {
+          id: documenterUserId,
+          companyId: user.companyId
+        }
+      })
+
+      if (!documenterUser) {
+        return NextResponse.json({ error: 'Documenter user not found' }, { status: 404 })
+      }
+    }
+
+    // If assignedContactId is provided, verify contact exists and belongs to a vendor in the company
+    if (assignedContactId) {
+      const contact = await prisma.vendorContact.findFirst({
+        where: {
+          id: assignedContactId,
+          vendor: {
+            companyId: user.companyId
+          }
+        }
+      })
+
+      if (!contact) {
+        return NextResponse.json({ error: 'Assigned contact not found' }, { status: 404 })
+      }
+    }
+
     const updatedMilestone = await prisma.projectMilestone.update({
       where: { id: milestoneId },
       data: {
@@ -153,6 +255,9 @@ export async function PATCH(
         ...(status !== undefined && { status }),
         ...(vendorId !== undefined && { vendorId: vendorId || null }),
         ...(order !== undefined && { order }),
+        ...(responsibleUserId !== undefined && { responsibleUserId: responsibleUserId || null }),
+        ...(documenterUserId !== undefined && { documenterUserId: documenterUserId || null }),
+        ...(assignedContactId !== undefined && { assignedContactId: assignedContactId || null }),
         updatedAt: new Date()
       },
       include: {
@@ -169,6 +274,42 @@ export async function PATCH(
             firstName: true,
             lastName: true
           }
+        },
+        responsibleUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        documenterUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        assignedContact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            position: true
+          }
+        },
+        checklistItems: {
+          include: {
+            completedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
         }
       }
     })

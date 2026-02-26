@@ -33,6 +33,14 @@ export async function GET(
             { firstName: 'asc' }
           ]
         },
+        category: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            csiDivision: true
+          }
+        },
         reviews: {
           include: {
             reviewer: {
@@ -80,6 +88,18 @@ export async function GET(
           },
           orderBy: {
             createdAt: 'desc'
+          }
+        },
+        serviceTags: {
+          include: {
+            tag: {
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                category: true
+              }
+            }
           }
         },
         _count: {
@@ -165,6 +185,8 @@ export async function PUT(
       licenseNumber,
       insuranceInfo,
       type,
+      categoryId,
+      tagIds,
       scopeOfWork,
       paymentTerms,
       contractStartDate,
@@ -173,33 +195,67 @@ export async function PUT(
       isActive
     } = body
 
-    const vendor = await prisma.vendor.update({
-      where: {
-        id: id
-      },
-      data: {
-        name,
-        companyName,
-        email,
-        phone,
-        address,
-        city,
-        state,
-        zipCode,
-        website,
-        licenseNumber,
-        insuranceInfo,
-        type,
-        scopeOfWork,
-        paymentTerms,
-        contractStartDate: contractStartDate ? new Date(contractStartDate) : null,
-        contractEndDate: contractEndDate ? new Date(contractEndDate) : null,
-        notes,
-        isActive
-      },
-      include: {
-        contacts: true
+    // Update vendor and tags in a transaction
+    const vendor = await prisma.$transaction(async (tx) => {
+      // Update vendor
+      const updatedVendor = await tx.vendor.update({
+        where: {
+          id: id
+        },
+        data: {
+          name,
+          companyName,
+          email,
+          phone,
+          address,
+          city,
+          state,
+          zipCode,
+          website,
+          licenseNumber,
+          insuranceInfo,
+          type,
+          ...(categoryId !== undefined && { categoryId: categoryId || null }),
+          scopeOfWork,
+          paymentTerms,
+          contractStartDate: contractStartDate ? new Date(contractStartDate) : null,
+          contractEndDate: contractEndDate ? new Date(contractEndDate) : null,
+          notes,
+          isActive
+        }
+      })
+
+      // Update tags if provided
+      if (tagIds !== undefined) {
+        // Delete existing tag assignments
+        await tx.vendorServiceTagAssignment.deleteMany({
+          where: { vendorId: id }
+        })
+
+        // Create new tag assignments
+        if (tagIds && tagIds.length > 0) {
+          await tx.vendorServiceTagAssignment.createMany({
+            data: tagIds.map((tagId: string) => ({
+              vendorId: id,
+              tagId
+            }))
+          })
+        }
       }
+
+      // Fetch updated vendor with all relations
+      return tx.vendor.findFirst({
+        where: { id },
+        include: {
+          contacts: true,
+          category: true,
+          serviceTags: {
+            include: {
+              tag: true
+            }
+          }
+        }
+      })
     })
 
     return NextResponse.json(vendor)

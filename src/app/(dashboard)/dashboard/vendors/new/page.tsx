@@ -2,10 +2,19 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { DatePicker } from '@/components/ui/date-picker'
+import { VendorTagSelector } from '@/components/vendors/vendor-tag-selector'
+
+interface VendorCategory {
+  id: string
+  name: string
+  color: string
+  csiDivision?: string
+  vendorCount: number
+}
 
 interface VendorContact {
   firstName: string
@@ -30,12 +39,31 @@ interface VendorFormData {
   licenseNumber: string
   insuranceInfo: string
   type: 'SUPPLY_AND_INSTALLATION' | 'SUPPLY' | 'INSTALLATION'
+  categoryId: string
+  tagIds: string[]
   scopeOfWork: string
   paymentTerms: string
   contractStartDate: string
   contractEndDate: string
   notes: string
   contacts: VendorContact[]
+}
+
+async function fetchCategories(): Promise<VendorCategory[]> {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch('/api/vendor-categories', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    }
+  })
+
+  if (!response.ok) throw new Error('Failed to fetch categories')
+  return response.json()
 }
 
 async function createVendor(data: VendorFormData) {
@@ -88,12 +116,20 @@ export default function NewVendorPage() {
     licenseNumber: '',
     insuranceInfo: '',
     type: 'SUPPLY_AND_INSTALLATION',
+    categoryId: '',
+    tagIds: [],
     scopeOfWork: '',
     paymentTerms: '',
     contractStartDate: '',
     contractEndDate: '',
     notes: '',
     contacts: [{ ...emptyContact, isPrimary: true }]
+  })
+
+  // Fetch available categories
+  const { data: categories = [] } = useQuery<VendorCategory[]>({
+    queryKey: ['vendor-categories'],
+    queryFn: fetchCategories
   })
 
   const createVendorMutation = useMutation({
@@ -245,7 +281,35 @@ export default function NewVendorPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vendor Type *
+                Category
+              </label>
+              <select
+                value={formData.categoryId}
+                onChange={(e) => handleInputChange('categoryId', e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">Select a category...</option>
+                {categories.map(cat => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} {cat.csiDivision ? `(CSI ${cat.csiDivision})` : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Trade or business classification</p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Service Tags
+              </label>
+              <VendorTagSelector
+                selectedTagIds={formData.tagIds}
+                onChange={(tagIds) => handleInputChange('tagIds', tagIds)}
+              />
+              <p className="mt-1 text-xs text-gray-500">Select tags to classify vendor capabilities (e.g., &quot;New Construction&quot;, &quot;Residential&quot;)</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Delivery Type *
               </label>
               <select
                 required

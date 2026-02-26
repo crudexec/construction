@@ -20,6 +20,9 @@ export async function GET(
     }
 
     const { id: vendorId } = await params
+    const { searchParams } = new URL(request.url)
+    const projectId = searchParams.get('projectId')
+    const status = searchParams.get('status')
 
     // Verify vendor exists and belongs to user's company
     const vendor = await prisma.vendor.findFirst({
@@ -33,11 +36,22 @@ export async function GET(
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
     }
 
+    // Build where clause with optional filters
+    const whereClause: Record<string, unknown> = {
+      vendorId: vendorId
+    }
+
+    if (projectId) {
+      whereClause.projectId = projectId
+    }
+
+    if (status) {
+      whereClause.status = status
+    }
+
     // Fetch project milestones assigned to this vendor
     const milestones = await prisma.projectMilestone.findMany({
-      where: {
-        vendorId: vendorId
-      },
+      where: whereClause,
       include: {
         project: {
           select: {
@@ -51,6 +65,30 @@ export async function GET(
             id: true,
             firstName: true,
             lastName: true
+          }
+        },
+        responsibleUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        documenterUser: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
+          }
+        },
+        assignedContact: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            position: true
           }
         },
         // Get ALL tasks under this milestone (not filtered by vendorId)
@@ -74,6 +112,18 @@ export async function GET(
             { order: 'asc' },
             { createdAt: 'asc' }
           ]
+        },
+        checklistItems: {
+          include: {
+            completedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: { order: 'asc' }
         }
       },
       orderBy: [
@@ -85,15 +135,23 @@ export async function GET(
     // Calculate progress for each milestone
     const milestonesWithProgress = milestones.map(milestone => {
       const tasks = milestone.tasks || []
-      const completedCount = tasks.filter(t => t.status === 'COMPLETED').length
-      const totalCount = tasks.length
-      const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
+      const completedTasksCount = tasks.filter(t => t.status === 'COMPLETED').length
+      const totalTasksCount = tasks.length
+      const taskProgress = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0
+
+      const checklistItems = milestone.checklistItems || []
+      const completedChecklistItems = checklistItems.filter(i => i.status === 'COMPLETED').length
+      const totalChecklistItems = checklistItems.length
+      const checklistProgress = totalChecklistItems > 0 ? Math.round((completedChecklistItems / totalChecklistItems) * 100) : 0
 
       return {
         ...milestone,
-        completedTasksCount: completedCount,
-        totalTasksCount: totalCount,
-        progress
+        completedTasksCount,
+        totalTasksCount,
+        progress: taskProgress,
+        completedChecklistItems,
+        totalChecklistItems,
+        checklistProgress
       }
     })
 

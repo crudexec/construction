@@ -2,6 +2,37 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
+// Rating dimensions with weights for aggregate calculation
+const RATING_WEIGHTS: Record<string, number> = {
+  qualityRating: 0.20,
+  timelinessRating: 0.15,
+  communicationRating: 0.15,
+  professionalismRating: 0.10,
+  pricingAccuracyRating: 0.15,
+  safetyComplianceRating: 0.10,
+  problemResolutionRating: 0.10,
+  documentationRating: 0.05
+}
+
+function calculateOverallRating(ratings: Record<string, number | null | undefined>): number {
+  let totalWeight = 0
+  let weightedSum = 0
+
+  for (const [key, weight] of Object.entries(RATING_WEIGHTS)) {
+    const rating = ratings[key]
+    if (rating !== null && rating !== undefined) {
+      weightedSum += rating * weight
+      totalWeight += weight
+    }
+  }
+
+  // If no dimension ratings provided, return 0
+  if (totalWeight === 0) return 0
+
+  // Normalize to account for missing ratings
+  return Math.round((weightedSum / totalWeight) * 10) / 10
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -9,7 +40,7 @@ export async function GET(
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -19,12 +50,12 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id: vendorId } = await params
 
     // Verify vendor exists and belongs to user's company
     const vendor = await prisma.vendor.findFirst({
       where: {
-        id: id,
+        id: vendorId,
         companyId: user.companyId
       }
     })
@@ -33,19 +64,28 @@ export async function GET(
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
     }
 
+    // Get query params for filtering
+    const { searchParams } = new URL(request.url)
+    const projectId = searchParams.get('projectId')
+
+    // Fetch reviews
     const reviews = await prisma.vendorReview.findMany({
       where: {
-        vendorId: id
+        vendorId,
+        ...(projectId ? { projectId } : {})
       },
       include: {
         reviewer: {
           select: {
+            id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            avatar: true
           }
         },
         project: {
           select: {
+            id: true,
             title: true
           }
         }
@@ -55,20 +95,11 @@ export async function GET(
       }
     })
 
-    const transformedReviews = reviews.map(review => ({
-      ...review,
-      reviewerName: `${review.reviewer.firstName} ${review.reviewer.lastName}`,
-      projectName: review.project?.title,
-      reviewer: undefined,
-      project: undefined
-    }))
-
-    return NextResponse.json(transformedReviews)
-
+    return NextResponse.json(reviews)
   } catch (error) {
     console.error('Error fetching vendor reviews:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch vendor reviews' },
+      { error: 'Failed to fetch reviews' },
       { status: 500 }
     )
   }
@@ -81,7 +112,7 @@ export async function POST(
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -91,12 +122,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { id } = await params
+    const { id: vendorId } = await params
+    const body = await request.json()
 
     // Verify vendor exists and belongs to user's company
     const vendor = await prisma.vendor.findFirst({
       where: {
-        id: id,
+        id: vendorId,
         companyId: user.companyId
       }
     })
@@ -105,81 +137,82 @@ export async function POST(
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
     }
 
-    const body = await request.json()
-    
-    const {
-      overallRating,
-      qualityRating,
-      timelinessRating,
-      communicationRating,
-      professionalismRating,
-      comments,
-      projectId
-    } = body
-
-    // Validate ratings are between 1 and 5
-    const ratings = [overallRating, qualityRating, timelinessRating, communicationRating, professionalismRating]
-    for (const rating of ratings) {
-      if (rating < 1 || rating > 5) {
-        return NextResponse.json({ error: 'Ratings must be between 1 and 5' }, { status: 400 })
-      }
-    }
-
-    // Verify project belongs to user's company if provided
-    if (projectId) {
+    // Validate project if provided
+    if (body.projectId) {
       const project = await prisma.card.findFirst({
         where: {
-          id: projectId,
+          id: body.projectId,
           companyId: user.companyId
         }
       })
-
       if (!project) {
         return NextResponse.json({ error: 'Project not found' }, { status: 404 })
       }
     }
 
+    // Extract ratings
+    const ratings = {
+      qualityRating: body.qualityRating,
+      timelinessRating: body.timelinessRating,
+      communicationRating: body.communicationRating,
+      professionalismRating: body.professionalismRating,
+      pricingAccuracyRating: body.pricingAccuracyRating,
+      safetyComplianceRating: body.safetyComplianceRating,
+      problemResolutionRating: body.problemResolutionRating,
+      documentationRating: body.documentationRating
+    }
+
+    // Calculate overall rating from dimension ratings, or use provided overall
+    const overallRating = body.overallRating || calculateOverallRating(ratings)
+
+    if (!overallRating || overallRating < 1 || overallRating > 5) {
+      return NextResponse.json(
+        { error: 'At least one rating is required (1-5 stars)' },
+        { status: 400 }
+      )
+    }
+
+    // Create the review
     const review = await prisma.vendorReview.create({
       data: {
-        vendorId: id,
+        vendorId,
         reviewerId: user.id,
-        projectId: projectId || null,
+        projectId: body.projectId || null,
         overallRating,
-        qualityRating,
-        timelinessRating,
-        communicationRating,
-        professionalismRating,
-        comments
+        qualityRating: body.qualityRating || null,
+        timelinessRating: body.timelinessRating || null,
+        communicationRating: body.communicationRating || null,
+        professionalismRating: body.professionalismRating || null,
+        pricingAccuracyRating: body.pricingAccuracyRating || null,
+        safetyComplianceRating: body.safetyComplianceRating || null,
+        problemResolutionRating: body.problemResolutionRating || null,
+        documentationRating: body.documentationRating || null,
+        comments: body.comments || null,
+        isPublic: body.isPublic || false
       },
       include: {
         reviewer: {
           select: {
+            id: true,
             firstName: true,
-            lastName: true
+            lastName: true,
+            avatar: true
           }
         },
         project: {
           select: {
+            id: true,
             title: true
           }
         }
       }
     })
 
-    const transformedReview = {
-      ...review,
-      reviewerName: `${review.reviewer.firstName} ${review.reviewer.lastName}`,
-      projectName: review.project?.title,
-      reviewer: undefined,
-      project: undefined
-    }
-
-    return NextResponse.json(transformedReview, { status: 201 })
-
+    return NextResponse.json(review, { status: 201 })
   } catch (error) {
     console.error('Error creating vendor review:', error)
     return NextResponse.json(
-      { error: 'Failed to create vendor review' },
+      { error: 'Failed to create review' },
       { status: 500 }
     )
   }

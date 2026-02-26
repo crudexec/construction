@@ -33,12 +33,18 @@ export async function GET(
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })
     }
 
+    // Determine if user is admin (can see private comments)
+    const isAdmin = user.role === 'ADMIN'
+
     // Fetch all comments for the vendor (top-level only, with replies nested)
+    // Filter private comments for non-admin users
     const comments = await prisma.vendorComment.findMany({
       where: {
         vendorId,
         deletedAt: null,
-        parentId: null
+        parentId: null,
+        // Non-admins cannot see private comments
+        ...(isAdmin ? {} : { isPrivate: false })
       },
       include: {
         author: {
@@ -48,6 +54,13 @@ export async function GET(
             lastName: true,
             email: true,
             avatar: true
+          }
+        },
+        pinnedBy: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true
           }
         },
         mentions: {
@@ -62,9 +75,25 @@ export async function GET(
             }
           }
         },
+        attachments: {
+          include: {
+            uploader: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: {
+            createdAt: 'asc'
+          }
+        },
         replies: {
           where: {
-            deletedAt: null
+            deletedAt: null,
+            // Non-admins cannot see private replies either
+            ...(isAdmin ? {} : { isPrivate: false })
           },
           include: {
             author: {
@@ -87,6 +116,20 @@ export async function GET(
                   }
                 }
               }
+            },
+            attachments: {
+              include: {
+                uploader: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true
+                  }
+                }
+              },
+              orderBy: {
+                createdAt: 'asc'
+              }
             }
           },
           orderBy: {
@@ -94,9 +137,12 @@ export async function GET(
           }
         }
       },
-      orderBy: {
-        createdAt: 'desc'
-      }
+      // Sort pinned comments first, then by creation date
+      orderBy: [
+        { isPinned: 'desc' },
+        { pinnedAt: 'desc' },
+        { createdAt: 'desc' }
+      ]
     })
 
     return NextResponse.json(comments)
@@ -168,6 +214,9 @@ export async function POST(
       mentions.push(match[2]) // Extract userId from the mention
     }
 
+    // Only admins can create private comments
+    const isPrivate = user.role === 'ADMIN' && body.isPrivate === true
+
     // Create the comment
     const comment = await prisma.vendorComment.create({
       data: {
@@ -175,6 +224,7 @@ export async function POST(
         vendorId,
         authorId: user.id,
         parentId: body.parentId || null,
+        isPrivate,
         mentions: mentions.length > 0 ? {
           create: mentions.map(mentionedUserId => ({
             mentionedUserId
@@ -199,6 +249,17 @@ export async function POST(
                 firstName: true,
                 lastName: true,
                 email: true
+              }
+            }
+          }
+        },
+        attachments: {
+          include: {
+            uploader: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
               }
             }
           }

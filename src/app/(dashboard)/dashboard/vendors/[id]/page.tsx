@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeft,
   Edit,
@@ -40,12 +40,18 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import AddReviewModal from '@/components/vendors/add-review-modal'
+import { VendorScoreDisplay } from '@/components/vendors/vendor-score-display'
 import AddContactModal from '@/components/vendors/add-contact-modal'
+import EditContactModal from '@/components/vendors/edit-contact-modal'
 import VendorProcurementTab from '@/components/vendors/vendor-procurement-tab'
+import { VendorTagSelector } from '@/components/vendors/vendor-tag-selector'
 import { VendorPurchaseOrdersTab } from '@/components/vendors/vendor-purchase-orders-tab'
 import { VendorCommentsTab } from '@/components/vendors/vendor-comments-tab'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
+import { ContractLineItems } from '@/components/contracts/contract-line-items'
+import { ContractChangeOrders } from '@/components/contracts/contract-change-orders'
+import { ContractSummaryCard } from '@/components/contracts/contract-summary-card'
 
 interface VendorContact {
   id: string
@@ -61,10 +67,14 @@ interface VendorContact {
 interface VendorReview {
   id: string
   overallRating: number
-  qualityRating: number
-  timelinessRating: number
-  communicationRating: number
-  professionalismRating: number
+  qualityRating?: number
+  timelinessRating?: number
+  communicationRating?: number
+  professionalismRating?: number
+  pricingAccuracyRating?: number
+  safetyComplianceRating?: number
+  problemResolutionRating?: number
+  documentationRating?: number
   comments?: string
   reviewerName: string
   createdAt: string
@@ -129,7 +139,7 @@ interface VendorContract {
   retentionAmount?: number
   warrantyYears: number
   startDate: string
-  endDate: string
+  endDate?: string | null
   status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'TERMINATED' | 'EXPIRED'
   terms?: string
   notes?: string
@@ -146,6 +156,21 @@ interface VendorContract {
   }[]
 }
 
+interface VendorCategoryRef {
+  id: string
+  name: string
+  color: string
+  csiDivision?: string
+}
+
+interface VendorCategoryOption {
+  id: string
+  name: string
+  color: string
+  csiDivision?: string
+  vendorCount: number
+}
+
 interface Vendor {
   id: string
   name: string
@@ -160,6 +185,8 @@ interface Vendor {
   licenseNumber?: string
   insuranceInfo?: string
   type: 'SUPPLY_AND_INSTALLATION' | 'SUPPLY' | 'INSTALLATION'
+  categoryId?: string
+  category?: VendorCategoryRef
   scopeOfWork?: string
   paymentTerms?: string
   contractStartDate?: string
@@ -192,6 +219,23 @@ async function fetchVendor(id: string): Promise<Vendor> {
   })
   
   if (!response.ok) throw new Error('Failed to fetch vendor')
+  return response.json()
+}
+
+async function fetchCategories(): Promise<VendorCategoryOption[]> {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch('/api/vendor-categories', {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    }
+  })
+
+  if (!response.ok) throw new Error('Failed to fetch categories')
   return response.json()
 }
 
@@ -295,13 +339,21 @@ interface ProjectMilestone {
   progress?: number
 }
 
-async function fetchVendorProjectMilestones(vendorId: string): Promise<ProjectMilestone[]> {
+async function fetchVendorProjectMilestones(vendorId: string, projectId?: string, status?: string): Promise<ProjectMilestone[]> {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
 
-  const response = await fetch(`/api/vendors/${vendorId}/milestones`, {
+  const params = new URLSearchParams()
+  if (projectId) params.set('projectId', projectId)
+  if (status) params.set('status', status)
+
+  const url = params.toString()
+    ? `/api/vendors/${vendorId}/milestones?${params}`
+    : `/api/vendors/${vendorId}/milestones`
+
+  const response = await fetch(url, {
     headers: {
       'Authorization': `Bearer ${token}`,
       'Cookie': document.cookie
@@ -405,12 +457,16 @@ const getContractTypeLabel = (type: string) => {
 export default function VendorDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const vendorId = params.id as string
   const { symbol: currencySymbol, format: formatCurrency } = useCurrency()
-  const [activeTab, setActiveTab] = useState('overview')
+  const initialTab = searchParams.get('tab') || 'overview'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
+  const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false)
+  const [selectedContact, setSelectedContact] = useState<VendorContact | null>(null)
   const [isPortalModalOpen, setIsPortalModalOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [portalForm, setPortalForm] = useState({
@@ -434,6 +490,8 @@ export default function VendorDetailPage() {
     licenseNumber: '',
     insuranceInfo: '',
     type: 'SUPPLY_AND_INSTALLATION' as 'SUPPLY_AND_INSTALLATION' | 'SUPPLY' | 'INSTALLATION',
+    categoryId: '' as string,
+    tagIds: [] as string[],
     scopeOfWork: '',
     paymentTerms: '',
     notes: '',
@@ -452,6 +510,8 @@ export default function VendorDetailPage() {
   })
   const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
+  const [milestoneProjectFilter, setMilestoneProjectFilter] = useState<string>('')
+  const [milestoneStatusFilter, setMilestoneStatusFilter] = useState<string>('')
   const [isVendorInfoCollapsed, setIsVendorInfoCollapsed] = useState(false)
   const [isAddPaymentModalOpen, setIsAddPaymentModalOpen] = useState(false)
   const [paymentForm, setPaymentForm] = useState({
@@ -517,12 +577,28 @@ export default function VendorDetailPage() {
   })
 
   const { data: projectMilestones = [], isLoading: isLoadingMilestones } = useQuery({
-    queryKey: ['vendor-project-milestones', vendorId],
-    queryFn: () => fetchVendorProjectMilestones(vendorId),
+    queryKey: ['vendor-project-milestones', vendorId, milestoneProjectFilter, milestoneStatusFilter],
+    queryFn: () => fetchVendorProjectMilestones(
+      vendorId,
+      milestoneProjectFilter || undefined,
+      milestoneStatusFilter || undefined
+    ),
     enabled: !!vendorId && (activeTab === 'milestones' || activeTab === 'overview'),
     staleTime: 0,
     refetchOnMount: 'always'
   })
+
+  // Get unique projects from all vendor milestones for the filter dropdown
+  const { data: allVendorMilestones = [] } = useQuery({
+    queryKey: ['vendor-all-milestones', vendorId],
+    queryFn: () => fetchVendorProjectMilestones(vendorId),
+    enabled: !!vendorId && activeTab === 'milestones',
+    staleTime: 60000 // Cache for 1 minute since this is just for filter options
+  })
+
+  const uniqueProjects = Array.from(
+    new Map(allVendorMilestones.map((m: ProjectMilestone) => [m.project.id, m.project])).values()
+  )
 
   const { data: vendorTasks = [], isLoading: isLoadingTasks, refetch: refetchTasks } = useQuery({
     queryKey: ['vendor-tasks', vendorId],
@@ -594,6 +670,12 @@ export default function VendorDetailPage() {
       return response.json()
     },
     enabled: isAddTaskModalOpen
+  })
+
+  // Fetch vendor categories
+  const { data: vendorCategories = [] } = useQuery<VendorCategoryOption[]>({
+    queryKey: ['vendor-categories'],
+    queryFn: fetchCategories
   })
 
   // Create milestone mutation
@@ -817,6 +899,34 @@ export default function VendorDetailPage() {
     }
   })
 
+  const setPrimaryContactMutation = useMutation({
+    mutationFn: async (contactId: string) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/vendors/contacts/${contactId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ isPrimary: true })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to set primary contact')
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vendor', vendorId] })
+      queryClient.invalidateQueries({ queryKey: ['vendors'] })
+    }
+  })
+
   const updateVendorMutation = useMutation({
     mutationFn: async (data: typeof editForm) => {
       const token = document.cookie
@@ -1004,6 +1114,8 @@ export default function VendorDetailPage() {
         licenseNumber: vendor.licenseNumber || '',
         insuranceInfo: vendor.insuranceInfo || '',
         type: vendor.type || 'SUPPLY_AND_INSTALLATION',
+        categoryId: vendor.categoryId || '',
+        tagIds: (vendor as any).serviceTags?.map((st: any) => st.tag?.id || st.tagId).filter(Boolean) || [],
         scopeOfWork: vendor.scopeOfWork || '',
         paymentTerms: vendor.paymentTerms || '',
         notes: vendor.notes || '',
@@ -1414,7 +1526,7 @@ export default function VendorDetailPage() {
                       <div className="flex items-center space-x-3">
                         {getContractStatusBadge(contract.status)}
                         <div className="text-xs text-gray-500">
-                          {new Date(contract.startDate).toLocaleDateString()} - {new Date(contract.endDate).toLocaleDateString()}
+                          {new Date(contract.startDate).toLocaleDateString()} - {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : 'Ongoing'}
                         </div>
                       </div>
                     </div>
@@ -1451,7 +1563,11 @@ export default function VendorDetailPage() {
             ) : (
               <div className="divide-y divide-gray-200">
                 {vendor.contacts.map((contact) => (
-                  <div key={contact.id} className="p-4 hover:bg-gray-50">
+                  <div
+                    key={contact.id}
+                    className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    onClick={() => router.push(`/dashboard/vendors/${vendor.id}/contacts/${contact.id}`)}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -1460,7 +1576,7 @@ export default function VendorDetailPage() {
                           </span>
                         </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-gray-900 hover:text-primary-600">
                             {contact.firstName} {contact.lastName}
                           </p>
                           <p className="text-xs text-gray-500">{contact.position || 'No position'}</p>
@@ -1492,6 +1608,32 @@ export default function VendorDetailPage() {
                               Billing
                             </span>
                           )}
+                        </div>
+                        <div className="flex items-center space-x-2 ml-2">
+                          {!contact.isPrimary && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setPrimaryContactMutation.mutate(contact.id)
+                              }}
+                              disabled={setPrimaryContactMutation.isPending}
+                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Set as Primary Contact"
+                            >
+                              <Star className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedContact(contact)
+                              setIsEditContactModalOpen(true)
+                            }}
+                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+                            title="Edit Contact"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1565,37 +1707,83 @@ export default function VendorDetailPage() {
 
       {activeTab === 'milestones' && (
         <div className="bg-white rounded-lg shadow border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Assigned Milestones</h3>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                  // Open task modal with ability to select milestone
-                  setSelectedMilestoneForTask(null)
-                  setTaskForm({
-                    projectId: '',
-                    milestoneId: '',
-                    title: '',
-                    description: '',
-                    priority: 'MEDIUM',
-                    dueDate: '',
-                    categoryId: '',
-                    assigneeId: ''
-                  })
-                  setIsAddTaskModalOpen(true)
-                }}
-                className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add Task</span>
-              </button>
-              <button
-                onClick={() => setIsAddMilestoneModalOpen(true)}
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Add Milestone</span>
-              </button>
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Assigned Milestones</h3>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    // Open task modal with ability to select milestone
+                    setSelectedMilestoneForTask(null)
+                    setTaskForm({
+                      projectId: '',
+                      milestoneId: '',
+                      title: '',
+                      description: '',
+                      priority: 'MEDIUM',
+                      dueDate: '',
+                      categoryId: '',
+                      assigneeId: ''
+                    })
+                    setIsAddTaskModalOpen(true)
+                  }}
+                  className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Task</span>
+                </button>
+                <button
+                  onClick={() => setIsAddMilestoneModalOpen(true)}
+                  className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Milestone</span>
+                </button>
+              </div>
+            </div>
+            {/* Filter Controls */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Filter by Project:</label>
+                <select
+                  value={milestoneProjectFilter}
+                  onChange={(e) => setMilestoneProjectFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">All Projects</option>
+                  {uniqueProjects.map((project: { id: string; title: string }) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">Status:</label>
+                <select
+                  value={milestoneStatusFilter}
+                  onChange={(e) => setMilestoneStatusFilter(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="PENDING">Pending</option>
+                  <option value="IN_PROGRESS">In Progress</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="OVERDUE">Overdue</option>
+                </select>
+              </div>
+              {(milestoneProjectFilter || milestoneStatusFilter) && (
+                <button
+                  onClick={() => {
+                    setMilestoneProjectFilter('')
+                    setMilestoneStatusFilter('')
+                  }}
+                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                >
+                  <X className="h-3 w-3" />
+                  Clear filters
+                </button>
+              )}
             </div>
           </div>
           {isLoadingMilestones ? (
@@ -1855,7 +2043,7 @@ export default function VendorDetailPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-medium text-gray-900">Performance Reviews</h3>
-            <button 
+            <button
               onClick={() => setIsReviewModalOpen(true)}
               className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
             >
@@ -1863,6 +2051,13 @@ export default function VendorDetailPage() {
               <span>Add Review</span>
             </button>
           </div>
+
+          {/* Aggregate Score Summary */}
+          <div className="bg-white rounded-lg shadow border p-6">
+            <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Overall Performance Score</h4>
+            <VendorScoreDisplay vendorId={vendorId} size="lg" showBreakdown={true} />
+          </div>
+
           {vendor.reviews.length === 0 ? (
             <div className="bg-white rounded-lg shadow border p-12 text-center">
               <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
@@ -1891,22 +2086,54 @@ export default function VendorDetailPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900">{review.qualityRating}</div>
-                      <div className="text-xs text-gray-500">Quality</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900">{review.timelinessRating}</div>
-                      <div className="text-xs text-gray-500">Timeliness</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900">{review.communicationRating}</div>
-                      <div className="text-xs text-gray-500">Communication</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-semibold text-gray-900">{review.professionalismRating}</div>
-                      <div className="text-xs text-gray-500">Professionalism</div>
-                    </div>
+                    {review.qualityRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.qualityRating}</div>
+                        <div className="text-xs text-gray-500">Quality</div>
+                      </div>
+                    )}
+                    {review.timelinessRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.timelinessRating}</div>
+                        <div className="text-xs text-gray-500">Timeliness</div>
+                      </div>
+                    )}
+                    {review.communicationRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.communicationRating}</div>
+                        <div className="text-xs text-gray-500">Communication</div>
+                      </div>
+                    )}
+                    {review.professionalismRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.professionalismRating}</div>
+                        <div className="text-xs text-gray-500">Professionalism</div>
+                      </div>
+                    )}
+                    {review.pricingAccuracyRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.pricingAccuracyRating}</div>
+                        <div className="text-xs text-gray-500">Pricing</div>
+                      </div>
+                    )}
+                    {review.safetyComplianceRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.safetyComplianceRating}</div>
+                        <div className="text-xs text-gray-500">Safety</div>
+                      </div>
+                    )}
+                    {review.problemResolutionRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.problemResolutionRating}</div>
+                        <div className="text-xs text-gray-500">Problem Resolution</div>
+                      </div>
+                    )}
+                    {review.documentationRating && (
+                      <div className="text-center">
+                        <div className="text-lg font-semibold text-gray-900">{review.documentationRating}</div>
+                        <div className="text-xs text-gray-500">Documentation</div>
+                      </div>
+                    )}
                   </div>
                   {review.comments && (
                     <div className="bg-gray-50 rounded-md p-3">
@@ -2010,7 +2237,11 @@ export default function VendorDetailPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <div>{new Date(contract.startDate).toLocaleDateString()}</div>
-                        <div>to {new Date(contract.endDate).toLocaleDateString()}</div>
+                        {contract.endDate ? (
+                          <div>to {new Date(contract.endDate).toLocaleDateString()}</div>
+                        ) : (
+                          <div className="text-gray-400 italic">Ongoing</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getContractStatusBadge(contract.status)}
@@ -2476,6 +2707,17 @@ export default function VendorDetailPage() {
         onClose={() => setIsContactModalOpen(false)}
       />
 
+      {/* Edit Contact Modal */}
+      <EditContactModal
+        vendorId={vendorId}
+        contact={selectedContact}
+        isOpen={isEditContactModalOpen}
+        onClose={() => {
+          setIsEditContactModalOpen(false)
+          setSelectedContact(null)
+        }}
+      />
+
       {/* Contract Detail Modal */}
       {selectedContract && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2503,31 +2745,31 @@ export default function VendorDetailPage() {
                   </span>
                 </div>
 
-                {/* Financial Details */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-sm font-medium text-gray-500 mb-3">Financial Details</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-xs text-gray-500">Total Amount</p>
-                      <p className="text-lg font-semibold text-gray-900">
-                        {formatCurrency(selectedContract.totalSum)}
-                      </p>
+                {/* Contract Value Summary */}
+                <ContractSummaryCard contractId={selectedContract.id} />
+
+                {/* Retention Info */}
+                {selectedContract.retentionPercent && selectedContract.retentionPercent > 0 && (
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">Retention Holdback</span>
+                      <span className="font-medium text-gray-900">
+                        {selectedContract.retentionPercent}%
+                        {selectedContract.retentionAmount && (
+                          <span className="text-gray-500 ml-1">
+                            ({formatCurrency(selectedContract.retentionAmount)})
+                          </span>
+                        )}
+                      </span>
                     </div>
-                    {selectedContract.retentionPercent && selectedContract.retentionPercent > 0 && (
-                      <div>
-                        <p className="text-xs text-gray-500">Retention</p>
-                        <p className="text-lg font-semibold text-gray-900">
-                          {selectedContract.retentionPercent}%
-                          {selectedContract.retentionAmount && (
-                            <span className="text-sm font-normal text-gray-500 ml-1">
-                              ({formatCurrency(selectedContract.retentionAmount)})
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
+
+                {/* Contract Line Items */}
+                <ContractLineItems contractId={selectedContract.id} />
+
+                {/* Change Orders */}
+                <ContractChangeOrders contractId={selectedContract.id} />
 
                 {/* Duration */}
                 <div className="grid grid-cols-2 gap-4">
@@ -2545,12 +2787,12 @@ export default function VendorDetailPage() {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">End Date</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {new Date(selectedContract.endDate).toLocaleDateString('en-US', {
+                      {selectedContract.endDate ? new Date(selectedContract.endDate).toLocaleDateString('en-US', {
                         weekday: 'long',
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
-                      })}
+                      }) : <span className="text-gray-400 italic">Not specified</span>}
                     </p>
                   </div>
                 </div>
@@ -3010,7 +3252,22 @@ export default function VendorDetailPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Vendor Type</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                      <select
+                        value={editForm.categoryId}
+                        onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
+                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">Select a category...</option>
+                        {vendorCategories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.name} {cat.csiDivision ? `(CSI ${cat.csiDivision})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Type</label>
                       <select
                         value={editForm.type}
                         onChange={(e) => setEditForm({ ...editForm, type: e.target.value as typeof editForm.type })}
@@ -3020,6 +3277,14 @@ export default function VendorDetailPage() {
                         <option value="SUPPLY">Supply Only</option>
                         <option value="INSTALLATION">Installation Only</option>
                       </select>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Service Tags</label>
+                      <VendorTagSelector
+                        selectedTagIds={editForm.tagIds}
+                        onChange={(tagIds) => setEditForm({ ...editForm, tagIds })}
+                      />
+                      <p className="mt-1 text-xs text-gray-500">Classify vendor capabilities</p>
                     </div>
                   </div>
                 </div>

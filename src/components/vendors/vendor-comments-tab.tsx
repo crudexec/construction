@@ -10,7 +10,16 @@ import {
   X,
   MoreVertical,
   Reply,
-  AtSign
+  AtSign,
+  Pin,
+  PinOff,
+  Lock,
+  Eye,
+  Paperclip,
+  FileText,
+  Image,
+  File,
+  Download
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import toast from 'react-hot-toast'
@@ -31,6 +40,27 @@ interface Mention {
   isRead: boolean
 }
 
+interface PinnedByUser {
+  id: string
+  firstName: string
+  lastName: string
+}
+
+interface Attachment {
+  id: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  url: string
+  uploaderId: string
+  createdAt: string
+  uploader: {
+    id: string
+    firstName: string
+    lastName: string
+  }
+}
+
 interface Comment {
   id: string
   content: string
@@ -44,6 +74,15 @@ interface Comment {
   author: User
   mentions?: Mention[]
   replies?: Comment[]
+  // Pin feature
+  isPinned?: boolean
+  pinnedAt?: string | null
+  pinnedById?: string | null
+  pinnedBy?: PinnedByUser | null
+  // Private comments
+  isPrivate?: boolean
+  // Attachments
+  attachments?: Attachment[]
 }
 
 interface VendorCommentsTabProps {
@@ -80,7 +119,7 @@ async function fetchTeamMembers(): Promise<User[]> {
   return response.json()
 }
 
-async function createComment(vendorId: string, data: { content: string, parentId?: string }) {
+async function createComment(vendorId: string, data: { content: string, parentId?: string, isPrivate?: boolean }) {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
@@ -95,6 +134,24 @@ async function createComment(vendorId: string, data: { content: string, parentId
     body: JSON.stringify(data),
   })
   if (!response.ok) throw new Error('Failed to create comment')
+  return response.json()
+}
+
+async function togglePinComment(commentId: string, action: 'pin' | 'unpin') {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch(`/api/vendors/comments/${commentId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ action }),
+  })
+  if (!response.ok) throw new Error(`Failed to ${action} comment`)
   return response.json()
 }
 
@@ -132,6 +189,57 @@ async function deleteComment(commentId: string) {
   return response.json()
 }
 
+async function uploadAttachment(commentId: string, file: File) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`/api/vendors/comments/${commentId}/attachments`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to upload attachment')
+  }
+  return response.json()
+}
+
+async function deleteAttachment(commentId: string, attachmentId: string) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch(`/api/vendors/comments/${commentId}/attachments?attachmentId=${attachmentId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+  if (!response.ok) throw new Error('Failed to delete attachment')
+  return response.json()
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
+function getFileIcon(mimeType: string) {
+  if (mimeType.startsWith('image/')) return Image
+  if (mimeType === 'application/pdf') return FileText
+  return File
+}
+
 export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
   const [newComment, setNewComment] = useState('')
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
@@ -142,14 +250,19 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
   const [mentionSearch, setMentionSearch] = useState('')
   const [cursorPosition, setCursorPosition] = useState(0)
   const [activeInput, setActiveInput] = useState<'new' | 'edit' | 'reply'>('new')
+  const [isPrivateComment, setIsPrivateComment] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [uploadingCommentId, setUploadingCommentId] = useState<string | null>(null)
   const commentInputRef = useRef<HTMLTextAreaElement>(null)
   const editInputRef = useRef<HTMLTextAreaElement>(null)
   const replyInputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const { showConfirm } = useModal()
   const { user: currentUser } = useAuthStore()
 
   const currentUserId = currentUser?.id || ''
+  const isAdmin = currentUser?.role === 'ADMIN'
 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['vendor-comments', vendorId],
@@ -163,13 +276,25 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
   })
 
   const createMutation = useMutation({
-    mutationFn: (data: { content: string, parentId?: string }) => createComment(vendorId, data),
-    onSuccess: () => {
+    mutationFn: (data: { content: string, parentId?: string, isPrivate?: boolean }) => createComment(vendorId, data),
+    onSuccess: async (comment) => {
+      // Upload any pending files to the new comment
+      if (pendingFiles.length > 0) {
+        for (const file of pendingFiles) {
+          try {
+            await uploadAttachment(comment.id, file)
+          } catch (err) {
+            console.error('Failed to upload attachment:', err)
+          }
+        }
+        setPendingFiles([])
+      }
       toast.success('Comment added!')
       queryClient.invalidateQueries({ queryKey: ['vendor-comments', vendorId] })
       setNewComment('')
       setReplyContent('')
       setReplyingToId(null)
+      setIsPrivateComment(false)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to add comment')
@@ -197,6 +322,44 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete comment')
+    }
+  })
+
+  const pinMutation = useMutation({
+    mutationFn: ({ commentId, action }: { commentId: string, action: 'pin' | 'unpin' }) =>
+      togglePinComment(commentId, action),
+    onSuccess: (_, { action }) => {
+      toast.success(action === 'pin' ? 'Comment pinned!' : 'Comment unpinned!')
+      queryClient.invalidateQueries({ queryKey: ['vendor-comments', vendorId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to update comment')
+    }
+  })
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: ({ commentId, file }: { commentId: string, file: File }) =>
+      uploadAttachment(commentId, file),
+    onSuccess: () => {
+      toast.success('File uploaded!')
+      queryClient.invalidateQueries({ queryKey: ['vendor-comments', vendorId] })
+      setUploadingCommentId(null)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload file')
+      setUploadingCommentId(null)
+    }
+  })
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: ({ commentId, attachmentId }: { commentId: string, attachmentId: string }) =>
+      deleteAttachment(commentId, attachmentId),
+    onSuccess: () => {
+      toast.success('Attachment deleted!')
+      queryClient.invalidateQueries({ queryKey: ['vendor-comments', vendorId] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete attachment')
     }
   })
 
@@ -271,8 +434,18 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
 
   const handleSubmitComment = () => {
     if (newComment.trim()) {
-      createMutation.mutate({ content: newComment })
+      createMutation.mutate({
+        content: newComment,
+        isPrivate: isAdmin && isPrivateComment
+      })
     }
+  }
+
+  const handleTogglePin = (comment: Comment) => {
+    pinMutation.mutate({
+      commentId: comment.id,
+      action: comment.isPinned ? 'unpin' : 'pin'
+    })
   }
 
   const handleSubmitReply = () => {
@@ -307,6 +480,47 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
     }
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const maxSize = 10 * 1024 * 1024 // 10MB
+
+    const validFiles = files.filter(file => {
+      if (file.size > maxSize) {
+        toast.error(`${file.name} exceeds 10MB limit`)
+        return false
+      }
+      return true
+    })
+
+    setPendingFiles(prev => [...prev, ...validFiles])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleUploadToComment = (commentId: string, file: File) => {
+    setUploadingCommentId(commentId)
+    uploadAttachmentMutation.mutate({ commentId, file })
+  }
+
+  const handleDeleteAttachment = async (commentId: string, attachmentId: string) => {
+    try {
+      const confirmed = await showConfirm(
+        'Are you sure you want to delete this attachment?',
+        'Delete Attachment'
+      )
+      if (confirmed) {
+        deleteAttachmentMutation.mutate({ commentId, attachmentId })
+      }
+    } catch {
+      // User cancelled
+    }
+  }
+
   const renderFormattedContent = (content: string) => {
     // Replace mentions with styled spans
     return content.replace(/@\[([^\]]+)\]\(([^)]+)\)/g, (_, name) => {
@@ -320,7 +534,30 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
   })
 
   const renderComment = (comment: Comment, isReply = false) => (
-    <div key={comment.id} className={`${isReply ? 'ml-10' : ''} mb-4`}>
+    <div
+      key={comment.id}
+      className={`${isReply ? 'ml-10' : ''} mb-4 ${
+        comment.isPinned ? 'bg-amber-50 border-l-4 border-amber-400 pl-3 py-2 rounded-r-lg' : ''
+      } ${comment.isPrivate ? 'bg-purple-50 border-l-4 border-purple-400 pl-3 py-2 rounded-r-lg' : ''}`}
+    >
+      {/* Pinned indicator */}
+      {comment.isPinned && !isReply && (
+        <div className="flex items-center space-x-1 text-xs text-amber-600 mb-2">
+          <Pin className="h-3 w-3" />
+          <span>
+            Pinned{comment.pinnedBy ? ` by ${comment.pinnedBy.firstName} ${comment.pinnedBy.lastName}` : ''}
+          </span>
+        </div>
+      )}
+
+      {/* Private indicator */}
+      {comment.isPrivate && (
+        <div className="flex items-center space-x-1 text-xs text-purple-600 mb-2">
+          <Lock className="h-3 w-3" />
+          <span>Admin only - Private comment</span>
+        </div>
+      )}
+
       <div className="flex space-x-3">
         <div className="flex-shrink-0">
           {comment.author.avatar ? (
@@ -405,41 +642,151 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                     className="mt-1 text-sm text-gray-700 whitespace-pre-wrap"
                     dangerouslySetInnerHTML={{ __html: renderFormattedContent(comment.content) }}
                   />
+
+                  {/* Attachments */}
+                  {comment.attachments && comment.attachments.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {comment.attachments.map((attachment) => {
+                        const FileIcon = getFileIcon(attachment.mimeType)
+                        const isImage = attachment.mimeType.startsWith('image/')
+                        return (
+                          <div
+                            key={attachment.id}
+                            className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md group"
+                          >
+                            {isImage ? (
+                              <a
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-shrink-0"
+                              >
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.fileName}
+                                  className="h-12 w-12 object-cover rounded"
+                                />
+                              </a>
+                            ) : (
+                              <FileIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <a
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs font-medium text-primary-600 hover:text-primary-700 truncate block"
+                              >
+                                {attachment.fileName}
+                              </a>
+                              <span className="text-xs text-gray-400">
+                                {formatFileSize(attachment.fileSize)}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <a
+                                href={attachment.url}
+                                download={attachment.fileName}
+                                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                                title="Download"
+                              >
+                                <Download className="h-4 w-4" />
+                              </a>
+                              {(attachment.uploaderId === currentUserId || isAdmin) && (
+                                <button
+                                  onClick={() => handleDeleteAttachment(comment.id, attachment.id)}
+                                  className="p-1 text-gray-400 hover:text-red-600 rounded"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                {comment.authorId === currentUserId && (
-                  <div className="relative group">
-                    <button className="p-1 rounded hover:bg-gray-100">
-                      <MoreVertical className="h-4 w-4 text-gray-400" />
+                <div className="flex items-center space-x-1">
+                  {/* Pin/Unpin button - visible for top-level comments only */}
+                  {!isReply && (
+                    <button
+                      onClick={() => handleTogglePin(comment)}
+                      disabled={pinMutation.isPending}
+                      className={`p-1.5 rounded hover:bg-gray-100 ${
+                        comment.isPinned ? 'text-amber-500' : 'text-gray-400 hover:text-gray-600'
+                      }`}
+                      title={comment.isPinned ? 'Unpin comment' : 'Pin comment'}
+                    >
+                      {comment.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                     </button>
-                    <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
-                      <button
-                        onClick={() => handleEditComment(comment)}
-                        className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <Edit2 className="inline h-3 w-3 mr-2" />
-                        Edit
+                  )}
+
+                  {/* Edit/Delete dropdown - only for author */}
+                  {comment.authorId === currentUserId && (
+                    <div className="relative group">
+                      <button className="p-1 rounded hover:bg-gray-100">
+                        <MoreVertical className="h-4 w-4 text-gray-400" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteComment(comment.id)}
-                        className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
-                      >
-                        <Trash2 className="inline h-3 w-3 mr-2" />
-                        Delete
-                      </button>
+                      <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                        <button
+                          onClick={() => handleEditComment(comment)}
+                          className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <Edit2 className="inline h-3 w-3 mr-2" />
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment.id)}
+                          className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
+                        >
+                          <Trash2 className="inline h-3 w-3 mr-2" />
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {!isReply && (
-                <button
-                  onClick={() => setReplyingToId(comment.id)}
-                  className="mt-2 text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
-                >
-                  <Reply className="h-3 w-3" />
-                  <span>Reply</span>
-                </button>
+                <div className="mt-2 flex items-center space-x-3">
+                  <button
+                    onClick={() => setReplyingToId(comment.id)}
+                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+                  >
+                    <Reply className="h-3 w-3" />
+                    <span>Reply</span>
+                  </button>
+
+                  {/* Attach file to existing comment */}
+                  <label className="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1 cursor-pointer">
+                    <Paperclip className="h-3 w-3" />
+                    <span>Attach</span>
+                    <input
+                      type="file"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('File exceeds 10MB limit')
+                            return
+                          }
+                          handleUploadToComment(comment.id, file)
+                        }
+                        e.target.value = ''
+                      }}
+                      disabled={uploadingCommentId === comment.id}
+                    />
+                  </label>
+
+                  {uploadingCommentId === comment.id && (
+                    <span className="text-xs text-gray-400">Uploading...</span>
+                  )}
+                </div>
               )}
             </>
           )}
@@ -531,13 +878,16 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
       </div>
 
       {/* New comment input */}
-      <div className="bg-gray-50 p-4 rounded-lg relative">
+      <div className={`p-4 rounded-lg relative ${isPrivateComment ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}`}>
         <div className="flex space-x-2">
           <textarea
             ref={commentInputRef}
             value={newComment}
             onChange={(e) => handleInputChange(e, setNewComment, 'new')}
-            placeholder="Add a note about this vendor... Use @ to mention someone"
+            placeholder={isPrivateComment
+              ? "Add a private admin-only note..."
+              : "Add a note about this vendor... Use @ to mention someone"
+            }
             className="flex-1 px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
             rows={3}
             onKeyDown={(e) => {
@@ -546,14 +896,51 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
               }
             }}
           />
-          <button
-            onClick={handleSubmitComment}
-            disabled={createMutation.isPending || !newComment.trim()}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed self-end"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+          <div className="flex flex-col space-y-2">
+            <button
+              onClick={handleSubmitComment}
+              disabled={createMutation.isPending || !newComment.trim()}
+              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+            <label className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 cursor-pointer flex items-center justify-center">
+              <Paperclip className="h-4 w-4" />
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+              />
+            </label>
+          </div>
         </div>
+
+        {/* Pending files preview */}
+        {pendingFiles.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {pendingFiles.map((file, index) => {
+              const FileIcon = getFileIcon(file.type)
+              return (
+                <div
+                  key={index}
+                  className="flex items-center space-x-2 px-2 py-1 bg-white border border-gray-200 rounded-md text-xs"
+                >
+                  <FileIcon className="h-4 w-4 text-gray-400" />
+                  <span className="max-w-[150px] truncate">{file.name}</span>
+                  <span className="text-gray-400">{formatFileSize(file.size)}</span>
+                  <button
+                    onClick={() => removePendingFile(index)}
+                    className="text-gray-400 hover:text-red-500"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
         {showMentions && activeInput === 'new' && filteredMembers.length > 0 && (
           <div className="absolute bottom-full mb-2 left-4 w-64 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200 z-10">
             <div className="py-2">
@@ -575,8 +962,35 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
             </div>
           </div>
         )}
-        <div className="mt-2 text-xs text-gray-500">
-          Press Ctrl+Enter to submit. Use @ to mention team members.
+        <div className="mt-2 flex items-center justify-between">
+          <div className="text-xs text-gray-500">
+            Press Ctrl+Enter to submit. Use @ to mention team members.
+          </div>
+
+          {/* Private comment toggle - Admin only */}
+          {isAdmin && (
+            <button
+              onClick={() => setIsPrivateComment(!isPrivateComment)}
+              className={`flex items-center space-x-1.5 px-2 py-1 rounded text-xs transition-colors ${
+                isPrivateComment
+                  ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              title={isPrivateComment ? 'Make visible to all team members' : 'Make private (admin only)'}
+            >
+              {isPrivateComment ? (
+                <>
+                  <Lock className="h-3 w-3" />
+                  <span>Private</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="h-3 w-3" />
+                  <span>Visible to team</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
