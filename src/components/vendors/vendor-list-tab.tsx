@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Truck, Star, Users, Tag, X, Settings2, Columns3 } from 'lucide-react'
+import { Search, Truck, Star, Users, Tag, X, Settings2, Columns3, Filter, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
@@ -170,6 +170,7 @@ export function VendorListTab() {
   const [filterMinRating, setFilterMinRating] = useState<string>('all')
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [showSettings, setShowSettings] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
   const [density, setDensity] = useState<DensityMode>('normal')
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS)
 
@@ -260,13 +261,30 @@ export function VendorListTab() {
     )
   }
 
+  // Count active filters
+  const activeFilterCount = [
+    filterCategory !== 'all',
+    filterType !== 'all',
+    filterStatus !== 'all',
+    filterMinRating !== 'all',
+    selectedTagIds.length > 0
+  ].filter(Boolean).length
+
+  const clearAllFilters = () => {
+    setFilterCategory('all')
+    setFilterType('all')
+    setFilterStatus('all')
+    setFilterMinRating('all')
+    setSelectedTagIds([])
+  }
+
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
       <div className="bg-white p-4 rounded-lg shadow border">
-        <div className="flex flex-col gap-4">
-          {/* Main filters row */}
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col gap-3">
+          {/* Search and Filter Toggle Row */}
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -279,89 +297,179 @@ export function VendorListTab() {
                 />
               </div>
             </div>
-            <div className="flex gap-3">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              >
-                <option value="all">All Categories</option>
-                {availableCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name} {cat.csiDivision ? `(${cat.csiDivision})` : ''}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="SUPPLY_AND_INSTALLATION">Supply & Installation</option>
-                <option value="SUPPLY">Supply Only</option>
-                <option value="INSTALLATION">Installation Only</option>
-              </select>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-              <select
-                value={filterMinRating}
-                onChange={(e) => setFilterMinRating(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
-              >
-                <option value="all">Any Rating</option>
-                <option value="4">4+ Stars</option>
-                <option value="3">3+ Stars</option>
-                <option value="2">2+ Stars</option>
-                <option value="1">1+ Stars</option>
-              </select>
-            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md border transition-colors ${
+                showFilters || activeFilterCount > 0
+                  ? 'bg-primary-50 border-primary-300 text-primary-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="bg-primary-600 text-white text-xs font-medium px-2 py-0.5 rounded-full">
+                  {activeFilterCount}
+                </span>
+              )}
+              {showFilters ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </button>
           </div>
 
-          {/* Service Tags Filter */}
-          {availableTags.length > 0 && (
-            <div className="border-t pt-3">
-              <div className="flex items-center gap-2 mb-2">
-                <Tag className="h-4 w-4 text-gray-500" />
-                <span className="text-sm font-medium text-gray-700">Filter by Services:</span>
-                {selectedTagIds.length > 0 && (
+          {/* Collapsible Filters Section */}
+          {showFilters && (
+            <div className="border-t pt-3 space-y-4">
+              {/* Dropdown Filters */}
+              <div className="flex flex-wrap gap-3">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
+                  <option value="all">All Categories</option>
+                  {availableCategories.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name} {cat.csiDivision ? `(${cat.csiDivision})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
+                  <option value="all">All Types</option>
+                  <option value="SUPPLY_AND_INSTALLATION">Supply & Installation</option>
+                  <option value="SUPPLY">Supply Only</option>
+                  <option value="INSTALLATION">Installation Only</option>
+                </select>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <select
+                  value={filterMinRating}
+                  onChange={(e) => setFilterMinRating(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                >
+                  <option value="all">Any Rating</option>
+                  <option value="4">4+ Stars</option>
+                  <option value="3">3+ Stars</option>
+                  <option value="2">2+ Stars</option>
+                  <option value="1">1+ Stars</option>
+                </select>
+                {activeFilterCount > 0 && (
                   <button
-                    onClick={clearTagFilters}
-                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                    onClick={clearAllFilters}
+                    className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
                   >
-                    <X className="h-3 w-3" />
-                    Clear
+                    <X className="h-4 w-4" />
+                    Clear all
                   </button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleTagToggle(tag.id)}
-                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                      selectedTagIds.includes(tag.id)
-                        ? 'ring-2 ring-offset-1 ring-primary-500'
-                        : 'opacity-70 hover:opacity-100'
-                    }`}
-                    style={{
-                      backgroundColor: `${tag.color}20`,
-                      color: tag.color,
-                      borderColor: tag.color
-                    }}
-                  >
-                    {tag.name}
-                    <span className="ml-1 text-gray-500">({tag.vendorCount})</span>
+
+              {/* Service Tags Filter */}
+              {availableTags.length > 0 && (
+                <div className="border-t pt-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm font-medium text-gray-700">Filter by Services:</span>
+                    {selectedTagIds.length > 0 && (
+                      <button
+                        onClick={clearTagFilters}
+                        className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        onClick={() => handleTagToggle(tag.id)}
+                        className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                          selectedTagIds.includes(tag.id)
+                            ? 'ring-2 ring-offset-1 ring-primary-500'
+                            : 'opacity-70 hover:opacity-100'
+                        }`}
+                        style={{
+                          backgroundColor: `${tag.color}20`,
+                          color: tag.color,
+                          borderColor: tag.color
+                        }}
+                      >
+                        {tag.name}
+                        <span className="ml-1 text-gray-500">({tag.vendorCount})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Active Filters Summary (when collapsed) */}
+          {!showFilters && activeFilterCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="text-gray-500">Active filters:</span>
+              {filterCategory !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs">
+                  {availableCategories.find(c => c.id === filterCategory)?.name || 'Category'}
+                  <button onClick={() => setFilterCategory('all')} className="hover:text-gray-700">
+                    <X className="h-3 w-3" />
                   </button>
-                ))}
-              </div>
+                </span>
+              )}
+              {filterType !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs">
+                  {getVendorTypeLabel(filterType)}
+                  <button onClick={() => setFilterType('all')} className="hover:text-gray-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {filterStatus !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs capitalize">
+                  {filterStatus}
+                  <button onClick={() => setFilterStatus('all')} className="hover:text-gray-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {filterMinRating !== 'all' && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs">
+                  {filterMinRating}+ Stars
+                  <button onClick={() => setFilterMinRating('all')} className="hover:text-gray-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {selectedTagIds.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-full text-xs">
+                  {selectedTagIds.length} service{selectedTagIds.length > 1 ? 's' : ''}
+                  <button onClick={clearTagFilters} className="hover:text-gray-700">
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              <button
+                onClick={clearAllFilters}
+                className="text-xs text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear all
+              </button>
             </div>
           )}
         </div>
