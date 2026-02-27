@@ -1154,92 +1154,71 @@ export default function VendorDetailPage() {
     : 0
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={() => router.back()}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{vendor.name}</h1>
-            <p className="text-gray-600">{vendor.companyName}</p>
-          </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            vendor.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}>
-            {vendor.isActive ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-        <div className="flex space-x-2">
-          <button
-            onClick={openEditModal}
-            className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2"
-          >
-            <Edit className="h-4 w-4" />
-            <span>Edit</span>
-          </button>
-          <button className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center space-x-2">
-            <Trash2 className="h-4 w-4" />
-            <span>Delete</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Star className="h-8 w-8 text-yellow-500" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {averageRating ? averageRating.toFixed(1) : 'N/A'}
+    <div className="space-y-3">
+      {/* Compact Header with Inline Stats */}
+      <div className="bg-white border rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-500 hover:text-gray-700 p-1"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-semibold text-gray-900">{vendor.companyName}</h1>
+                  <span className={`inline-block w-2 h-2 rounded-full ${
+                    vendor.isActive ? 'bg-green-500' : 'bg-red-400'
+                  }`} title={vendor.isActive ? 'Active' : 'Inactive'} />
+                </div>
+                <p className="text-xs text-gray-500">{vendor.name}</p>
               </div>
-              <div className="text-sm text-gray-500">Average Rating</div>
+            </div>
+            {/* Inline Stats */}
+            <div className="hidden md:flex items-center gap-4 ml-6 pl-6 border-l border-gray-200">
+              <div className="flex items-center gap-1.5 text-sm">
+                <Star className="h-4 w-4 text-yellow-500" />
+                <span className="font-medium">{averageRating ? averageRating.toFixed(1) : '-'}</span>
+                <span className="text-gray-400 text-xs">rating</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <Users className="h-4 w-4 text-blue-500" />
+                <span className="font-medium">{vendor._count.projectVendors}</span>
+                <span className="text-gray-400 text-xs">projects</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <Target className="h-4 w-4 text-green-500" />
+                <span className="font-medium">{vendor._count.milestones}</span>
+                <span className="text-gray-400 text-xs">milestones</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <FileText className="h-4 w-4 text-purple-500" />
+                <span className="font-medium">{vendor._count.reviews}</span>
+                <span className="text-gray-400 text-xs">reviews</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Users className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {vendor._count.projectVendors}
-              </div>
-              <div className="text-sm text-gray-500">Active Projects</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Activity className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {vendor._count.milestones}
-              </div>
-              <div className="text-sm text-gray-500">Milestones</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <FileText className="h-8 w-8 text-purple-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {vendor._count.reviews}
-              </div>
-              <div className="text-sm text-gray-500">Reviews</div>
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openEditModal}
+              className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded"
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Edit</span>
+            </button>
+            <button className="text-red-600 hover:text-red-700 px-2 py-1 text-sm flex items-center gap-1 hover:bg-red-50 rounded">
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Delete</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      {/* Compact Tabs */}
+      <div className="border-b border-gray-200 bg-white rounded-t-lg px-2">
+        <nav className="-mb-px flex space-x-1 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'projects', label: 'Projects' },
@@ -1247,17 +1226,17 @@ export default function VendorDetailPage() {
             { id: 'reviews', label: 'Reviews' },
             { id: 'comments', label: 'Comments' },
             { id: 'contracts', label: 'Contracts' },
-            { id: 'catalog', label: 'Catalog & Pricing' },
-            { id: 'purchase-orders', label: 'Purchase Orders' },
-            { id: 'portal', label: 'Portal Access' }
+            { id: 'catalog', label: 'Catalog' },
+            { id: 'purchase-orders', label: 'POs' },
+            { id: 'portal', label: 'Portal' }
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              className={`py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'border-primary-500 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-b-2 border-primary-500 text-primary-600'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab.label}
@@ -1268,35 +1247,35 @@ export default function VendorDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Vendor Information - Collapsible */}
-          <div className="bg-white rounded-lg shadow border">
+          <div className="bg-white rounded border">
             <div
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
+              className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
               onClick={() => setIsVendorInfoCollapsed(!isVendorInfoCollapsed)}
             >
-              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+              <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
                 {isVendorInfoCollapsed ? (
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
                 ) : (
-                  <ChevronDown className="h-5 w-5 text-gray-400" />
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
                 )}
                 Vendor Information
               </h3>
               {isVendorInfoCollapsed && (
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                <div className="flex items-center gap-3 text-xs text-gray-600">
+                  <span className="text-blue-600 font-medium">
                     {getVendorTypeLabel(vendor.type)}
                   </span>
                   {vendor.email && (
                     <span className="flex items-center gap-1">
-                      <Mail className="h-4 w-4" />
+                      <Mail className="h-3 w-3" />
                       {vendor.email}
                     </span>
                   )}
                   {vendor.phone && (
                     <span className="flex items-center gap-1">
-                      <Phone className="h-4 w-4" />
+                      <Phone className="h-3 w-3" />
                       {vendor.phone}
                     </span>
                   )}
@@ -1305,50 +1284,45 @@ export default function VendorDetailPage() {
             </div>
 
             {!isVendorInfoCollapsed && (
-              <div className="px-6 pb-6 pt-2">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="flex items-center space-x-3">
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                      {getVendorTypeLabel(vendor.type)}
-                    </span>
+              <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-xs">
+                  <div>
+                    <span className="text-gray-500">Type:</span>
+                    <span className="ml-1 text-gray-900 font-medium">{getVendorTypeLabel(vendor.type)}</span>
                   </div>
                   {vendor.email && (
-                    <div className="flex items-center space-x-3">
-                      <Mail className="h-5 w-5 text-gray-400" />
-                      <span className="text-gray-900 text-sm">{vendor.email}</span>
+                    <div className="flex items-center gap-1">
+                      <Mail className="h-3 w-3 text-gray-400" />
+                      <span className="text-gray-900">{vendor.email}</span>
                     </div>
                   )}
                   {vendor.phone && (
-                    <div className="flex items-center space-x-3">
-                      <Phone className="h-5 w-5 text-gray-400" />
-                      <span className="text-gray-900 text-sm">{vendor.phone}</span>
+                    <div className="flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-gray-400" />
+                      <span className="text-gray-900">{vendor.phone}</span>
                     </div>
                   )}
                   {vendor.website && (
-                    <div className="flex items-center space-x-3">
-                      <Globe className="h-5 w-5 text-gray-400" />
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Globe className="h-3 w-3 text-gray-400" />
+                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800 truncate max-w-[200px]">
                         {vendor.website}
                       </a>
                     </div>
                   )}
                   {(vendor.address || vendor.city || vendor.state || vendor.zipCode) && (
-                    <div className="flex items-start space-x-3 md:col-span-2">
-                      <MapPin className="h-5 w-5 text-gray-400 mt-0.5" />
-                      <div className="text-gray-900 text-sm">
-                        {vendor.address && <div>{vendor.address}</div>}
-                        {(vendor.city || vendor.state || vendor.zipCode) && (
-                          <div>
-                            {vendor.city}{vendor.city && vendor.state && ', '}{vendor.state} {vendor.zipCode}
-                          </div>
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1 md:col-span-2">
+                      <MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                      <span className="text-gray-900 truncate">
+                        {vendor.address && `${vendor.address}, `}
+                        {vendor.city}{vendor.city && vendor.state && ', '}{vendor.state} {vendor.zipCode}
+                      </span>
                     </div>
                   )}
                   {vendor.licenseNumber && (
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">License #:</span>
-                      <span className="text-gray-900 text-sm">{vendor.licenseNumber}</span>
+                    <div>
+                      <span className="text-gray-500">License:</span>
+                      <span className="ml-1 text-gray-900">{vendor.licenseNumber}</span>
                     </div>
                   )}
                 </div>
@@ -1356,101 +1330,72 @@ export default function VendorDetailPage() {
             )}
           </div>
 
-          {/* Milestones & Tasks - Combined View */}
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
-                <Target className="h-5 w-5 text-gray-400" />
+          {/* Milestones & Tasks - Compact View */}
+          <div className="bg-white rounded border overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-gray-400" />
                 Milestones & Tasks
               </h3>
               <button
                 onClick={() => setIsAddMilestoneModalOpen(true)}
-                className="text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1"
+                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
               >
-                <Plus className="h-4 w-4" />
-                Add Milestone
+                <Plus className="h-3 w-3" />
+                Add
               </button>
             </div>
 
             {isLoadingMilestones ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              <div className="flex items-center justify-center py-6">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
               </div>
             ) : projectMilestones.length === 0 ? (
-              <div className="text-center py-8">
-                <Target className="h-10 w-10 mx-auto text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">No milestones assigned</p>
+              <div className="text-center py-4">
+                <p className="text-xs text-gray-500">No milestones assigned</p>
                 <button
                   onClick={() => setIsAddMilestoneModalOpen(true)}
-                  className="mt-3 text-sm text-primary-600 hover:text-primary-800 flex items-center gap-1 mx-auto"
+                  className="mt-1 text-xs text-primary-600 hover:text-primary-800"
                 >
-                  <Plus className="h-4 w-4" />
-                  Add Milestone
+                  + Add Milestone
                 </button>
               </div>
             ) : (
               <div className="divide-y divide-gray-100">
-                {projectMilestones.map((milestone) => {
+                {projectMilestones.slice(0, 5).map((milestone) => {
                   const tasks = (milestone as any).tasks || []
                   const taskCount = (milestone as any).totalTasksCount || tasks.length
                   const completedTaskCount = (milestone as any).completedTasksCount || tasks.filter((t: any) => t.status === 'COMPLETED').length
 
                   return (
-                    <div key={milestone.id} className="p-4">
+                    <div key={milestone.id} className="px-3 py-2 hover:bg-gray-50">
                       {/* Milestone Row */}
-                      <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                           milestone.status === 'COMPLETED' ? 'bg-green-500' :
                           milestone.status === 'IN_PROGRESS' ? 'bg-blue-500' :
                           milestone.status === 'OVERDUE' ? 'bg-red-500' :
                           'bg-gray-300'
                         }`} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{milestone.title}</p>
-                              <p className="text-xs text-gray-500">{milestone.project.title}</p>
+                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-900 truncate">{milestone.title}</p>
+                            <Link
+                              href={`/dashboard/projects/${milestone.project.id}`}
+                              className="text-[10px] text-primary-600 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                                {milestone.project.title}
+                              </Link>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              {taskCount > 0 && (
-                                <span className="text-xs text-gray-500">
-                                  {completedTaskCount}/{taskCount} tasks
-                                </span>
-                              )}
-                              {milestone.amount && (
-                                <span className="text-xs text-gray-500">{formatCurrency(milestone.amount)}</span>
-                              )}
-                            </div>
+                          <div className="flex items-center gap-2 flex-shrink-0 text-[10px] text-gray-500">
+                            {taskCount > 0 && (
+                              <span>{completedTaskCount}/{taskCount}</span>
+                            )}
+                            {milestone.amount && (
+                              <span>{formatCurrency(milestone.amount)}</span>
+                            )}
                           </div>
-
-                          {/* Nested Tasks */}
-                          {tasks.length > 0 && (
-                            <div className="mt-3 ml-2 space-y-2 border-l-2 border-gray-200 pl-4">
-                              {tasks.map((task: any) => (
-                                <div key={task.id} className="flex items-center justify-between py-1">
-                                  <div className="flex items-center gap-2">
-                                    {task.status === 'COMPLETED' ? (
-                                      <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
-                                    ) : (
-                                      <Circle className="h-4 w-4 text-gray-300 flex-shrink-0" />
-                                    )}
-                                    <span className={`text-sm ${
-                                      task.status === 'COMPLETED' ? 'text-gray-500 line-through' : 'text-gray-700'
-                                    }`}>
-                                      {task.title}
-                                    </span>
-                                  </div>
-                                  <span className={`text-xs px-2 py-0.5 rounded ${
-                                    task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                    task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
-                                    {task.status.replace('_', ' ')}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -1458,10 +1403,10 @@ export default function VendorDetailPage() {
                 })}
 
                 {projectMilestones.length > 5 && (
-                  <div className="px-4 py-3 bg-gray-50">
+                  <div className="px-3 py-1.5 bg-gray-50 border-t">
                     <button
                       onClick={() => setActiveTab('milestones')}
-                      className="text-sm text-primary-600 hover:text-primary-800 w-full text-center"
+                      className="text-xs text-primary-600 hover:text-primary-800 w-full text-center"
                     >
                       View all {projectMilestones.length} milestones
                     </button>
@@ -1471,180 +1416,132 @@ export default function VendorDetailPage() {
             )}
           </div>
 
-          {/* Contracts Section */}
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Contracts</h3>
+          {/* Contracts Section - Compact */}
+          <div className="bg-white rounded border overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-900">Contracts</h3>
               <button
                 onClick={() => setIsContractModalOpen(true)}
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
               >
-                <Plus className="h-4 w-4" />
-                <span>Add Contract</span>
+                <Plus className="h-3 w-3" />
+                Add
               </button>
             </div>
             {isLoadingContracts ? (
-              <div className="p-8 text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-                <p className="text-sm text-gray-500 mt-2">Loading contracts...</p>
+              <div className="py-4 text-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
               </div>
             ) : contractsError ? (
-              <div className="p-8 text-center">
-                <AlertCircle className="h-10 w-10 mx-auto text-red-400 mb-3" />
-                <p className="text-red-500">Failed to load contracts</p>
-                <button
-                  onClick={() => refetchContracts()}
-                  className="mt-3 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
-                >
+              <div className="py-4 text-center">
+                <p className="text-xs text-red-500">Failed to load</p>
+                <button onClick={() => refetchContracts()} className="text-xs text-primary-600 hover:underline mt-1">
                   Retry
                 </button>
               </div>
             ) : contracts.length === 0 ? (
-              <div className="p-8 text-center">
-                <Briefcase className="h-10 w-10 mx-auto text-gray-400 mb-3" />
-                <p className="text-gray-500">No contracts yet</p>
-                <p className="text-sm text-gray-400 mt-1">Add a contract to track agreements with this vendor</p>
+              <div className="py-4 text-center">
+                <p className="text-xs text-gray-500">No contracts yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {contracts.map((contract) => (
+              <div className="divide-y divide-gray-100">
+                {contracts.slice(0, 3).map((contract) => (
                   <div
                     key={contract.id}
-                    className="p-4 hover:bg-gray-50 cursor-pointer"
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
                     onClick={() => setSelectedContract(contract)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <FileText className="h-5 w-5 text-gray-400" />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{contract.contractNumber}</p>
-                          <p className="text-xs text-gray-500">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">{contract.contractNumber}</p>
+                          <p className="text-[10px] text-gray-500">
                             {getContractTypeLabel(contract.type)} • {formatCurrency(contract.totalSum)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {getContractStatusBadge(contract.status)}
-                        <div className="text-xs text-gray-500">
-                          {new Date(contract.startDate).toLocaleDateString()} - {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : 'Ongoing'}
-                        </div>
                       </div>
                     </div>
-                    {contract.documents && contract.documents.length > 0 && (
-                      <div className="mt-2 flex items-center text-xs text-gray-500">
-                        <Paperclip className="h-3 w-3 mr-1" />
-                        {contract.documents.length} document{contract.documents.length !== 1 ? 's' : ''}
-                      </div>
-                    )}
                   </div>
                 ))}
+                {contracts.length > 3 && (
+                  <div className="px-3 py-1.5 bg-gray-50 border-t">
+                    <button
+                      onClick={() => setActiveTab('contracts')}
+                      className="text-xs text-primary-600 hover:text-primary-800 w-full text-center"
+                    >
+                      View all {contracts.length} contracts
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* Contacts Section */}
-          <div className="bg-white rounded-lg shadow border overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Contacts</h3>
+          {/* Contacts Section - Compact */}
+          <div className="bg-white rounded border overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-900">Contacts</h3>
               <button
                 onClick={() => setIsContactModalOpen(true)}
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
               >
-                <Plus className="h-4 w-4" />
-                <span>Add Contact</span>
+                <Plus className="h-3 w-3" />
+                Add
               </button>
             </div>
             {vendor.contacts.length === 0 ? (
-              <div className="p-8 text-center">
-                <Users className="h-10 w-10 mx-auto text-gray-400 mb-3" />
-                <p className="text-gray-500">No contacts added yet</p>
-                <p className="text-sm text-gray-400 mt-1">Add key contacts for this vendor</p>
+              <div className="py-4 text-center">
+                <p className="text-xs text-gray-500">No contacts yet</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-200">
-                {vendor.contacts.map((contact) => (
+              <div className="divide-y divide-gray-100">
+                {vendor.contacts.slice(0, 4).map((contact) => (
                   <div
                     key={contact.id}
-                    className="p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
                     onClick={() => router.push(`/dashboard/vendors/${vendor.id}/contacts/${contact.id}`)}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <span className="text-sm font-medium text-gray-600">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[10px] font-medium text-gray-600">
                             {contact.firstName[0]}{contact.lastName[0]}
                           </span>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900 hover:text-primary-600">
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 truncate">
                             {contact.firstName} {contact.lastName}
                           </p>
-                          <p className="text-xs text-gray-500">{contact.position || 'No position'}</p>
+                          <p className="text-[10px] text-gray-500 truncate">{contact.position || contact.email || contact.phone}</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right text-sm">
-                          {contact.email && (
-                            <div className="flex items-center text-gray-500">
-                              <Mail className="h-3 w-3 mr-1" />
-                              {contact.email}
-                            </div>
-                          )}
-                          {contact.phone && (
-                            <div className="flex items-center text-gray-500">
-                              <Phone className="h-3 w-3 mr-1" />
-                              {contact.phone}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex space-x-1">
-                          {contact.isPrimary && (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                              Primary
-                            </span>
-                          )}
-                          {contact.isBilling && (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
-                              Billing
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2 ml-2">
-                          {!contact.isPrimary && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setPrimaryContactMutation.mutate(contact.id)
-                              }}
-                              disabled={setPrimaryContactMutation.isPending}
-                              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                              title="Set as Primary Contact"
-                            >
-                              <Star className="h-4 w-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedContact(contact)
-                              setIsEditContactModalOpen(true)
-                            }}
-                            className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
-                            title="Edit Contact"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                        </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {contact.isPrimary && (
+                          <span className="text-[10px] text-blue-600">Primary</span>
+                        )}
+                        {contact.isBilling && (
+                          <span className="text-[10px] text-green-600">Billing</span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
+                {vendor.contacts.length > 4 && (
+                  <div className="px-3 py-1.5 bg-gray-50 border-t text-center">
+                    <span className="text-xs text-gray-500">+{vendor.contacts.length - 4} more contacts</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
 
+      {/* Keep rest of tabs unchanged - they'll need separate updates */}
       {activeTab === 'projects' && (
         <div className="bg-white rounded-lg shadow border overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -2721,7 +2618,7 @@ export default function VendorDetailPage() {
       {/* Contract Detail Modal */}
       {selectedContract && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-medium text-gray-900">Contract Details</h3>

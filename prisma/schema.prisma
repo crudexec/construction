@@ -92,8 +92,9 @@ model User {
   vendorComments           VendorComment[]           @relation("VendorCommentAuthor")
   vendorCommentMentions    VendorCommentMention[]    @relation("VendorCommentMentions")
   pinnedVendorComments     VendorComment[]           @relation("VendorCommentPinner")
-  vendorContactComments    VendorContactComment[]    @relation("VendorContactCommentAuthor")
-  vendorCommentAttachments VendorCommentAttachment[] @relation("VendorCommentAttachmentUploader")
+  vendorContactComments     VendorContactComment[]    @relation("VendorContactCommentAuthor")
+  vendorCommentAttachments  VendorCommentAttachment[] @relation("VendorCommentAttachmentUploader")
+  scheduleActivityComments  ScheduleActivityComment[]
   vendorReviews            VendorReview[]
   taskAttachments          TaskAttachment[]
   taskPayments             TaskPayment[]
@@ -221,6 +222,12 @@ model Card {
   // Property Management - if this project becomes a property
   convertedProperty Property? @relation("PropertySourceProject")
 
+  // Schedule Management (XER Import / Gantt)
+  scheduleWBS          ScheduleWBS[]
+  scheduleActivities   ScheduleActivity[]
+  scheduleRelationships ScheduleRelationship[]
+  scheduleImports      ScheduleImport[]
+
   @@index([stageId])
   @@index([companyId])
   @@index([ownerId])
@@ -321,6 +328,9 @@ model Task {
   // Task dependencies - many-to-many self-relation
   dependsOn  Task[] @relation("TaskDependencies")
   dependents Task[] @relation("TaskDependencies")
+
+  // Schedule Activity link (for XER import integration)
+  linkedScheduleActivities ScheduleActivity[] @relation("ScheduleActivityTask")
 
   @@index([cardId])
   @@index([categoryId])
@@ -1501,6 +1511,9 @@ model ProjectMilestone {
   assignedContact VendorContact?           @relation(fields: [assignedContactId], references: [id], onDelete: SetNull)
   tasks           Task[]
   checklistItems  MilestoneChecklistItem[]
+
+  // Schedule Activity link (for XER import integration)
+  linkedScheduleActivities ScheduleActivity[] @relation("ScheduleActivityMilestone")
 
   @@index([projectId])
   @@index([vendorId])
@@ -2764,4 +2777,189 @@ model LeaseCharge {
   updatedAt DateTime @updatedAt
 
   @@index([leaseId])
+}
+
+// ===========================================
+// SCHEDULE MANAGEMENT (XER Import / Gantt Chart)
+// ===========================================
+
+// Work Breakdown Structure - hierarchical organization of schedule activities
+model ScheduleWBS {
+  id          String  @id @default(cuid())
+  projectId   String
+  xerWbsId    String? // Original WBS ID from XER file
+  code        String // WBS short code (e.g., "1", "1.1", "2")
+  name        String
+  parentId    String? // For hierarchy
+  sortOrder   Int     @default(0)
+  isExpanded  Boolean @default(true) // UI state for expand/collapse
+
+  project    Card                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent     ScheduleWBS?         @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children   ScheduleWBS[]        @relation("WBSHierarchy")
+  activities ScheduleActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, xerWbsId])
+  @@index([projectId])
+  @@index([parentId])
+}
+
+// Schedule Activity Status
+enum ScheduleActivityStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// Schedule activities imported from XER files
+model ScheduleActivity {
+  id        String @id @default(cuid())
+  projectId String
+  wbsId     String? // Link to WBS for hierarchy
+
+  // XER identifiers
+  xerTaskId String? // Original task_id from XER
+  activityId String // Activity code (e.g., "G-ELE-100")
+  name       String
+
+  // Status
+  status          ScheduleActivityStatus @default(NOT_STARTED)
+  percentComplete Float                  @default(0) // 0-100
+
+  // Dates - Planned/Target
+  plannedStart  DateTime?
+  plannedFinish DateTime?
+
+  // Dates - Actual
+  actualStart  DateTime?
+  actualFinish DateTime?
+
+  // Dates - Early/Late (for CPM calculations)
+  earlyStart  DateTime?
+  earlyFinish DateTime?
+  lateStart   DateTime?
+  lateFinish  DateTime?
+
+  // Duration (in hours, as per XER format)
+  plannedDuration   Float? // target_drtn_hr_cnt
+  remainingDuration Float? // remain_drtn_hr_cnt
+  actualDuration    Float? // Computed or from XER
+
+  // Float/Slack (for critical path)
+  totalFloat Float? // total_float_hr_cnt - 0 or negative = critical
+  freeFloat  Float? // free_float_hr_cnt
+
+  // Critical Path
+  isCritical      Boolean @default(false) // Derived from totalFloat <= 0
+  drivingPathFlag Boolean @default(false) // From XER driving_path_flag
+
+  // Activity Type (from XER)
+  activityType String? // TT_Task, TT_Milestone, TT_LOE, etc.
+
+  // Constraints
+  constraintType String?   // CS_MSOA, CS_SNET, etc.
+  constraintDate DateTime?
+
+  // Sort order for display
+  sortOrder Int @default(0)
+
+  // Optional links to existing system entities
+  linkedTaskId      String? // Link to Task model
+  linkedMilestoneId String? // Link to ProjectMilestone model
+
+  project         Card                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wbs             ScheduleWBS?               @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  linkedTask      Task?                      @relation("ScheduleActivityTask", fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  linkedMilestone ProjectMilestone?          @relation("ScheduleActivityMilestone", fields: [linkedMilestoneId], references: [id], onDelete: SetNull)
+  predecessors    ScheduleRelationship[]     @relation("SuccessorActivity")
+  successors      ScheduleRelationship[]     @relation("PredecessorActivity")
+  comments        ScheduleActivityComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([projectId, xerTaskId])
+  @@unique([projectId, activityId])
+  @@index([projectId])
+  @@index([wbsId])
+  @@index([isCritical])
+  @@index([status])
+  @@index([linkedTaskId])
+  @@index([linkedMilestoneId])
+}
+
+// Relationship types for schedule dependencies
+enum ScheduleRelationshipType {
+  FS // Finish-to-Start (most common)
+  SS // Start-to-Start
+  FF // Finish-to-Finish
+  SF // Start-to-Finish (rare)
+}
+
+// Dependencies between schedule activities
+model ScheduleRelationship {
+  id            String                   @id @default(cuid())
+  projectId     String
+  predecessorId String // The activity that must happen first/drives
+  successorId   String // The activity that depends on predecessor
+  type          ScheduleRelationshipType @default(FS)
+  lagHours      Float                    @default(0) // Lag time in hours (can be negative for lead)
+
+  // XER reference
+  xerPredId String? // Original task_pred_id from XER
+
+  project     Card             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  predecessor ScheduleActivity @relation("PredecessorActivity", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   ScheduleActivity @relation("SuccessorActivity", fields: [successorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([predecessorId, successorId])
+  @@index([projectId])
+  @@index([predecessorId])
+  @@index([successorId])
+}
+
+// Store import metadata for XER files
+model ScheduleImport {
+  id        String   @id @default(cuid())
+  projectId String
+  fileName  String
+  fileSize  Int
+  importedAt DateTime @default(now())
+  importedById String
+
+  // Stats
+  activitiesCount    Int @default(0)
+  relationshipsCount Int @default(0)
+  wbsCount           Int @default(0)
+
+  // XER metadata
+  xerProjectId   String?
+  xerProjectName String?
+  dataDate       DateTime?
+
+  project Card @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+// Comments on schedule activities
+model ScheduleActivityComment {
+  id         String @id @default(cuid())
+  activityId String
+  authorId   String
+  content    String @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  activity ScheduleActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  author   User             @relation(fields: [authorId], references: [id])
+
+  @@index([activityId])
+  @@index([authorId])
 }

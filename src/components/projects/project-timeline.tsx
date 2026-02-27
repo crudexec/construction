@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { format, addDays, differenceInDays, isSameDay, startOfWeek, endOfWeek } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react'
+import { format } from 'date-fns'
+import { BarChart3, ListTodo, GanttChart } from 'lucide-react'
 import { TaskDetailModal } from './task-detail-modal'
+import { ScheduleGantt } from './schedule-gantt'
+import { TaskGanttChart } from './task-gantt-chart'
 
 interface TimelineTask {
   id: string
@@ -46,6 +48,8 @@ interface ProjectTimelineProps {
   projectId: string
 }
 
+type TimelineViewMode = 'tasks' | 'schedule'
+
 async function fetchTimelineData(projectId: string): Promise<TimelineData> {
   const token = document.cookie
     .split('; ')
@@ -82,7 +86,7 @@ async function fetchTimelineData(projectId: string): Promise<TimelineData> {
 }
 
 export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
-  const [viewMode, setViewMode] = useState<'week' | 'month' | 'quarter'>('month')
+  const [timelineView, setTimelineView] = useState<TimelineViewMode>('tasks')
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
 
@@ -101,86 +105,6 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
     queryFn: () => fetchTimelineData(projectId)
   })
 
-  // Calculate date range based on project dates and view mode
-  const { startDate, endDate, dateColumns } = useMemo(() => {
-    if (!data?.project) {
-      const today = new Date()
-      return {
-        startDate: today,
-        endDate: addDays(today, 30),
-        dateColumns: []
-      }
-    }
-
-    const projectStart = data.project.startDate
-    const projectEnd = data.project.endDate
-    
-    // Add padding for better visualization
-    const paddingDays = viewMode === 'week' ? 7 : viewMode === 'month' ? 15 : 30
-    const start = addDays(projectStart, -paddingDays)
-    const end = addDays(projectEnd, paddingDays)
-    
-    const columns: Date[] = []
-    
-    switch (viewMode) {
-      case 'week':
-        for (let i = 0; i <= differenceInDays(end, start); i++) {
-          columns.push(addDays(start, i))
-        }
-        break
-      case 'month':
-        for (let i = 0; i <= differenceInDays(end, start); i += 7) {
-          columns.push(addDays(start, i))
-        }
-        break
-      case 'quarter':
-        for (let i = 0; i <= differenceInDays(end, start); i += 30) {
-          columns.push(addDays(start, i))
-        }
-        break
-    }
-
-    return { startDate: start, endDate: end, dateColumns: columns }
-  }, [data, viewMode])
-
-  const getTaskPosition = (task: { startDate: Date; endDate: Date }) => {
-    const totalDays = differenceInDays(endDate, startDate)
-    const taskStart = Math.max(0, differenceInDays(task.startDate, startDate))
-    const taskDuration = differenceInDays(task.endDate, task.startDate) + 1
-    
-    const left = (taskStart / totalDays) * 100
-    const width = Math.max(1, (taskDuration / totalDays) * 100)
-    
-    return { left: `${left}%`, width: `${width}%` }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'completed':
-        return 'bg-green-500'
-      case 'in_progress':
-      case 'active':
-        return 'bg-blue-500'
-      case 'overdue':
-        return 'bg-red-500'
-      default:
-        return 'bg-gray-400'
-    }
-  }
-
-  const getTaskStatusColor = (status: TimelineTask['status']) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'bg-green-500'
-      case 'IN_PROGRESS':
-        return 'bg-blue-500'
-      case 'OVERDUE':
-        return 'bg-red-500'
-      default:
-        return 'bg-gray-400'
-    }
-  }
-
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -192,294 +116,176 @@ export function ProjectTimeline({ projectId }: ProjectTimelineProps) {
     )
   }
 
+  // If showing schedule view, render the ScheduleGantt component
+  if (timelineView === 'schedule') {
+    return (
+      <div className="space-y-4">
+        {/* View Toggle Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-5 w-5 text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Project Timeline</h2>
+            </div>
+
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTimelineView('tasks')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <ListTodo className="h-4 w-4" />
+                Tasks
+              </button>
+              <button
+                onClick={() => setTimelineView('schedule')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-primary-600 shadow-sm"
+              >
+                <GanttChart className="h-4 w-4" />
+                Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ScheduleGantt projectId={projectId} />
+      </div>
+    )
+  }
+
   if (error || !data) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="text-center text-gray-500">
-          <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-          <div className="space-y-2">
-            <p className="font-medium">Timeline Not Available</p>
-            <p className="text-sm">
-              This project needs start and end dates to display a timeline view.
-            </p>
-            <p className="text-xs text-gray-400">
-              Edit the project to add dates and try again.
-            </p>
+      <div className="space-y-4">
+        {/* View Toggle Header */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <BarChart3 className="h-5 w-5 text-primary-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Project Timeline</h2>
+            </div>
+
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTimelineView('tasks')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-primary-600 shadow-sm"
+              >
+                <ListTodo className="h-4 w-4" />
+                Tasks
+              </button>
+              <button
+                onClick={() => setTimelineView('schedule')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <GanttChart className="h-4 w-4" />
+                Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="text-center text-gray-500">
+            <BarChart3 className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <div className="space-y-2">
+              <p className="font-medium">Timeline Not Available</p>
+              <p className="text-sm">
+                This project needs start and end dates to display a timeline view.
+              </p>
+              <p className="text-xs text-gray-400">
+                Edit the project to add dates and try again.
+              </p>
+            </div>
           </div>
         </div>
       </div>
     )
   }
 
+  const handleGanttTaskClick = (task: { id: string }, clickPosition: { x: number; y: number }) => {
+    handleTaskClick(task.id)
+  }
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <BarChart3 className="h-6 w-6 text-primary-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Project Timeline</h2>
+            <BarChart3 className="h-5 w-5 text-primary-600" />
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Project Timeline</h2>
+              <p className="text-xs text-gray-500">
+                {data.tasks.length} tasks • {format(data.project.startDate, 'MMM dd')} - {format(data.project.endDate, 'MMM dd, yyyy')}
+              </p>
+            </div>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* View Mode Selector */}
+
+          <div className="flex items-center space-x-3">
+            {/* Stats badges */}
+            <div className="hidden md:flex items-center space-x-2 text-xs">
+              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded">
+                {data.tasks.length} tasks
+              </span>
+              <span className="px-2 py-1 bg-green-100 text-green-700 rounded">
+                {data.project.progress}% complete
+              </span>
+            </div>
+
+            {/* Timeline View Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-1">
-              {(['week', 'month', 'quarter'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium capitalize transition-colors ${
-                    viewMode === mode
-                      ? 'bg-white text-primary-600 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
+              <button
+                onClick={() => setTimelineView('tasks')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-white text-primary-600 shadow-sm"
+              >
+                <ListTodo className="h-4 w-4" />
+                Tasks
+              </button>
+              <button
+                onClick={() => setTimelineView('schedule')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors text-gray-600 hover:text-gray-900"
+              >
+                <GanttChart className="h-4 w-4" />
+                Schedule
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Gantt Chart */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[800px]">
-          {/* Timeline Header */}
-          <div className="grid grid-cols-12 gap-0 border-b border-gray-200 bg-gray-50">
-            <div className="col-span-3 p-4 font-medium text-gray-900 border-r border-gray-200">
-              Task
-            </div>
-            <div className="col-span-9 relative h-12">
-              {/* Date column markers positioned absolutely to match task bars */}
-              {dateColumns.map((date, index) => {
-                const totalDays = differenceInDays(endDate, startDate)
-                const daysDiff = differenceInDays(date, startDate)
-                const leftPosition = (daysDiff / totalDays) * 100
-
-                // Calculate width based on days to next column
-                const nextDate = dateColumns[index + 1]
-                const daysToNext = nextDate
-                  ? differenceInDays(nextDate, date)
-                  : differenceInDays(endDate, date)
-                const columnWidth = (daysToNext / totalDays) * 100
-
-                return (
-                  <div
-                    key={index}
-                    className="absolute top-0 bottom-0 flex flex-col items-center justify-center border-l border-gray-200"
-                    style={{
-                      left: `${leftPosition}%`,
-                      width: `${columnWidth}%`
-                    }}
-                  >
-                    <div className="text-xs font-medium text-gray-600">
-                      {viewMode === 'week'
-                        ? format(date, 'EEE')
-                        : viewMode === 'month'
-                        ? format(date, 'MMM dd')
-                        : format(date, 'MMM yyyy')
-                      }
-                    </div>
-                    {viewMode === 'week' && (
-                      <div className="text-xs text-gray-400">{format(date, 'dd')}</div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Today indicator */}
-              {(() => {
-                const today = new Date()
-                const todayDiff = differenceInDays(today, startDate)
-                const totalDays = differenceInDays(endDate, startDate)
-
-                // Show today line if today falls within the visible date range
-                if (todayDiff >= 0 && todayDiff <= totalDays) {
-                  const leftPosition = (todayDiff / totalDays) * 100
-                  return (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg z-20"
-                      style={{
-                        left: `${leftPosition}%`
-                      }}
-                      title={`Today: ${format(today, 'MMM dd, yyyy')}`}
-                    />
-                  )
-                }
-                return null
-              })()}
-            </div>
-          </div>
-
-          {/* Project Overview Row */}
-          <div className="grid grid-cols-12 gap-0 border-b-2 border-gray-300 bg-gray-50 hover:bg-gray-100">
-            <div className="col-span-3 p-4 border-r border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${getStatusColor(data.project.status)}`} />
-                <div>
-                  <div className="font-semibold text-gray-900">Overall Project</div>
-                  <div className="text-xs text-gray-500">
-                    {format(data.project.startDate, 'MMM dd')} - {format(data.project.endDate, 'MMM dd')}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="col-span-9 relative py-2">
-              {/* Background grid lines */}
-              {(() => {
-                const totalDays = differenceInDays(endDate, startDate)
-                return (
-                  <div className="absolute inset-0 pointer-events-none">
-                    {dateColumns.map((date, index) => {
-                      const daysDiff = differenceInDays(date, startDate)
-                      const leftPosition = (daysDiff / totalDays) * 100
-                      return (
-                        <div
-                          key={index}
-                          className="absolute top-0 bottom-0 border-l border-gray-200"
-                          style={{ left: `${leftPosition}%` }}
-                        />
-                      )
-                    })}
-                  </div>
-                )
-              })()}
-
-              {/* Project bar */}
-              <div
-                className={`absolute h-8 top-1/2 -translate-y-1/2 rounded-md ${getStatusColor(data.project.status)} opacity-90 flex items-center px-2 z-10`}
-                style={getTaskPosition(data.project)}
-              >
-                <div className="text-xs text-white font-medium">
-                  {data.project.progress}%
-                </div>
-              </div>
-
-              {/* Today indicator for project row */}
-              {(() => {
-                const today = new Date()
-                const todayDiff = differenceInDays(today, startDate)
-                const totalDays = differenceInDays(endDate, startDate)
-
-                if (todayDiff >= 0 && todayDiff <= totalDays) {
-                  const leftPosition = (todayDiff / totalDays) * 100
-                  return (
-                    <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 shadow-lg pointer-events-none z-20"
-                      style={{ left: `${leftPosition}%` }}
-                      title={`Today: ${format(today, 'MMM dd, yyyy')}`}
-                    />
-                  )
-                }
-                return null
-              })()}
-            </div>
-          </div>
-
-          {/* Task Rows */}
-          <div className="divide-y divide-gray-200 relative">
-            {data.tasks.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
-                No tasks with dates to display in timeline
-              </div>
-            ) : (
-              data.tasks.map((task) => {
-                const totalDays = differenceInDays(endDate, startDate)
-
-                return (
-                  <div key={task.id} className="grid grid-cols-12 gap-0 hover:bg-gray-50">
-                    <div
-                      className="col-span-3 p-4 border-r border-gray-200 cursor-pointer"
-                      onClick={() => handleTaskClick(task.id)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className="w-2 h-2 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: task.categoryColor }}
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-gray-700 truncate hover:text-primary-600">
-                            {task.title}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {format(task.startDate, 'MMM dd')} - {format(task.endDate, 'MMM dd')}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-span-9 relative py-2">
-                      {/* Background grid lines for alignment */}
-                      <div className="absolute inset-0 pointer-events-none">
-                        {dateColumns.map((date, index) => {
-                          const daysDiff = differenceInDays(date, startDate)
-                          const leftPosition = (daysDiff / totalDays) * 100
-                          return (
-                            <div
-                              key={index}
-                              className="absolute top-0 bottom-0 border-l border-gray-100"
-                              style={{ left: `${leftPosition}%` }}
-                            />
-                          )
-                        })}
-                      </div>
-
-                      {/* Today indicator */}
-                      {(() => {
-                        const today = new Date()
-                        const todayDiff = differenceInDays(today, startDate)
-                        if (todayDiff >= 0 && todayDiff <= totalDays) {
-                          const leftPosition = (todayDiff / totalDays) * 100
-                          return (
-                            <div
-                              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
-                              style={{ left: `${leftPosition}%` }}
-                            />
-                          )
-                        }
-                        return null
-                      })()}
-
-                      {/* Task bar */}
-                      <div
-                        className={`absolute h-6 top-1/2 -translate-y-1/2 rounded ${getTaskStatusColor(task.status)} opacity-90 flex items-center px-2 cursor-pointer hover:opacity-100 transition-opacity shadow-sm z-10`}
-                        style={getTaskPosition(task)}
-                        onClick={() => handleTaskClick(task.id)}
-                        title={`${task.title}: ${format(task.startDate, 'MMM dd')} - ${format(task.endDate, 'MMM dd')}`}
-                      >
-                        <div className="text-xs text-white font-medium truncate">
-                          {task.progress > 0 ? `${task.progress}%` : ''}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-        </div>
+      {/* Task Gantt Chart */}
+      <div style={{ height: '600px' }}>
+        <TaskGanttChart
+          tasks={data.tasks}
+          projectStart={data.project.startDate}
+          projectEnd={data.project.endDate}
+          onTaskClick={handleGanttTaskClick}
+          selectedTaskId={selectedTaskId}
+        />
       </div>
 
       {/* Legend */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex items-center space-x-6 text-xs">
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded bg-green-500" />
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded bg-blue-500" />
-            <span>In Progress</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded bg-red-500" />
-            <span>Overdue</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded bg-gray-400" />
+      <div className="p-3 border-t border-gray-200 bg-gray-50">
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-gray-300" />
             <span>Not Started</span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-blue-400" />
+            <span>In Progress</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-green-400" />
+            <span>Completed</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-red-400" />
+            <span>Overdue</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded bg-orange-400" />
+            <span>Blocked</span>
+          </div>
+          <div className="flex items-center gap-1.5">
             <div className="w-0.5 h-4 bg-red-500" />
             <span>Today</span>
           </div>

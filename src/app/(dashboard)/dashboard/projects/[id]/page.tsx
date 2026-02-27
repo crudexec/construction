@@ -46,6 +46,7 @@ import { ProjectVendors } from '@/components/projects/project-vendors'
 import { ProjectMilestones } from '@/components/projects/project-milestones'
 import { ProjectBOQ } from '@/components/projects/project-boq'
 import { ProjectFinancial } from '@/components/projects/project-financial'
+import { ScheduleImportModal } from '@/components/projects/schedule-import-modal'
 import { useModal } from '@/components/ui/modal-provider'
 
 async function fetchProject(id: string) {
@@ -88,6 +89,7 @@ export default function ProjectDetailPage() {
   const [isGeneratingAccess, setIsGeneratingAccess] = useState(false)
   const [unreadMessageCount, setUnreadMessageCount] = useState(0)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showScheduleImportModal, setShowScheduleImportModal] = useState(false)
   const [copiedToClipboard, setCopiedToClipboard] = useState(false)
 
   useEffect(() => {
@@ -533,6 +535,7 @@ export default function ProjectDetailPage() {
                       <div className="p-1">
                         {[
                           { icon: Users, label: 'Manage Team', onClick: () => { setShowPortalDropdown(false); handleTeamClick() } },
+                          { icon: Calendar, label: 'Import Schedule', onClick: () => { setShowPortalDropdown(false); setShowScheduleImportModal(true) } },
                           { icon: ExternalLink, label: 'Client Portal', onClick: () => { setShowPortalDropdown(false); handleClientPortal() } },
                           { icon: Settings, label: 'Portal Settings', onClick: () => { setShowPortalDropdown(false); setShowPortalSettingsModal(true) } },
                         ].map((item, idx) => (
@@ -591,7 +594,7 @@ export default function ProjectDetailPage() {
       {/* Main Content */}
       <main className="relative">
         <div className="px-4 sm:px-6 lg:px-8 py-6 lg:py-8 pb-24 lg:pb-8">
-          <div className="max-w-6xl mx-auto">
+          <div className="w-full">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -780,6 +783,16 @@ export default function ProjectDetailPage() {
           isOpen={showPortalSettingsModal}
           onClose={() => setShowPortalSettingsModal(false)}
           onSettingsUpdate={() => refetch()}
+        />
+      )}
+
+      {/* Schedule Import Modal */}
+      {showScheduleImportModal && (
+        <ScheduleImportModal
+          projectId={projectId}
+          isOpen={showScheduleImportModal}
+          onClose={() => setShowScheduleImportModal(false)}
+          onImportSuccess={() => refetch()}
         />
       )}
     </div>

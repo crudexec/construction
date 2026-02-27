@@ -3,17 +3,17 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { 
-  Plus, 
-  Eye, 
-  Edit, 
+import {
+  Plus,
+  Eye,
+  Edit,
   Trash2,
   Users,
   Building,
-  MapPin
+  MapPin,
+  Search
 } from 'lucide-react'
 import { AddProjectModal } from '@/components/projects/add-project-modal'
-import { CompactFilters } from '@/components/ui/compact-filters'
 import { useCurrency } from '@/hooks/useCurrency'
 
 interface Project {
@@ -135,171 +135,215 @@ export default function ProjectsPage() {
   return (
     <>
       <div className="space-y-3">
-        {/* Compact Header - Mobile Responsive */}
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Projects</h1>
+            <p className="text-sm text-gray-500">
+              {filteredProjects.length} of {projects.length} projects
+            </p>
+          </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-primary-600 text-white px-3 py-1.5 rounded-md hover:bg-primary-700 flex items-center space-x-1.5"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Project</span>
+          </button>
+        </div>
+
+        {/* Filters */}
         <div className="bg-white p-3 rounded-lg shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center gap-2 sm:gap-4 flex-1">
-              <h1 className="text-base sm:text-lg font-semibold text-gray-900">Projects</h1>
-              <div className="text-xs sm:text-sm text-gray-500">
-                {filteredProjects.length}/{projects.length}
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="bg-primary-600 text-white px-3 py-1.5 rounded text-xs sm:text-sm hover:bg-primary-700 flex items-center justify-center space-x-1"
+
+            {/* Status Filter */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span>New Project</span>
-            </button>
-          </div>
-        </div>
-
-
-        {/* Compact Filters */}
-        <CompactFilters
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search projects..."
-          resultsCount={filteredProjects.length}
-          totalCount={projects.length}
-          filters={[
-            {
-              key: 'status',
-              label: 'Status',
-              value: selectedStatus,
-              onChange: setSelectedStatus,
-              options: [
-                { value: 'all', label: 'All Status' },
-                ...statuses.map(status => ({ value: status, label: status }))
-              ]
-            },
-            {
-              key: 'priority',
-              label: 'Priority',
-              value: selectedPriority,
-              onChange: setSelectedPriority,
-              options: [
-                { value: 'all', label: 'All Priorities' },
-                ...priorities.map(priority => ({ value: priority, label: priority }))
-              ]
-            }
-          ]}
-        />
-
-        {/* Compact Projects List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-2">
-            <div className="space-y-1">
-              {filteredProjects.map((project: Project) => (
-                <div key={project.id} className="bg-gray-50 rounded p-3 hover:bg-gray-100 transition-colors cursor-pointer"
-                     onClick={() => router.push(`/dashboard/projects/${project.id}`)}>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      {/* Project Info */}
-                      <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-1">
-                        <h3 className="text-xs sm:text-sm font-semibold text-gray-900 truncate">{project.title}</h3>
-                        <span
-                          className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${
-                            priorityColors[project.priority as keyof typeof priorityColors]
-                          }`}
-                        >
-                          {project.priority}
-                        </span>
-                        <span
-                          className={`inline-flex px-1.5 py-0.5 text-xs font-medium rounded-full ${
-                            statusColors[project.status as keyof typeof statusColors]
-                          }`}
-                        >
-                          {project.status}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-500">
-                        {project.contactName && (
-                          <span className="truncate">{project.contactName}</span>
-                        )}
-                        {project.projectAddress && (
-                          <div className="flex items-center space-x-1">
-                            <MapPin className="h-3 w-3 flex-shrink-0" />
-                            <span className="truncate">
-                              {project.projectCity || project.projectAddress}
-                            </span>
-                          </div>
-                        )}
-                        <span className="hidden sm:inline">Budget: {formatCurrency(project.budget || 0)}</span>
-                        <span className="sm:hidden">{formatCurrency(project.budget || 0, { compact: true })}</span>
-                        <span>Tasks: {project.metrics?.completedTasks || 0}/{project.metrics?.totalTasks || 0}</span>
-                        {project.assignedUsers.length > 0 && (
-                          <div className="flex items-center space-x-1">
-                            <Users className="h-3 w-3" />
-                            <span>{project.assignedUsers.length}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Progress - Mobile Responsive */}
-                    <div className="flex items-center space-x-2">
-                      <div className="text-xs text-gray-500">{project.metrics?.progress || 0}%</div>
-                      <div className="w-12 sm:w-16 bg-gray-200 rounded-full h-1.5">
-                        <div
-                          className={`h-1.5 rounded-full ${getProgressColor(project.metrics?.progress || 0)}`}
-                          style={{ width: `${project.metrics?.progress || 0}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center space-x-1">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/dashboard/projects/${project.id}`)
-                        }}
-                        className="text-gray-400 hover:text-gray-600"
-                        title="View"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-gray-400 hover:text-gray-600"
-                        title="Edit"
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </button>
-                      <button 
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-gray-400 hover:text-red-600"
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              <option value="all">All Status</option>
+              {statuses.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
               ))}
+            </select>
+
+            {/* Priority Filter */}
+            <select
+              value={selectedPriority}
+              onChange={(e) => setSelectedPriority(e.target.value)}
+              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="all">All Priorities</option>
+              {priorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
+            </select>
+
+            {/* Results Count */}
+            <div className="flex items-center text-sm text-gray-500">
+              Showing {filteredProjects.length} of {projects.length} projects
             </div>
           </div>
         </div>
 
-        {filteredProjects.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <Building className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <div className="text-sm text-gray-500 mb-3">
-              {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all'
-                ? 'No projects match your filters'
-                : 'No projects found'}
-            </div>
-            {(!searchTerm && selectedStatus === 'all' && selectedPriority === 'all') && (
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
-              >
-                Create your first project
-              </button>
-            )}
+        {/* Projects Table */}
+        <div className="bg-white shadow rounded-lg overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Project
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Priority
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Budget
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                  </th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredProjects.map((project: Project) => (
+                  <tr
+                    key={project.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+                  >
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div>
+                        <div className="text-sm font-medium text-gray-900">{project.title}</div>
+                        {project.projectAddress && (
+                          <div className="text-xs text-gray-500 flex items-center">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            {project.projectCity || project.projectAddress}
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div>
+                        {project.contactName && (
+                          <div className="text-sm font-medium text-gray-900">{project.contactName}</div>
+                        )}
+                        {project.assignedUsers.length > 0 && (
+                          <div className="text-xs text-gray-500 flex items-center">
+                            <Users className="h-3 w-3 mr-1" />
+                            {project.assignedUsers.length} assigned
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          statusColors[project.status as keyof typeof statusColors]
+                        }`}
+                      >
+                        {project.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <span
+                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                          priorityColors[project.priority as keyof typeof priorityColors]
+                        }`}
+                      >
+                        {project.priority}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(project.budget || 0)}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                          <div
+                            className={`h-1.5 rounded-full ${getProgressColor(project.metrics?.progress || 0)}`}
+                            style={{ width: `${project.metrics?.progress || 0}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-gray-500">{project.metrics?.progress || 0}%</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/dashboard/projects/${project.id}`)
+                          }}
+                          className="text-primary-600 hover:text-primary-900"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-gray-600 hover:text-gray-900"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
+
+          {filteredProjects.length === 0 && (
+            <div className="text-center py-8">
+              <Building className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+              <div className="text-gray-500 text-sm">
+                {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all'
+                  ? 'No projects match your filters'
+                  : 'No projects found'}
+              </div>
+              {(!searchTerm && selectedStatus === 'all' && selectedPriority === 'all') && (
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="mt-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
+                >
+                  Create your first project
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <AddProjectModal

@@ -88,18 +88,18 @@ export default function LeadsPage() {
 
   return (
     <>
-      <div className="space-y-6">
+      <div className="space-y-3">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Leads</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Manage all your leads in a comprehensive table view
+            <h1 className="text-xl font-semibold text-gray-900">Leads</h1>
+            <p className="text-sm text-gray-500">
+              {filteredLeads.length} of {leads.length} leads
             </p>
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+            className="bg-primary-600 text-white px-3 py-1.5 rounded-md hover:bg-primary-700 flex items-center space-x-1.5"
           >
             <Plus className="h-4 w-4" />
             <span>Add Lead</span>
@@ -107,17 +107,17 @@ export default function LeadsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-3 rounded-lg shadow">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search leads..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full rounded-md border border-gray-300 py-2 px-3 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                className="pl-9 w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
             </div>
 
@@ -125,7 +125,7 @@ export default function LeadsPage() {
             <select
               value={selectedStage}
               onChange={(e) => setSelectedStage(e.target.value)}
-              className="rounded-md border border-gray-300 py-2 px-3 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
               <option value="all">All Stages</option>
               {stages.map((stage: any) => (
@@ -139,7 +139,7 @@ export default function LeadsPage() {
             <select
               value={selectedPriority}
               onChange={(e) => setSelectedPriority(e.target.value)}
-              className="rounded-md border border-gray-300 py-2 px-3 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             >
               <option value="all">All Priorities</option>
               {priorities.map((priority) => (
@@ -162,83 +162,84 @@ export default function LeadsPage() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Project
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contact
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Stage
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Priority
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Budget
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Created
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredLeads.map((lead: Lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                  <tr key={lead.id} className="hover:bg-gray-50 cursor-pointer">
+                    <td className="px-4 py-2 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{lead.title}</div>
                         {lead.timeline && (
-                          <div className="text-sm text-gray-500 flex items-center">
+                          <div className="text-xs text-gray-500 flex items-center">
                             <Calendar className="h-3 w-3 mr-1" />
                             {lead.timeline}
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-2 whitespace-nowrap">
                       <div>
                         {lead.contactName && (
                           <div className="text-sm font-medium text-gray-900">{lead.contactName}</div>
                         )}
-                        <div className="text-sm text-gray-500 space-y-1">
-                          {lead.contactEmail && (
-                            <div className="flex items-center">
-                              <Mail className="h-3 w-3 mr-1" />
-                              {lead.contactEmail}
-                            </div>
-                          )}
-                          {lead.contactPhone && (
-                            <div className="flex items-center">
-                              <Phone className="h-3 w-3 mr-1" />
-                              {lead.contactPhone}
-                            </div>
-                          )}
-                        </div>
+                        {(lead.contactEmail || lead.contactPhone) && (
+                          <div className="text-xs text-gray-500 flex items-center">
+                            {lead.contactEmail ? (
+                              <>
+                                <Mail className="h-3 w-3 mr-1" />
+                                {lead.contactEmail}
+                              </>
+                            ) : (
+                              <>
+                                <Phone className="h-3 w-3 mr-1" />
+                                {lead.contactPhone}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-2 whitespace-nowrap">
                       <div className="flex items-center">
                         <div
-                          className="w-3 h-3 rounded-full mr-2"
+                          className="w-2.5 h-2.5 rounded-full mr-2"
                           style={{ backgroundColor: lead.stage.color }}
                         />
                         <span className="text-sm text-gray-900">{lead.stage.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-2 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
                           priorityColors[lead.priority as keyof typeof priorityColors]
                         }`}
                       >
                         {lead.priority}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
                       {lead.budget ? (
                         <div className="flex items-center">
                           <DollarSign className="h-3 w-3 mr-1" />
@@ -248,10 +249,10 @@ export default function LeadsPage() {
                         '-'
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
                       {new Date(lead.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button className="text-primary-600 hover:text-primary-900">
                           <Eye className="h-4 w-4" />
@@ -271,8 +272,8 @@ export default function LeadsPage() {
           </div>
 
           {filteredLeads.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-500">
+            <div className="text-center py-8">
+              <div className="text-gray-500 text-sm">
                 {searchTerm || selectedStage !== 'all' || selectedPriority !== 'all'
                   ? 'No leads match your filters'
                   : 'No leads found'}
@@ -280,7 +281,7 @@ export default function LeadsPage() {
               {(!searchTerm && selectedStage === 'all' && selectedPriority === 'all') && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="mt-4 text-primary-600 hover:text-primary-700 font-medium"
+                  className="mt-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
                 >
                   Add your first lead
                 </button>

@@ -339,60 +339,82 @@ export function VendorCategoryManager() {
       </div>
 
       {categories && categories.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {categories.map((category) => (
-            <div
-              key={category.id}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center space-x-3">
-                  <div
-                    className="w-4 h-4 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <div>
-                    <h4 className="font-medium text-gray-900">{category.name}</h4>
-                    {category.csiDivision && (
-                      <span className="text-xs text-gray-500">
-                        CSI Division {category.csiDivision}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={() => handleEdit(category)}
-                    className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-                    title="Edit"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(category)}
-                    className={`p-1.5 rounded ${
-                      category.vendorCount > 0
-                        ? 'text-gray-300 cursor-not-allowed'
-                        : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                    }`}
-                    title={category.vendorCount > 0 ? 'Cannot delete - has vendors' : 'Delete'}
-                    disabled={category.vendorCount > 0}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              {category.description && (
-                <p className="mt-2 text-sm text-gray-600 line-clamp-2">
-                  {category.description}
-                </p>
-              )}
-              <div className="mt-3 flex items-center text-xs text-gray-500">
-                <Tag className="h-3 w-3 mr-1" />
-                {category.vendorCount} vendor{category.vendorCount !== 1 ? 's' : ''}
-              </div>
-            </div>
-          ))}
+        <div className="overflow-hidden border border-gray-200 rounded-lg">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  CSI Division
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Vendors
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {categories.map((category) => (
+                <tr key={category.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <div className="flex items-center space-x-2">
+                      <div
+                        className="w-3 h-3 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: category.color }}
+                      />
+                      <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2">
+                    <span className="text-sm text-gray-500 line-clamp-1">
+                      {category.description || '-'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <span className="text-sm text-gray-500">
+                      {category.csiDivision || '-'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <Tag className="h-3 w-3 mr-1" />
+                      {category.vendorCount}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap text-right">
+                    <div className="flex justify-end space-x-1">
+                      <button
+                        onClick={() => handleEdit(category)}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                        title="Edit"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(category)}
+                        className={`p-1.5 rounded ${
+                          category.vendorCount > 0
+                            ? 'text-gray-300 cursor-not-allowed'
+                            : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                        }`}
+                        title={category.vendorCount > 0 ? 'Cannot delete - has vendors' : 'Delete'}
+                        disabled={category.vendorCount > 0}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div className="text-center py-12 border border-gray-200 rounded-lg">
