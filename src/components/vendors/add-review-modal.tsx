@@ -34,14 +34,14 @@ async function fetchProjects(): Promise<Project[]> {
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
 
-  const response = await fetch('/api/projects', {
+  const response = await fetch('/api/project', {
     headers: {
       'Authorization': `Bearer ${token}`
     }
   })
   if (!response.ok) return []
   const data = await response.json()
-  return data.projects || data || []
+  return data.map((project: { id: string; title: string }) => ({ id: project.id, title: project.title }))
 }
 
 async function createReview(vendorId: string, data: Record<string, unknown>) {
