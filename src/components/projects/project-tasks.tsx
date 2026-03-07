@@ -1255,43 +1255,40 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
 
   // Sort tasks if needed for table view
   const sortedTasks = [...filteredTasks].sort((a: Task, b: Task) => {
-    // Always sort by category first (primary sort)
-    const aCategoryOrder = a.category?.order ?? Number.MAX_VALUE
-    const bCategoryOrder = b.category?.order ?? Number.MAX_VALUE
-    
-    if (aCategoryOrder !== bCategoryOrder) {
-      return aCategoryOrder - bCategoryOrder
-    }
-    
-    // If categories are the same, apply secondary sort
+    // If no sort column selected, default to category order then creation date
     if (!sortColumn) {
-      // Default to creation date if no column is selected
+      const aCategoryOrder = a.category?.order ?? Number.MAX_VALUE
+      const bCategoryOrder = b.category?.order ?? Number.MAX_VALUE
+      if (aCategoryOrder !== bCategoryOrder) {
+        return aCategoryOrder - bCategoryOrder
+      }
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     }
-    
+
+    // When a column is selected, use it as primary sort
     let aVal: any = a[sortColumn as keyof Task]
     let bVal: any = b[sortColumn as keyof Task]
-    
-    // Handle nested properties
+
+    // Handle nested properties and special cases
     if (sortColumn === 'assignee') {
       aVal = a.assignee ? `${a.assignee.firstName} ${a.assignee.lastName}` : ''
       bVal = b.assignee ? `${b.assignee.firstName} ${b.assignee.lastName}` : ''
     } else if (sortColumn === 'category') {
-      // For category column sort, use the name for secondary sorting within same order
       aVal = a.category?.name || ''
       bVal = b.category?.name || ''
     } else if (sortColumn === 'dueDate') {
+      // Tasks with no due date go to the end
       aVal = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_VALUE
       bVal = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_VALUE
     } else if (sortColumn === 'createdAt') {
       aVal = new Date(a.createdAt).getTime()
       bVal = new Date(b.createdAt).getTime()
     }
-    
+
     if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
     if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-    
-    // Tertiary sort by creation date if values are equal
+
+    // Secondary sort by creation date if values are equal
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
