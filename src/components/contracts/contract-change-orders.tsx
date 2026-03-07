@@ -5,8 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Trash2, Edit, Save, X, FileText,
   ChevronDown, ChevronRight, Clock, Check,
-  XCircle, Send, AlertCircle
+  XCircle, Send, AlertCircle, Download
 } from 'lucide-react'
+import { GenerateDocumentButton } from '@/components/documents/generate-document-button'
 
 interface ChangeOrderLineItem {
   id: string
@@ -460,6 +461,17 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
                         )}
                       </div>
                     )}
+
+                    {/* Generate Document Button */}
+                    <div className="flex items-center gap-2 pt-2 border-t">
+                      <GenerateDocumentButton
+                        recordType="change-order"
+                        recordId={co.id}
+                        templateType="CHANGE_ORDER"
+                        variant="dropdown"
+                        size="sm"
+                      />
+                    </div>
 
                     {/* Actions */}
                     {!readonly && (

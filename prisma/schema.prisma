@@ -52,6 +52,9 @@ model Company {
 
   // Vendor Categories
   vendorCategories VendorCategory[]
+
+  // Document Templates
+  documentTemplates DocumentTemplate[]
 }
 
 model User {
@@ -130,6 +133,9 @@ model User {
   // BOQ relations
   createdBOQItems     BOQItem[]     @relation("BOQCreator")
   createdBOQRevisions BOQRevision[] @relation("BOQRevisionCreator")
+
+  // Document Templates
+  documentTemplates DocumentTemplate[] @relation("DocumentTemplateCreator")
 
   // Inventory Management
   inventoryTransactions InventoryTransaction[]
@@ -2962,4 +2968,41 @@ model ScheduleActivityComment {
 
   @@index([activityId])
   @@index([authorId])
+}
+
+// =============================================================================
+// DOCUMENT TEMPLATES
+// =============================================================================
+
+enum DocumentTemplateType {
+  CHANGE_ORDER
+  PURCHASE_ORDER
+  VENDOR_CONTRACT
+  ESTIMATE
+  BID
+  INTENT_TO_AWARD
+  NON_COMPLIANCE_NOTICE
+  CUSTOM
+}
+
+model DocumentTemplate {
+  id          String               @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  type        DocumentTemplateType
+  content     String               @db.Text // Rich text HTML with placeholders
+
+  isDefault Boolean @default(false) // Default template for this type
+  isActive  Boolean @default(true)
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("DocumentTemplateCreator", fields: [createdById], references: [id])
+
+  @@index([companyId, type])
+  @@index([createdById])
 }

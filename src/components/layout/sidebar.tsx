@@ -16,7 +16,8 @@ import {
   Truck,
   Package,
   Warehouse,
-  HelpCircle
+  HelpCircle,
+  FileText
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
@@ -42,6 +43,10 @@ const navigation = [
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },
   { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },
+]
+
+const adminNavigation = [
+  { name: 'Doc Templates', href: '/dashboard/admin/document-templates', icon: FileText },
 ]
 
 // Provider component
@@ -162,6 +167,48 @@ export function Sidebar() {
             </Link>
           )
         })}
+
+        {/* Admin Navigation */}
+        {user?.role === 'ADMIN' && (
+          <>
+            {!isCollapsed && (
+              <div className="pt-4 pb-2">
+                <span className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Admin
+                </span>
+              </div>
+            )}
+            {adminNavigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors relative",
+                    isActive
+                      ? "bg-gray-800 text-white"
+                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  )}
+                  title={isCollapsed ? item.name : undefined}
+                >
+                  <item.icon
+                    className={cn(
+                      "flex-shrink-0 h-5 w-5",
+                      isCollapsed ? "mr-0" : "mr-3"
+                    )}
+                  />
+                  {!isCollapsed && item.name}
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                      {item.name}
+                    </div>
+                  )}
+                </Link>
+              )
+            })}
+          </>
+        )}
       </nav>
 
       <div className="border-t border-gray-700 p-4">
