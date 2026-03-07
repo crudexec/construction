@@ -14,7 +14,10 @@ import {
   Edit,
   Trash2,
   X,
-  AlertTriangle
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -39,6 +42,9 @@ interface BudgetItem {
   updatedAt: string
 }
 
+type SortColumn = 'name' | 'category' | 'quantity' | 'amount' | 'total' | 'isPaid' | null
+type SortDirection = 'asc' | 'desc'
+
 const budgetItemSchema = Yup.object().shape({
   name: Yup.string().required('Name is required'),
   description: Yup.string(),
@@ -54,7 +60,7 @@ async function fetchBudgetItems(projectId: string) {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch(`/api/project/${projectId}/budget`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -70,10 +76,10 @@ async function createBudgetItem(projectId: string, data: any) {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch(`/api/project/${projectId}/budget`, {
     method: 'POST',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
       'Cookie': document.cookie
@@ -89,10 +95,10 @@ async function updateBudgetItem(itemId: string, data: any) {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch(`/api/budget/${itemId}`, {
     method: 'PATCH',
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
       'Cookie': document.cookie
@@ -108,7 +114,7 @@ async function deleteBudgetItem(itemId: string) {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch(`/api/budget/${itemId}`, {
     method: 'DELETE',
     headers: {
@@ -124,6 +130,8 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<BudgetItem | null>(null)
   const [viewType, setViewType] = useState<'budget' | 'expenses'>('budget')
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const queryClient = useQueryClient()
   const { format: formatCurrency, symbol: currencySymbol } = useCurrency()
 
@@ -133,10 +141,19 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
     enabled: !!projectId
   })
 
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
   const createMutation = useMutation({
     mutationFn: (data: any) => createBudgetItem(projectId, data),
     onSuccess: () => {
-      toast.success('Budget item created successfully!')
+      toast.success('Budget item created')
       queryClient.invalidateQueries({ queryKey: ['budget-items', projectId] })
       queryClient.invalidateQueries({ queryKey: ['project', projectId] })
       setIsModalOpen(false)
@@ -150,7 +167,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
   const updateMutation = useMutation({
     mutationFn: ({ itemId, data }: { itemId: string, data: any }) => updateBudgetItem(itemId, data),
     onSuccess: () => {
-      toast.success('Budget item updated successfully!')
+      toast.success('Budget item updated')
       queryClient.invalidateQueries({ queryKey: ['budget-items', projectId] })
       queryClient.invalidateQueries({ queryKey: ['project', projectId] })
       setIsModalOpen(false)
@@ -164,7 +181,7 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
   const deleteMutation = useMutation({
     mutationFn: deleteBudgetItem,
     onSuccess: () => {
-      toast.success('Budget item deleted successfully!')
+      toast.success('Budget item deleted')
       queryClient.invalidateQueries({ queryKey: ['budget-items', projectId] })
       queryClient.invalidateQueries({ queryKey: ['project', projectId] })
     },
@@ -172,6 +189,13 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
       toast.error(error instanceof Error ? error.message : 'Failed to delete budget item')
     }
   })
+
+  const togglePaid = (item: BudgetItem) => {
+    updateMutation.mutate({
+      itemId: item.id,
+      data: { isPaid: !item.isPaid, paidAt: !item.isPaid ? new Date().toISOString() : null }
+    })
+  }
 
   // Calculate financial metrics
   const budgetPlanned = budgetItems
@@ -191,458 +215,567 @@ export function ProjectFinancial({ projectId, project }: ProjectFinancialProps) 
   const remainingBudget = totalBudget - expenses
   const budgetUsedPercentage = totalBudget > 0 ? (expenses / totalBudget) * 100 : 0
 
-  const filteredItems = budgetItems.filter((item: BudgetItem) => 
+  const filteredItems = budgetItems.filter((item: BudgetItem) =>
     viewType === 'budget' ? !item.isExpense : item.isExpense
   )
 
-  // Group items by category
-  const itemsByCategory = filteredItems.reduce((acc: { [key: string]: BudgetItem[] }, item: BudgetItem) => {
-    if (!acc[item.category]) {
-      acc[item.category] = []
+  // Sort items
+  const sortedItems = [...filteredItems].sort((a: BudgetItem, b: BudgetItem) => {
+    if (!sortColumn) {
+      return a.category.localeCompare(b.category)
     }
-    acc[item.category].push(item)
-    return acc
-  }, {})
 
-  const categories = Object.keys(itemsByCategory)
+    const multiplier = sortDirection === 'asc' ? 1 : -1
 
-  const getBudgetStatus = () => {
-    if (budgetUsedPercentage > 100) return { color: 'text-red-600', icon: AlertTriangle, label: 'Over Budget' }
-    if (budgetUsedPercentage > 90) return { color: 'text-orange-600', icon: TrendingUp, label: 'Near Limit' }
-    if (budgetUsedPercentage > 75) return { color: 'text-yellow-600', icon: TrendingUp, label: 'On Track' }
-    return { color: 'text-green-600', icon: TrendingDown, label: 'Under Budget' }
+    switch (sortColumn) {
+      case 'name':
+        return a.name.localeCompare(b.name) * multiplier
+      case 'category':
+        return a.category.localeCompare(b.category) * multiplier
+      case 'quantity':
+        return (a.quantity - b.quantity) * multiplier
+      case 'amount':
+        return (a.amount - b.amount) * multiplier
+      case 'total':
+        return ((a.amount * a.quantity) - (b.amount * b.quantity)) * multiplier
+      case 'isPaid':
+        return ((a.isPaid ? 1 : 0) - (b.isPaid ? 1 : 0)) * multiplier
+      default:
+        return a.category.localeCompare(b.category)
+    }
+  })
+
+  const budgetItemCount = budgetItems.filter((item: BudgetItem) => !item.isExpense).length
+  const expenseItemCount = budgetItems.filter((item: BudgetItem) => item.isExpense).length
+
+  const getBudgetStatusColor = () => {
+    if (budgetUsedPercentage > 100) return 'text-red-400'
+    if (budgetUsedPercentage > 90) return 'text-amber-400'
+    if (budgetUsedPercentage > 75) return 'text-yellow-400'
+    return 'text-emerald-400'
   }
 
-  const budgetStatus = getBudgetStatus()
-  const StatusIcon = budgetStatus.icon
+  const SortIcon = ({ column }: { column: SortColumn }) => {
+    if (sortColumn !== column) return null
+    return sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+  }
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Financial Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Budget</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(totalBudget)}
-              </p>
-            </div>
-            <DollarSign className="h-8 w-8 text-blue-500" />
+    <div className="space-y-3">
+      {/* Compact Header Stats Bar */}
+      <div className="bg-slate-800 rounded-lg p-2.5 text-white">
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-2 text-center">
+          <div className="flex flex-col items-center">
+            <div className="text-xl font-bold text-slate-100">{formatCurrency(totalBudget)}</div>
+            <div className="text-[10px] text-slate-400 uppercase">Budget</div>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-              <p className="text-2xl font-semibold text-gray-900">
-                {formatCurrency(expenses)}
-              </p>
-            </div>
-            <TrendingUp className="h-8 w-8 text-red-500" />
+          <div className="flex flex-col items-center">
+            <div className="text-xl font-bold text-red-400">{formatCurrency(expenses)}</div>
+            <div className="text-[10px] text-slate-400 uppercase">Spent</div>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Remaining Budget</p>
-              <p className={`text-2xl font-semibold ${remainingBudget >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(remainingBudget)}
-              </p>
+          <div className="flex flex-col items-center">
+            <div className={`text-xl font-bold ${remainingBudget >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {formatCurrency(remainingBudget)}
             </div>
-            <Calculator className="h-8 w-8 text-green-500" />
+            <div className="text-[10px] text-slate-400 uppercase">Remaining</div>
           </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-lg shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Budget Used</p>
-              <p className={`text-2xl font-semibold ${budgetStatus.color}`}>
-                {budgetUsedPercentage.toFixed(1)}%
-              </p>
-              <p className={`text-xs ${budgetStatus.color}`}>{budgetStatus.label}</p>
+          <div className="flex flex-col items-center">
+            <div className={`text-xl font-bold ${getBudgetStatusColor()}`}>
+              {budgetUsedPercentage.toFixed(0)}%
             </div>
-            <StatusIcon className={`h-8 w-8 ${budgetStatus.color.replace('text-', 'text-')}`} />
+            <div className="text-[10px] text-slate-400 uppercase">Used</div>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className="text-xl font-bold text-emerald-400">{formatCurrency(paidExpenses)}</div>
+            <div className="text-[10px] text-slate-400 uppercase">Paid</div>
+          </div>
+          <div className="flex flex-col items-center">
+            <div className={`text-xl font-bold ${unpaidExpenses > 0 ? 'text-amber-400' : 'text-slate-300'}`}>
+              {formatCurrency(unpaidExpenses)}
+            </div>
+            <div className="text-[10px] text-slate-400 uppercase">Unpaid</div>
           </div>
         </div>
       </div>
 
       {/* Budget Progress Bar */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium text-gray-900">Budget Progress</h3>
-          <div className="text-sm text-gray-500">
-            {formatCurrency(expenses)} of {formatCurrency(totalBudget)}
+      <div className="bg-white border border-gray-200 rounded-lg p-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-20">Progress</span>
+          <div className="flex-1 bg-gray-200 rounded-full h-2">
+            <div
+              className={`h-2 rounded-full transition-all duration-300 ${
+                budgetUsedPercentage > 100 ? 'bg-red-500' :
+                budgetUsedPercentage > 90 ? 'bg-orange-500' :
+                budgetUsedPercentage > 75 ? 'bg-yellow-500' :
+                'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(budgetUsedPercentage, 100)}%` }}
+            />
           </div>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-4">
-          <div
-            className={`h-4 rounded-full transition-all duration-300 ${
-              budgetUsedPercentage > 100 ? 'bg-red-500' :
-              budgetUsedPercentage > 90 ? 'bg-orange-500' :
-              budgetUsedPercentage > 75 ? 'bg-yellow-500' :
-              'bg-green-500'
-            }`}
-            style={{ width: `${Math.min(budgetUsedPercentage, 100)}%` }}
-          />
+          <span className="text-xs text-gray-600 w-24 text-right">
+            {formatCurrency(expenses)} / {formatCurrency(totalBudget)}
+          </span>
         </div>
         {budgetUsedPercentage > 100 && (
-          <p className="text-sm text-red-600 mt-2 flex items-center">
-            <AlertTriangle className="h-4 w-4 mr-1" />
-            Project is {formatCurrency(expenses - totalBudget)} over budget
-          </p>
+          <div className="text-[10px] text-red-600 mt-1 flex items-center gap-1 pl-20">
+            <AlertTriangle className="h-3 w-3" />
+            Over budget by {formatCurrency(expenses - totalBudget)}
+          </div>
         )}
       </div>
 
-      {/* Expense Summary */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Expense Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 bg-red-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-red-700">Paid Expenses</span>
-              <span className="text-lg font-semibold text-red-800">
-                {formatCurrency(paidExpenses)}
-              </span>
-            </div>
-          </div>
-          <div className="p-4 bg-orange-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-orange-700">Unpaid Expenses</span>
-              <span className="text-lg font-semibold text-orange-800">
-                {formatCurrency(unpaidExpenses)}
-              </span>
-            </div>
-          </div>
+      {/* Tab Navigation & Add Button */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex bg-gray-100 p-0.5 rounded">
+          <button
+            onClick={() => setViewType('budget')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              viewType === 'budget'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Budget ({budgetItemCount})
+          </button>
+          <button
+            onClick={() => setViewType('expenses')}
+            className={`px-3 py-1 text-xs font-medium rounded transition-colors ${
+              viewType === 'expenses'
+                ? 'bg-white text-primary-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-800'
+            }`}
+          >
+            Expenses ({expenseItemCount})
+          </button>
         </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
         <button
-          onClick={() => setViewType('budget')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            viewType === 'budget'
-              ? 'bg-white text-primary-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
+          onClick={() => {
+            setEditingItem(null)
+            setIsModalOpen(true)
+          }}
+          className="inline-flex items-center px-2.5 py-1.5 bg-primary-600 text-white text-xs rounded hover:bg-primary-700 transition-colors"
         >
-          Budget Items ({budgetItems.filter((item: BudgetItem) => !item.isExpense).length})
-        </button>
-        <button
-          onClick={() => setViewType('expenses')}
-          className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            viewType === 'expenses'
-              ? 'bg-white text-primary-600 shadow-sm'
-              : 'text-gray-600 hover:text-gray-800'
-          }`}
-        >
-          Expenses ({budgetItems.filter((item: BudgetItem) => item.isExpense).length})
+          <Plus className="h-3 w-3 mr-1" />
+          Add {viewType === 'budget' ? 'Item' : 'Expense'}
         </button>
       </div>
 
-      {/* Items List */}
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            {viewType === 'budget' ? 'Budget Items' : 'Expenses'}
-          </h3>
+      {/* Excel-like Table */}
+      {sortedItems.length === 0 ? (
+        <div className="border border-gray-200 rounded-lg p-8 text-center bg-gray-50">
+          <PieChart className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+          <p className="text-sm text-gray-500">No {viewType === 'budget' ? 'budget items' : 'expenses'} yet</p>
           <button
             onClick={() => {
               setEditingItem(null)
               setIsModalOpen(true)
             }}
-            className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+            className="text-xs text-primary-600 hover:text-primary-700 mt-2"
           >
-            <Plus className="h-4 w-4" />
-            <span>Add {viewType === 'budget' ? 'Budget Item' : 'Expense'}</span>
+            Add {viewType === 'budget' ? 'Budget Item' : 'Expense'}
           </button>
         </div>
-
-        {categories.map(category => (
-          <div key={category} className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h4 className="text-md font-medium text-gray-900">{category}</h4>
-              <p className="text-sm text-gray-500">
-                {formatCurrency(itemsByCategory[category].reduce((sum: number, item: BudgetItem) =>
-                  sum + (item.amount * item.quantity), 0
-                ))} total
-              </p>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {itemsByCategory[category].map((item: BudgetItem) => (
-                <div key={item.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <h5 className="text-sm font-medium text-gray-900">{item.name}</h5>
-                      {item.isExpense && (
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          item.isPaid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {item.isPaid ? 'Paid' : 'Unpaid'}
-                        </span>
-                      )}
+      ) : (
+        <div className="border border-gray-300 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="bg-gray-100 border-b border-gray-300">
+                <th className="w-6 px-1 py-1.5 border-r border-gray-200 text-center text-gray-500">#</th>
+                <th
+                  className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[120px]"
+                  onClick={() => handleSort('name')}
+                >
+                  <div className="flex items-center gap-1">
+                    Name
+                    <SortIcon column="name" />
+                  </div>
+                </th>
+                <th
+                  className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[100px]"
+                  onClick={() => handleSort('category')}
+                >
+                  <div className="flex items-center gap-1">
+                    Category
+                    <SortIcon column="category" />
+                  </div>
+                </th>
+                <th
+                  className="px-2 py-1.5 border-r border-gray-200 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[60px]"
+                  onClick={() => handleSort('quantity')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Qty
+                    <SortIcon column="quantity" />
+                  </div>
+                </th>
+                <th className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 w-[50px]">
+                  Unit
+                </th>
+                <th
+                  className="px-2 py-1.5 border-r border-gray-200 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[80px]"
+                  onClick={() => handleSort('amount')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Price
+                    <SortIcon column="amount" />
+                  </div>
+                </th>
+                <th
+                  className="px-2 py-1.5 border-r border-gray-200 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[90px]"
+                  onClick={() => handleSort('total')}
+                >
+                  <div className="flex items-center justify-end gap-1">
+                    Total
+                    <SortIcon column="total" />
+                  </div>
+                </th>
+                {viewType === 'expenses' && (
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-center font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[50px]"
+                    onClick={() => handleSort('isPaid')}
+                  >
+                    <div className="flex items-center justify-center gap-1">
+                      Paid
+                      <SortIcon column="isPaid" />
                     </div>
-                    {item.description && (
-                      <p className="text-sm text-gray-500 mt-1">{item.description}</p>
+                  </th>
+                )}
+                <th className="px-2 py-1.5 text-center font-semibold text-gray-700 w-[50px]">
+                  Act.
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedItems.map((item: BudgetItem, index: number) => {
+                const total = item.amount * item.quantity
+                return (
+                  <tr
+                    key={item.id}
+                    className={`border-b border-gray-200 hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                  >
+                    {/* Row Number */}
+                    <td className="px-1 py-1 border-r border-gray-200 text-center text-gray-400">
+                      {index + 1}
+                    </td>
+
+                    {/* Name */}
+                    <td className="px-2 py-1 border-r border-gray-200">
+                      <div className="font-medium text-gray-900 truncate">{item.name}</div>
+                      {item.description && (
+                        <div className="text-[10px] text-gray-500 truncate">{item.description}</div>
+                      )}
+                    </td>
+
+                    {/* Category */}
+                    <td className="px-2 py-1 border-r border-gray-200 text-gray-700">
+                      <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px]">{item.category}</span>
+                    </td>
+
+                    {/* Quantity */}
+                    <td className="px-2 py-1 border-r border-gray-200 text-right text-gray-700">
+                      {item.quantity}
+                    </td>
+
+                    {/* Unit */}
+                    <td className="px-2 py-1 border-r border-gray-200 text-gray-500">
+                      {item.unit || '-'}
+                    </td>
+
+                    {/* Price */}
+                    <td className="px-2 py-1 border-r border-gray-200 text-right text-gray-700">
+                      {formatCurrency(item.amount)}
+                    </td>
+
+                    {/* Total */}
+                    <td className="px-2 py-1 border-r border-gray-200 text-right font-medium text-gray-900">
+                      {formatCurrency(total)}
+                    </td>
+
+                    {/* Paid Status (for expenses only) */}
+                    {viewType === 'expenses' && (
+                      <td className="px-2 py-1 border-r border-gray-200 text-center">
+                        <button
+                          onClick={() => togglePaid(item)}
+                          className={`p-0.5 rounded ${item.isPaid ? 'text-green-600 bg-green-50' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
                     )}
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 mt-2">
-                      <span>
-                        {item.quantity} {item.unit || 'units'} × {formatCurrency(item.amount)}
-                      </span>
-                      <span className="font-medium">
-                        = {formatCurrency(item.amount * item.quantity)}
-                      </span>
-                      {item.isPaid && item.paidAt && (
-                        <span>Paid {new Date(item.paidAt).toLocaleDateString()}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => {
-                        setEditingItem(item)
-                        setIsModalOpen(true)
-                      }}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      className="text-gray-400 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
 
-        {filteredItems.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg shadow">
-            <PieChart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No {viewType === 'budget' ? 'budget items' : 'expenses'} yet
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Start by adding your first {viewType === 'budget' ? 'budget item' : 'expense'} to track project finances.
-            </p>
-            <button
-              onClick={() => {
-                setEditingItem(null)
-                setIsModalOpen(true)
-              }}
-              className="text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Add {viewType === 'budget' ? 'Budget Item' : 'Expense'}
-            </button>
+                    {/* Actions */}
+                    <td className="px-1 py-1 text-center">
+                      <div className="flex items-center justify-center gap-0.5">
+                        <button
+                          onClick={() => {
+                            setEditingItem(item)
+                            setIsModalOpen(true)
+                          }}
+                          className="p-0.5 text-gray-400 hover:text-gray-600 rounded"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm('Delete this item?')) {
+                              deleteMutation.mutate(item.id)
+                            }
+                          }}
+                          className="p-0.5 text-gray-400 hover:text-red-600 rounded"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {/* Totals Row */}
+              <tr className="bg-gray-100 border-t-2 border-gray-300">
+                <td className="px-1 py-1.5 border-r border-gray-200"></td>
+                <td className="px-2 py-1.5 border-r border-gray-200 font-semibold text-gray-700" colSpan={5}>
+                  Total ({sortedItems.length} items)
+                </td>
+                <td className="px-2 py-1.5 border-r border-gray-200 text-right font-bold text-gray-900">
+                  {formatCurrency(sortedItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount * item.quantity), 0))}
+                </td>
+                {viewType === 'expenses' && (
+                  <td className="px-2 py-1.5 border-r border-gray-200 text-center">
+                    <span className="text-[10px] text-gray-500">
+                      {sortedItems.filter((i: BudgetItem) => i.isPaid).length}/{sortedItems.length}
+                    </span>
+                  </td>
+                )}
+                <td className="px-1 py-1.5"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Category Breakdown (compact) */}
+      {sortedItems.length > 0 && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-2 py-1.5 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-700">
+            By Category
           </div>
-        )}
-      </div>
+          <table className="w-full text-xs">
+            <tbody>
+              {(Object.entries(
+                sortedItems.reduce((acc: { [key: string]: number }, item: BudgetItem) => {
+                  acc[item.category] = (acc[item.category] || 0) + (item.amount * item.quantity)
+                  return acc
+                }, {})
+              ) as [string, number][])
+                .sort((a, b) => b[1] - a[1])
+                .map(([category, total], idx) => {
+                  const percentage = sortedItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount * item.quantity), 0) > 0
+                    ? ((total as number) / sortedItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount * item.quantity), 0)) * 100
+                    : 0
+                  return (
+                    <tr key={category} className={`border-b border-gray-100 last:border-0 ${idx % 2 === 1 ? 'bg-gray-50' : ''}`}>
+                      <td className="px-2 py-1.5 font-medium text-gray-700 w-[120px]">{category}</td>
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+                            <div
+                              className="h-1.5 rounded-full bg-primary-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-gray-500 w-10 text-right">{percentage.toFixed(0)}%</span>
+                        </div>
+                      </td>
+                      <td className="px-2 py-1.5 text-right font-medium text-gray-900 w-[90px]">
+                        {formatCurrency(total as number)}
+                      </td>
+                    </tr>
+                  )
+                })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsModalOpen(false)} />
-            
-            <div className="relative transform rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6">
-              <div className="absolute right-0 top-0 pr-4 pt-4">
-                <button
-                  type="button"
-                  className="rounded-md bg-white text-gray-400 hover:text-gray-500"
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              
-              <div className="sm:flex sm:items-start">
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-                  <h3 className="text-lg font-medium leading-6 text-gray-900 mb-6">
-                    {editingItem ? 'Edit' : 'Add'} {viewType === 'budget' ? 'Budget Item' : 'Expense'}
-                  </h3>
-                  
-                  <Formik
-                    initialValues={{
-                      name: editingItem?.name || '',
-                      description: editingItem?.description || '',
-                      category: editingItem?.category || '',
-                      amount: editingItem?.amount || 0,
-                      quantity: editingItem?.quantity || 1,
-                      unit: editingItem?.unit || '',
-                      isExpense: editingItem?.isExpense ?? (viewType === 'expenses'),
-                      isPaid: editingItem?.isPaid || false
-                    }}
-                    validationSchema={budgetItemSchema}
-                    onSubmit={(values) => {
-                      if (editingItem) {
-                        updateMutation.mutate({ itemId: editingItem.id, data: values })
-                      } else {
-                        createMutation.mutate(values)
-                      }
-                    }}
-                  >
-                    {({ isSubmitting, values }) => (
-                      <Form className="space-y-4">
-                        <div>
-                          <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                            Name *
-                          </label>
-                          <Field
-                            id="name"
-                            name="name"
-                            type="text"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            placeholder="e.g., Materials, Labor, Equipment"
-                          />
-                          <ErrorMessage name="name" component="p" className="mt-1 text-sm text-red-600" />
-                        </div>
-
-                        <div>
-                          <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                            Description
-                          </label>
-                          <Field
-                            as="textarea"
-                            id="description"
-                            name="description"
-                            rows={3}
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            placeholder="Optional description..."
-                          />
-                          <ErrorMessage name="description" component="p" className="mt-1 text-sm text-red-600" />
-                        </div>
-
-                        <div>
-                          <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                            Category *
-                          </label>
-                          <Field
-                            id="category"
-                            name="category"
-                            type="text"
-                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            placeholder="e.g., Materials, Labor, Equipment, Permits"
-                          />
-                          <ErrorMessage name="category" component="p" className="mt-1 text-sm text-red-600" />
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-4">
-                          <div>
-                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
-                              Quantity *
-                            </label>
-                            <Field
-                              id="quantity"
-                              name="quantity"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            />
-                            <ErrorMessage name="quantity" component="p" className="mt-1 text-sm text-red-600" />
-                          </div>
-
-                          <div>
-                            <label htmlFor="unit" className="block text-sm font-medium text-gray-700">
-                              Unit
-                            </label>
-                            <Field
-                              id="unit"
-                              name="unit"
-                              type="text"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                              placeholder="e.g., hours, sq ft"
-                            />
-                            <ErrorMessage name="unit" component="p" className="mt-1 text-sm text-red-600" />
-                          </div>
-
-                          <div>
-                            <label htmlFor="amount" className="block text-sm font-medium text-gray-700">
-                              Unit Price * ({currencySymbol})
-                            </label>
-                            <Field
-                              id="amount"
-                              name="amount"
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                            />
-                            <ErrorMessage name="amount" component="p" className="mt-1 text-sm text-red-600" />
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-gray-50 rounded-lg">
-                          <p className="text-sm text-gray-600">
-                            Total: <span className="font-semibold">
-                              {formatCurrency((values.quantity || 0) * (values.amount || 0))}
-                            </span>
-                          </p>
-                        </div>
-
-                        <div className="flex items-center space-x-4">
-                          <label className="flex items-center">
-                            <Field
-                              type="checkbox"
-                              name="isExpense"
-                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">This is an expense</span>
-                          </label>
-
-                          {values.isExpense && (
-                            <label className="flex items-center">
-                              <Field
-                                type="checkbox"
-                                name="isPaid"
-                                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                              />
-                              <span className="ml-2 text-sm text-gray-700">Mark as paid</span>
-                            </label>
-                          )}
-                        </div>
-
-                        <div className="flex justify-end space-x-3 pt-4">
-                          <button
-                            type="button"
-                            onClick={() => setIsModalOpen(false)}
-                            className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}
-                            className="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-                          >
-                            {isSubmitting || createMutation.isPending || updateMutation.isPending 
-                              ? 'Saving...' 
-                              : editingItem ? 'Update' : 'Create'
-                            }
-                          </button>
-                        </div>
-                      </Form>
-                    )}
-                  </Formik>
-                </div>
-              </div>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-900">
+                {editingItem ? 'Edit' : 'Add'} {viewType === 'budget' ? 'Budget Item' : 'Expense'}
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-4 w-4" />
+              </button>
             </div>
+
+            <Formik
+              initialValues={{
+                name: editingItem?.name || '',
+                description: editingItem?.description || '',
+                category: editingItem?.category || '',
+                amount: editingItem?.amount || 0,
+                quantity: editingItem?.quantity || 1,
+                unit: editingItem?.unit || '',
+                isExpense: editingItem?.isExpense ?? (viewType === 'expenses'),
+                isPaid: editingItem?.isPaid || false
+              }}
+              validationSchema={budgetItemSchema}
+              onSubmit={(values) => {
+                if (editingItem) {
+                  updateMutation.mutate({ itemId: editingItem.id, data: values })
+                } else {
+                  createMutation.mutate(values)
+                }
+              }}
+            >
+              {({ isSubmitting, values }) => (
+                <Form className="p-4 space-y-3">
+                  <div>
+                    <label htmlFor="name" className="block text-xs font-medium text-gray-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <Field
+                      id="name"
+                      name="name"
+                      type="text"
+                      className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      placeholder="e.g., Materials, Labor"
+                    />
+                    <ErrorMessage name="name" component="p" className="mt-0.5 text-[10px] text-red-600" />
+                  </div>
+
+                  <div>
+                    <label htmlFor="description" className="block text-xs font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <Field
+                      as="textarea"
+                      id="description"
+                      name="description"
+                      rows={2}
+                      className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      placeholder="Optional description..."
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="category" className="block text-xs font-medium text-gray-700 mb-1">
+                      Category <span className="text-red-500">*</span>
+                    </label>
+                    <Field
+                      id="category"
+                      name="category"
+                      type="text"
+                      className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      placeholder="e.g., Materials, Labor, Equipment"
+                    />
+                    <ErrorMessage name="category" component="p" className="mt-0.5 text-[10px] text-red-600" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label htmlFor="quantity" className="block text-xs font-medium text-gray-700 mb-1">
+                        Qty <span className="text-red-500">*</span>
+                      </label>
+                      <Field
+                        id="quantity"
+                        name="quantity"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="unit" className="block text-xs font-medium text-gray-700 mb-1">
+                        Unit
+                      </label>
+                      <Field
+                        id="unit"
+                        name="unit"
+                        type="text"
+                        className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        placeholder="hrs, sqft"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="amount" className="block text-xs font-medium text-gray-700 mb-1">
+                        Price ({currencySymbol}) <span className="text-red-500">*</span>
+                      </label>
+                      <Field
+                        id="amount"
+                        name="amount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-2 bg-gray-50 rounded text-xs text-gray-600">
+                    Total: <span className="font-semibold text-gray-900">
+                      {formatCurrency((values.quantity || 0) * (values.amount || 0))}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-4 text-xs">
+                    <label className="flex items-center">
+                      <Field
+                        type="checkbox"
+                        name="isExpense"
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 h-3.5 w-3.5"
+                      />
+                      <span className="ml-1.5 text-gray-700">This is an expense</span>
+                    </label>
+
+                    {values.isExpense && (
+                      <label className="flex items-center">
+                        <Field
+                          type="checkbox"
+                          name="isPaid"
+                          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 h-3.5 w-3.5"
+                        />
+                        <span className="ml-1.5 text-gray-700">Mark as paid</span>
+                      </label>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3 border-t">
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="px-3 py-1.5 text-xs text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || createMutation.isPending || updateMutation.isPending}
+                      className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+                    >
+                      {isSubmitting || createMutation.isPending || updateMutation.isPending
+                        ? 'Saving...'
+                        : editingItem ? 'Save' : 'Add'
+                      }
+                    </button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
           </div>
         </div>
       )}
