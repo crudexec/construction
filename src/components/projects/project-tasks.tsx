@@ -374,6 +374,7 @@ function TableTaskRow({
   shareTask,
   setAnalyticsTaskId,
   categories,
+  milestones,
   members,
   dragProvided,
   isDragging
@@ -391,6 +392,7 @@ function TableTaskRow({
   shareTask: (taskId: string) => void
   setAnalyticsTaskId: (taskId: string) => void
   categories: TaskCategory[]
+  milestones: any[]
   members: any[]
   dragProvided?: any
   isDragging?: boolean
@@ -540,6 +542,23 @@ function TableTaskRow({
           {categories.map((category: TaskCategory) => (
             <option key={category.id} value={category.id}>
               {category.name}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="px-2 py-1 border-r border-gray-200">
+        <select
+          value={task.milestone?.id || ''}
+          onChange={(e) => updateMutation.mutate({
+            taskId: task.id,
+            data: { milestoneId: e.target.value || null }
+          })}
+          className="text-[10px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 max-w-[80px] truncate"
+        >
+          <option value="">-</option>
+          {milestones.map((milestone: any) => (
+            <option key={milestone.id} value={milestone.id}>
+              {milestone.title}
             </option>
           ))}
         </select>
@@ -995,7 +1014,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
       if (!response.ok) throw new Error('Failed to fetch milestones')
       return response.json()
     },
-    enabled: !!projectId && groupBy === 'milestone'
+    enabled: !!projectId
   })
 
   const { data: teamMembers = [] } = useQuery({
@@ -1276,6 +1295,10 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
     } else if (sortColumn === 'category') {
       aVal = a.category?.name || ''
       bVal = b.category?.name || ''
+    } else if (sortColumn === 'milestone') {
+      // Sort by milestone order, tasks without milestone go to the end
+      aVal = a.milestone?.order ?? Number.MAX_VALUE
+      bVal = b.milestone?.order ?? Number.MAX_VALUE
     } else if (sortColumn === 'dueDate') {
       // Tasks with no due date go to the end
       aVal = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_VALUE
@@ -1625,6 +1648,17 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
                     </div>
                   </th>
                   <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[90px]"
+                    onClick={() => handleSort('milestone')}
+                  >
+                    <div className="flex items-center gap-1">
+                      Milestone
+                      {sortColumn === 'milestone' && (
+                        sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+                      )}
+                    </div>
+                  </th>
+                  <th
                     className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[80px]"
                     onClick={() => handleSort('dueDate')}
                   >
@@ -1674,6 +1708,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
                             shareTask={shareTask}
                             setAnalyticsTaskId={setAnalyticsTaskId}
                             categories={categories}
+                            milestones={milestones}
                             members={teamMembers}
                             dragProvided={provided}
                             isDragging={snapshot.isDragging}
