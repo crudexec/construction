@@ -506,7 +506,8 @@ export default function VendorDetailPage() {
     startDate: '',
     endDate: '',
     terms: '',
-    notes: ''
+    notes: '',
+    projectId: ''
   })
   const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const [expandedMilestones, setExpandedMilestones] = useState<Set<string>>(new Set())
@@ -626,7 +627,7 @@ export default function VendorDetailPage() {
       if (!response.ok) throw new Error('Failed to fetch projects')
       return response.json()
     },
-    enabled: isAddMilestoneModalOpen || isAddTaskModalOpen
+    enabled: isAddMilestoneModalOpen || isAddTaskModalOpen || isContractModalOpen
   })
 
   // Fetch categories for the selected project (when adding a task)
@@ -818,7 +819,8 @@ export default function VendorDetailPage() {
           startDate: data.startDate,
           endDate: data.endDate,
           terms: data.terms || undefined,
-          notes: data.notes || undefined
+          notes: data.notes || undefined,
+          projectIds: data.projectId ? [data.projectId] : undefined
         })
       })
 
@@ -840,7 +842,8 @@ export default function VendorDetailPage() {
         startDate: '',
         endDate: '',
         terms: '',
-        notes: ''
+        notes: '',
+        projectId: ''
       })
     }
   })
@@ -2453,6 +2456,25 @@ export default function VendorDetailPage() {
                     <option value="ADDENDUM">Addendum</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Associated Project
+                </label>
+                <select
+                  value={contractForm.projectId}
+                  onChange={(e) => setContractForm({ ...contractForm, projectId: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">No project (can be linked later)</option>
+                  {allProjects.map((project: { id: string; title: string; status: string }) => (
+                    <option key={project.id} value={project.id}>
+                      {project.title} ({project.status})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">Link this contract to a project for better tracking</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
