@@ -50,6 +50,21 @@ export async function GET(
               }
             }
           }
+        },
+        documents: {
+          orderBy: { createdAt: 'desc' }
+        },
+        payments: {
+          orderBy: { paymentDate: 'desc' },
+          include: {
+            createdBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          }
         }
       }
     })
