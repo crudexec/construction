@@ -1,17 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import {
   Plus,
-  Eye,
-  Edit,
-  Trash2,
-  Users,
+  Search,
   Building,
-  MapPin,
-  Search
+  ChevronUp,
+  ChevronDown,
+  Download
 } from 'lucide-react'
 import { AddProjectModal } from '@/components/projects/add-project-modal'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -60,12 +58,15 @@ interface Project {
   updatedAt: string
 }
 
+type SortField = 'title' | 'contactName' | 'status' | 'priority' | 'budget' | 'progress' | 'startDate' | 'endDate' | 'assignedUsers' | 'createdAt'
+type SortDirection = 'asc' | 'desc'
+
 async function fetchProjects() {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch('/api/project', {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -82,6 +83,9 @@ export default function ProjectsPage() {
   const [selectedStatus, setSelectedStatus] = useState('all')
   const [selectedPriority, setSelectedPriority] = useState('all')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+  const [sortField, setSortField] = useState<SortField>('title')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   const { format: formatCurrency } = useCurrency()
 
   const { data: projects = [], isLoading, refetch } = useQuery({
@@ -93,28 +97,108 @@ export default function ProjectsPage() {
   const statuses = ['ACTIVE', 'COMPLETED', 'CANCELLED']
 
   // Filter projects
-  const filteredProjects = projects.filter((project: Project) => {
-    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.projectAddress?.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus
-    const matchesPriority = selectedPriority === 'all' || project.priority === selectedPriority
-    
-    return matchesSearch && matchesStatus && matchesPriority
-  })
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project: Project) => {
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.contactName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.projectAddress?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.projectCity?.toLowerCase().includes(searchTerm.toLowerCase())
+
+      const matchesStatus = selectedStatus === 'all' || project.status === selectedStatus
+      const matchesPriority = selectedPriority === 'all' || project.priority === selectedPriority
+
+      return matchesSearch && matchesStatus && matchesPriority
+    })
+  }, [projects, searchTerm, selectedStatus, selectedPriority])
+
+  // Sort projects
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a: Project, b: Project) => {
+      let comparison = 0
+      switch (sortField) {
+        case 'title':
+          comparison = a.title.localeCompare(b.title)
+          break
+        case 'contactName':
+          comparison = (a.contactName || '').localeCompare(b.contactName || '')
+          break
+        case 'status':
+          comparison = a.status.localeCompare(b.status)
+          break
+        case 'priority':
+          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+          comparison = (priorityOrder[a.priority as keyof typeof priorityOrder] || 0) -
+                       (priorityOrder[b.priority as keyof typeof priorityOrder] || 0)
+          break
+        case 'budget':
+          comparison = (a.budget || 0) - (b.budget || 0)
+          break
+        case 'progress':
+          comparison = (a.metrics?.progress || 0) - (b.metrics?.progress || 0)
+          break
+        case 'startDate':
+          comparison = new Date(a.startDate || 0).getTime() - new Date(b.startDate || 0).getTime()
+          break
+        case 'endDate':
+          comparison = new Date(a.endDate || 0).getTime() - new Date(b.endDate || 0).getTime()
+          break
+        case 'assignedUsers':
+          comparison = a.assignedUsers.length - b.assignedUsers.length
+          break
+        case 'createdAt':
+          comparison = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          break
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
+  }, [filteredProjects, sortField, sortDirection])
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const handleSelectAll = () => {
+    if (selectedRows.size === sortedProjects.length) {
+      setSelectedRows(new Set())
+    } else {
+      setSelectedRows(new Set(sortedProjects.map((p: Project) => p.id)))
+    }
+  }
+
+  const handleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newSelected = new Set(selectedRows)
+    if (newSelected.has(id)) {
+      newSelected.delete(id)
+    } else {
+      newSelected.add(id)
+    }
+    setSelectedRows(newSelected)
+  }
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ChevronUp className="h-3 w-3 text-gray-300" />
+    return sortDirection === 'asc'
+      ? <ChevronUp className="h-3 w-3 text-gray-700" />
+      : <ChevronDown className="h-3 w-3 text-gray-700" />
+  }
 
   const priorityColors = {
-    LOW: 'bg-gray-100 text-gray-800',
-    MEDIUM: 'bg-blue-100 text-blue-800',
-    HIGH: 'bg-orange-100 text-orange-800',
-    URGENT: 'bg-red-100 text-red-800',
+    LOW: 'bg-gray-100 text-gray-700',
+    MEDIUM: 'bg-blue-100 text-blue-700',
+    HIGH: 'bg-orange-100 text-orange-700',
+    URGENT: 'bg-red-100 text-red-700',
   }
 
   const statusColors = {
-    ACTIVE: 'bg-green-100 text-green-800',
-    COMPLETED: 'bg-blue-100 text-blue-800',
-    CANCELLED: 'bg-red-100 text-red-800',
+    ACTIVE: 'bg-green-100 text-green-700',
+    COMPLETED: 'bg-blue-100 text-blue-700',
+    CANCELLED: 'bg-red-100 text-red-700',
   }
 
   const getProgressColor = (progress: number) => {
@@ -124,200 +208,237 @@ export default function ProjectsPage() {
     return 'bg-red-500'
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: '2-digit'
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   return (
     <>
-      <div className="space-y-3">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Projects</h1>
-            <p className="text-sm text-gray-500">
-              {filteredProjects.length} of {projects.length} projects
-            </p>
+      <div className="space-y-2">
+        {/* Compact Toolbar */}
+        <div className="bg-white border border-gray-300 rounded px-2 py-1.5 flex flex-wrap items-center gap-2">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-7 w-full rounded border border-gray-300 py-1 px-2 text-xs focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            />
           </div>
+
+          {/* Status Filter */}
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className="rounded border border-gray-300 py-1 px-2 text-xs focus:border-primary-500 focus:outline-none bg-white"
+          >
+            <option value="all">All Status</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+
+          {/* Priority Filter */}
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+            className="rounded border border-gray-300 py-1 px-2 text-xs focus:border-primary-500 focus:outline-none bg-white"
+          >
+            <option value="all">All Priority</option>
+            {priorities.map((priority) => (
+              <option key={priority} value={priority}>{priority}</option>
+            ))}
+          </select>
+
+          <div className="flex-1" />
+
+          {/* Count */}
+          <span className="text-[10px] text-gray-500">
+            {filteredProjects.length} of {projects.length}
+          </span>
+
+          {/* Export */}
+          <button className="p-1 hover:bg-gray-100 rounded" title="Export">
+            <Download className="h-3.5 w-3.5 text-gray-500" />
+          </button>
+
+          {/* Add Button */}
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="bg-primary-600 text-white px-3 py-1.5 rounded-md hover:bg-primary-700 flex items-center space-x-1.5"
+            className="bg-primary-600 text-white px-2 py-1 rounded text-xs hover:bg-primary-700 flex items-center gap-1"
           >
-            <Plus className="h-4 w-4" />
-            <span>New Project</span>
+            <Plus className="h-3 w-3" />
+            <span>New</span>
           </button>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-3 rounded-lg shadow">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 w-full rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="all">All Status</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-
-            {/* Priority Filter */}
-            <select
-              value={selectedPriority}
-              onChange={(e) => setSelectedPriority(e.target.value)}
-              className="rounded-md border border-gray-300 py-2 px-3 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-            >
-              <option value="all">All Priorities</option>
-              {priorities.map((priority) => (
-                <option key={priority} value={priority}>
-                  {priority}
-                </option>
-              ))}
-            </select>
-
-            {/* Results Count */}
-            <div className="flex items-center text-sm text-gray-500">
-              Showing {filteredProjects.length} of {projects.length} projects
-            </div>
-          </div>
-        </div>
-
-        {/* Projects Table */}
-        <div className="bg-white shadow rounded-lg overflow-hidden">
+        {/* Excel-like Table */}
+        <div className="border border-gray-300 rounded overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300">
+                  <th className="w-8 px-1 py-1.5 border-r border-gray-200">
+                    <input
+                      type="checkbox"
+                      checked={selectedRows.size === sortedProjects.length && sortedProjects.length > 0}
+                      onChange={handleSelectAll}
+                      className="h-3 w-3 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact
+                  <th className="w-6 px-1 py-1.5 border-r border-gray-200 text-center text-gray-500">#</th>
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[200px]"
+                    onClick={() => handleSort('title')}
+                  >
+                    <div className="flex items-center gap-1">Project <SortIcon field="title" /></div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[120px]"
+                    onClick={() => handleSort('contactName')}
+                  >
+                    <div className="flex items-center gap-1">Contact <SortIcon field="contactName" /></div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Priority
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[80px]"
+                    onClick={() => handleSort('status')}
+                  >
+                    <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Budget
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[70px]"
+                    onClick={() => handleSort('priority')}
+                  >
+                    <div className="flex items-center gap-1">Priority <SortIcon field="priority" /></div>
                   </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Progress
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[100px]"
+                    onClick={() => handleSort('budget')}
+                  >
+                    <div className="flex items-center justify-end gap-1">Budget <SortIcon field="budget" /></div>
                   </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[100px]"
+                    onClick={() => handleSort('progress')}
+                  >
+                    <div className="flex items-center gap-1">Progress <SortIcon field="progress" /></div>
+                  </th>
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[75px]"
+                    onClick={() => handleSort('startDate')}
+                  >
+                    <div className="flex items-center gap-1">Start <SortIcon field="startDate" /></div>
+                  </th>
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[75px]"
+                    onClick={() => handleSort('endDate')}
+                  >
+                    <div className="flex items-center gap-1">End <SortIcon field="endDate" /></div>
+                  </th>
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-center font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[50px]"
+                    onClick={() => handleSort('assignedUsers')}
+                  >
+                    <div className="flex items-center justify-center gap-1">Team <SortIcon field="assignedUsers" /></div>
+                  </th>
+                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700 min-w-[120px]">
+                    Location
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredProjects.map((project: Project) => (
+              <tbody>
+                {sortedProjects.map((project: Project, index: number) => (
                   <tr
                     key={project.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer ${
+                      selectedRows.has(project.id)
+                        ? 'bg-blue-100'
+                        : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+                    }`}
                     onClick={() => router.push(`/dashboard/projects/${project.id}`)}
                   >
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{project.title}</div>
-                        {project.projectAddress && (
-                          <div className="text-xs text-gray-500 flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            {project.projectCity || project.projectAddress}
-                          </div>
-                        )}
+                    <td className="px-1 py-1 border-r border-gray-200 text-center" onClick={(e) => handleSelectRow(project.id, e)}>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(project.id)}
+                        onChange={() => {}}
+                        className="h-3 w-3 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                    </td>
+                    <td className="px-1 py-1 border-r border-gray-200 text-center text-[10px] text-gray-400">
+                      {index + 1}
+                    </td>
+                    <td className="px-2 py-1 border-r border-gray-200">
+                      <div className="font-medium text-gray-900 truncate max-w-[200px]" title={project.title}>
+                        {project.title}
                       </div>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div>
-                        {project.contactName && (
-                          <div className="text-sm font-medium text-gray-900">{project.contactName}</div>
-                        )}
-                        {project.assignedUsers.length > 0 && (
-                          <div className="text-xs text-gray-500 flex items-center">
-                            <Users className="h-3 w-3 mr-1" />
-                            {project.assignedUsers.length} assigned
-                          </div>
-                        )}
-                      </div>
+                    <td className="px-2 py-1 border-r border-gray-200 text-gray-600 truncate max-w-[120px]" title={project.contactName}>
+                      {project.contactName || '-'}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-                          statusColors[project.status as keyof typeof statusColors]
-                        }`}
-                      >
+                    <td className="px-2 py-1 border-r border-gray-200">
+                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                        statusColors[project.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-700'
+                      }`}>
                         {project.status}
                       </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-                          priorityColors[project.priority as keyof typeof priorityColors]
-                        }`}
-                      >
+                    <td className="px-2 py-1 border-r border-gray-200">
+                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                        priorityColors[project.priority as keyof typeof priorityColors] || 'bg-gray-100 text-gray-700'
+                      }`}>
                         {project.priority}
                       </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-2 py-1 border-r border-gray-200 text-right text-gray-700 font-mono text-[10px]">
                       {formatCurrency(project.budget || 0)}
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                    <td className="px-2 py-1 border-r border-gray-200">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex-1 bg-gray-200 rounded-full h-1.5 min-w-[40px]">
                           <div
                             className={`h-1.5 rounded-full ${getProgressColor(project.metrics?.progress || 0)}`}
                             style={{ width: `${project.metrics?.progress || 0}%` }}
                           />
                         </div>
-                        <span className="text-xs text-gray-500">{project.metrics?.progress || 0}%</span>
+                        <span className="text-[10px] text-gray-500 w-7 text-right">{project.metrics?.progress || 0}%</span>
                       </div>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/dashboard/projects/${project.id}`)
-                          }}
-                          className="text-primary-600 hover:text-primary-900"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-gray-600 hover:text-gray-900"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-red-600 hover:text-red-900"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
+                    <td className="px-2 py-1 border-r border-gray-200 text-[10px] text-gray-600">
+                      {formatDate(project.startDate)}
+                    </td>
+                    <td className="px-2 py-1 border-r border-gray-200 text-[10px] text-gray-600">
+                      {formatDate(project.endDate)}
+                    </td>
+                    <td className="px-2 py-1 border-r border-gray-200 text-center">
+                      {project.assignedUsers.length > 0 ? (
+                        <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-primary-100 text-primary-700 text-[10px] font-medium">
+                          {project.assignedUsers.length}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1 text-gray-600 truncate max-w-[120px]" title={`${project.projectCity || ''}${project.projectCity && project.projectState ? ', ' : ''}${project.projectState || ''}`}>
+                      {project.projectCity || project.projectState
+                        ? `${project.projectCity || ''}${project.projectCity && project.projectState ? ', ' : ''}${project.projectState || ''}`
+                        : '-'}
                     </td>
                   </tr>
                 ))}
@@ -325,10 +446,10 @@ export default function ProjectsPage() {
             </table>
           </div>
 
-          {filteredProjects.length === 0 && (
-            <div className="text-center py-8">
-              <Building className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-              <div className="text-gray-500 text-sm">
+          {sortedProjects.length === 0 && (
+            <div className="text-center py-6 bg-white">
+              <Building className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <div className="text-gray-500 text-xs">
                 {searchTerm || selectedStatus !== 'all' || selectedPriority !== 'all'
                   ? 'No projects match your filters'
                   : 'No projects found'}
@@ -336,7 +457,7 @@ export default function ProjectsPage() {
               {(!searchTerm && selectedStatus === 'all' && selectedPriority === 'all') && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="mt-2 text-primary-600 hover:text-primary-700 font-medium text-sm"
+                  className="mt-2 text-primary-600 hover:text-primary-700 font-medium text-xs"
                 >
                   Create your first project
                 </button>
@@ -344,6 +465,13 @@ export default function ProjectsPage() {
             </div>
           )}
         </div>
+
+        {/* Selection info */}
+        {selectedRows.size > 0 && (
+          <div className="bg-primary-50 border border-primary-200 rounded px-3 py-1.5 text-xs text-primary-700">
+            {selectedRows.size} project{selectedRows.size > 1 ? 's' : ''} selected
+          </div>
+        )}
       </div>
 
       <AddProjectModal
