@@ -360,10 +360,11 @@ function getDueDateInfo(dueDate: string | null, status: string) {
 }
 
 // Table Row Component for editable tasks
-function TableTaskRow({ 
-  task, 
-  isSelected, 
-  onSelect, 
+function TableTaskRow({
+  task,
+  rowIndex,
+  isSelected,
+  onSelect,
   onStatusChange,
   priorityColors,
   statusColors,
@@ -378,6 +379,7 @@ function TableTaskRow({
   isDragging
 }: {
   task: Task
+  rowIndex: number
   isSelected: boolean
   onSelect: (checked: boolean) => void
   onStatusChange: (taskId: string, status: string) => void
@@ -418,131 +420,123 @@ function TableTaskRow({
     setIsEditingDescription(false)
   }
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-'
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
   return (
-    <tr 
+    <tr
       ref={dragProvided?.innerRef}
       {...dragProvided?.draggableProps}
-      className={`hover:bg-gray-50 ${isDragging ? 'bg-blue-50 opacity-75' : ''}`}
+      className={`border-b border-gray-200 hover:bg-blue-50 ${
+        isDragging ? 'bg-blue-100 opacity-90' : isSelected
+          ? 'bg-blue-100'
+          : rowIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+      }`}
     >
-      <td className="px-2 py-3 whitespace-nowrap">
-        <div 
+      <td className="px-1 py-1 border-r border-gray-200">
+        <div
           {...dragProvided?.dragHandleProps}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500"
         >
-          <GripVertical className="h-4 w-4" />
+          <GripVertical className="h-3 w-3" />
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-1 py-1 border-r border-gray-200 text-center">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelect(e.target.checked)}
-          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+          className="h-3 w-3 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
         />
       </td>
-      <td className="px-3 py-3">
-        <div className="space-y-1">
-          {isEditingTitle ? (
-            <input
-              type="text"
-              value={editTitle}
-              onChange={(e) => setEditTitle(e.target.value)}
-              onBlur={handleTitleSave}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleTitleSave()
-                if (e.key === 'Escape') {
-                  setEditTitle(task.title)
-                  setIsEditingTitle(false)
-                }
-              }}
-              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-sm"
-              autoFocus
-            />
-          ) : (
-            <div 
-              onClick={() => setIsEditingTitle(true)}
-              className="text-sm font-medium text-gray-900 cursor-pointer hover:text-primary-600"
-            >
-              {task.title}
-            </div>
-          )}
-          {isEditingDescription ? (
-            <textarea
-              value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
-              onBlur={handleDescriptionSave}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  setEditDescription(task.description || '')
-                  setIsEditingDescription(false)
-                }
-              }}
-              className="w-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500 text-xs"
-              rows={2}
-            />
-          ) : (
-            <div 
-              onClick={() => setIsEditingDescription(true)}
-              className="text-xs text-gray-500 cursor-pointer hover:text-gray-700"
-            >
-              {task.description || <span className="italic">Add description...</span>}
-            </div>
-          )}
-        </div>
+      <td className="px-1 py-1 border-r border-gray-200 text-center text-[10px] text-gray-400">
+        {rowIndex + 1}
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-1 border-r border-gray-200">
+        {isEditingTitle ? (
+          <input
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={handleTitleSave}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleTitleSave()
+              if (e.key === 'Escape') {
+                setEditTitle(task.title)
+                setIsEditingTitle(false)
+              }
+            }}
+            className="w-full px-1 py-0.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary-500"
+            autoFocus
+          />
+        ) : (
+          <div
+            onClick={() => setIsEditingTitle(true)}
+            className="text-xs font-medium text-gray-900 cursor-pointer hover:text-primary-600 truncate max-w-[180px]"
+            title={task.title}
+          >
+            {task.title}
+          </div>
+        )}
+      </td>
+      <td className="px-2 py-1 border-r border-gray-200">
         <select
           value={task.status}
           onChange={(e) => onStatusChange(task.id, e.target.value)}
-          className={`text-xs rounded-full px-2 py-1 font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${statusColors[task.status]}`}
+          className={`text-[10px] rounded px-1 py-0.5 font-medium border-0 cursor-pointer focus:outline-none ${statusColors[task.status]}`}
         >
           <option value="TODO">TODO</option>
-          <option value="IN_PROGRESS">IN PROGRESS</option>
-          <option value="COMPLETED">COMPLETED</option>
+          <option value="IN_PROGRESS">IN PROG</option>
+          <option value="COMPLETED">DONE</option>
         </select>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-1 border-r border-gray-200">
         <select
           value={task.priority}
-          onChange={(e) => updateMutation.mutate({ 
-            taskId: task.id, 
-            data: { priority: e.target.value } 
+          onChange={(e) => updateMutation.mutate({
+            taskId: task.id,
+            data: { priority: e.target.value }
           })}
-          className={`text-xs rounded-full px-2 py-1 font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${priorityColors[task.priority]}`}
+          className={`text-[10px] rounded px-1 py-0.5 font-medium border-0 cursor-pointer focus:outline-none ${priorityColors[task.priority]}`}
         >
           <option value="LOW">LOW</option>
-          <option value="MEDIUM">MEDIUM</option>
+          <option value="MEDIUM">MED</option>
           <option value="HIGH">HIGH</option>
-          <option value="URGENT">URGENT</option>
+          <option value="URGENT">URG</option>
         </select>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-1 border-r border-gray-200">
         <select
           value={task.assignee?.id || ''}
-          onChange={(e) => updateMutation.mutate({ 
-            taskId: task.id, 
-            data: { assigneeId: e.target.value || null } 
+          onChange={(e) => updateMutation.mutate({
+            taskId: task.id,
+            data: { assigneeId: e.target.value || null }
           })}
-          className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="text-[10px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 max-w-[90px] truncate"
         >
-          <option value="">Unassigned</option>
+          <option value="">-</option>
           {members.map((member: any) => (
             <option key={member.id} value={member.id}>
-              {member.firstName} {member.lastName}
+              {member.firstName} {member.lastName?.charAt(0)}.
             </option>
           ))}
         </select>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-1 border-r border-gray-200">
         <select
           value={task.category?.id || ''}
-          onChange={(e) => updateMutation.mutate({ 
-            taskId: task.id, 
-            data: { categoryId: e.target.value || null } 
+          onChange={(e) => updateMutation.mutate({
+            taskId: task.id,
+            data: { categoryId: e.target.value || null }
           })}
-          className="text-sm text-gray-900 border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="text-[10px] text-gray-700 border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 max-w-[80px] truncate"
         >
-          <option value="">Uncategorized</option>
+          <option value="">-</option>
           {categories.map((category: TaskCategory) => (
             <option key={category.id} value={category.id}>
               {category.name}
@@ -550,75 +544,48 @@ function TableTaskRow({
           ))}
         </select>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
-        <div className="space-y-1">
+      <td className="px-2 py-1 border-r border-gray-200">
+        <div className="flex items-center gap-1">
           {(() => {
             const dueDateInfo = getDueDateInfo(task.dueDate || null, task.status)
             return dueDateInfo ? (
-              <div className="flex justify-center mb-1">
-                {dueDateInfo.icon === 'AlertTriangle' && (
-                  <div 
-                    className="h-3 w-3 rounded-full bg-red-500 border border-red-600 cursor-pointer"
-                    title={dueDateInfo.tooltip || dueDateInfo.label}
-                  ></div>
-                )}
-                {dueDateInfo.icon === 'Calendar' && (
-                  <div 
-                    className="h-3 w-3 rounded-full bg-orange-500 border border-orange-600 cursor-pointer"
-                    title={dueDateInfo.tooltip || dueDateInfo.label}
-                  ></div>
-                )}
-                {dueDateInfo.icon === 'Clock' && (
-                  <div 
-                    className="h-3 w-3 rounded-full bg-yellow-500 border border-yellow-600 cursor-pointer"
-                    title={dueDateInfo.tooltip || dueDateInfo.label}
-                  ></div>
-                )}
-              </div>
+              <div
+                className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                  dueDateInfo.icon === 'AlertTriangle' ? 'bg-red-500' :
+                  dueDateInfo.icon === 'Calendar' ? 'bg-orange-500' : 'bg-yellow-500'
+                }`}
+                title={dueDateInfo.tooltip || dueDateInfo.label}
+              />
             ) : null
           })()}
-          <DatePicker
-            value={task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : ''}
-            onChange={(date) => updateMutation.mutate({
-              taskId: task.id,
-              data: { dueDate: date ? new Date(date) : null }
-            })}
-            placeholder="Select date"
-          />
+          <span className="text-[10px] text-gray-600">{formatDate(task.dueDate)}</span>
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap text-sm text-gray-500">
-        {new Date(task.createdAt).toLocaleDateString()}
+      <td className="px-2 py-1 border-r border-gray-200 text-[10px] text-gray-500">
+        {formatDate(task.createdAt)}
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
-        <div className="flex items-center space-x-1">
+      <td className="px-1 py-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => shareTask(task.id)}
-            className="text-gray-400 hover:text-blue-600 p-1"
-            title="Share Task"
+            className="text-gray-400 hover:text-blue-600 p-0.5"
+            title="Share"
           >
-            <Share className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => setAnalyticsTaskId(task.id)}
-            className="text-gray-400 hover:text-purple-600 p-1"
-            title="View Analytics"
-          >
-            <Eye className="h-3.5 w-3.5" />
+            <Share className="h-3 w-3" />
           </button>
           <button
             onClick={() => duplicateMutation.mutate(task.id)}
-            className="text-gray-400 hover:text-indigo-600 p-1"
+            className="text-gray-400 hover:text-indigo-600 p-0.5"
             title="Duplicate"
           >
-            <Copy className="h-3.5 w-3.5" />
+            <Copy className="h-3 w-3" />
           </button>
           <button
             onClick={() => deleteMutation.mutate(task.id)}
-            className="text-gray-400 hover:text-red-600 p-1"
+            className="text-gray-400 hover:text-red-600 p-0.5"
             title="Delete"
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <Trash2 className="h-3 w-3" />
           </button>
         </div>
       </td>
@@ -1589,115 +1556,108 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
 
       {/* Task View - Conditional rendering based on viewType */}
       {viewType === 'table' ? (
-        /* Table View */
+        /* Table View - Excel-like */
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="border border-gray-300 rounded overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="w-8 px-2 py-3"></th>
-                    <th scope="col" className="w-12 px-3 py-3">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-100 border-b border-gray-300">
+                    <th className="w-6 px-1 py-1.5 border-r border-gray-200"></th>
+                    <th className="w-8 px-1 py-1.5 border-r border-gray-200">
                       <input
                         type="checkbox"
                         checked={selectedTasks.size === filteredTasks.length && filteredTasks.length > 0}
                         onChange={(e) => handleSelectAll(e.target.checked)}
-                        className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                        className="h-3 w-3 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
                       />
                     </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    <th className="w-6 px-1 py-1.5 border-r border-gray-200 text-center text-gray-500">#</th>
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[180px]"
                     onClick={() => handleSort('title')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Task</span>
+                    <div className="flex items-center gap-1">
+                      Task
                       {sortColumn === 'title' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[85px]"
                     onClick={() => handleSort('status')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Status</span>
+                    <div className="flex items-center gap-1">
+                      Status
                       {sortColumn === 'status' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[70px]"
                     onClick={() => handleSort('priority')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Priority</span>
+                    <div className="flex items-center gap-1">
+                      Priority
                       {sortColumn === 'priority' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[100px]"
                     onClick={() => handleSort('assignee')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Assignee</span>
+                    <div className="flex items-center gap-1">
+                      Assignee
                       {sortColumn === 'assignee' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[90px]"
                     onClick={() => handleSort('category')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Category</span>
+                    <div className="flex items-center gap-1">
+                      Category
                       {sortColumn === 'category' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[80px]"
                     onClick={() => handleSort('dueDate')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Due Date</span>
+                    <div className="flex items-center gap-1">
+                      Due
                       {sortColumn === 'dueDate' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th 
-                    scope="col" 
-                    className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                  <th
+                    className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-[75px]"
                     onClick={() => handleSort('createdAt')}
                   >
-                    <div className="flex items-center space-x-1">
-                      <span>Created</span>
+                    <div className="flex items-center gap-1">
+                      Created
                       {sortColumn === 'createdAt' && (
                         sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
                       )}
                     </div>
                   </th>
-                  <th scope="col" className="relative px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700 w-[80px]">
                     Actions
                   </th>
                 </tr>
               </thead>
               <Droppable droppableId="table-tasks">
                 {(provided) => (
-                  <tbody 
-                    className="bg-white divide-y divide-gray-200"
+                  <tbody
                     {...provided.droppableProps}
                     ref={provided.innerRef}
                   >
@@ -1706,6 +1666,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
                         {(provided, snapshot) => (
                           <TableTaskRow
                             task={task}
+                            rowIndex={index}
                             isSelected={selectedTasks.has(task.id)}
                             onSelect={(checked) => handleSelectTask(task.id, checked)}
                             onStatusChange={handleStatusChange}
@@ -1731,9 +1692,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
             </table>
           </div>
           {filteredTasks.length === 0 && (
-            <div className="text-center py-12">
-              <CheckSquare className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-              <div className="text-sm text-gray-500 mb-3">
+            <div className="text-center py-6 bg-white">
+              <CheckSquare className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+              <div className="text-xs text-gray-500 mb-2">
                 {searchTerm || selectedCategory !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all'
                   ? 'No tasks match your filters'
                   : 'No tasks found'}
@@ -1741,7 +1702,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
               {(!searchTerm && selectedCategory === 'all' && selectedStatus === 'all' && selectedPriority === 'all') && (
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+                  className="text-xs text-primary-600 hover:text-primary-700 font-medium"
                 >
                   Create your first task
                 </button>
