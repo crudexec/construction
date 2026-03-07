@@ -611,9 +611,9 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
   const [editModalTab, setEditModalTab] = useState<'details' | 'internal' | 'comments' | 'attachments'>('details')
   const [viewType, setViewType] = useState<'list' | 'table'>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('taskViewType') as 'list' | 'table') || 'list'
+      return (localStorage.getItem('taskViewType') as 'list' | 'table') || 'table'
     }
-    return 'list'
+    return 'table'
   })
   const [groupBy, setGroupBy] = useState<'category' | 'milestone'>(() => {
     if (typeof window !== 'undefined') {
