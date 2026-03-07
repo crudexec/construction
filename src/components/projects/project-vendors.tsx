@@ -8,7 +8,6 @@ import {
   Truck,
   Phone,
   Mail,
-  ExternalLink,
   X,
   Check,
   AlertCircle,
@@ -16,7 +15,6 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react'
-import Link from 'next/link'
 import toast from 'react-hot-toast'
 
 interface Vendor {
@@ -381,7 +379,8 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
               {sortedVendors.map((pv, index) => (
                 <tr
                   key={pv.id}
-                  className={`border-b border-gray-200 hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                  onClick={() => window.location.href = `/dashboard/vendors/${pv.vendor.id}`}
+                  className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
                   {/* Row Number */}
                   <td className="px-1 py-1 border-r border-gray-200 text-center text-gray-400">
@@ -427,6 +426,7 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
                     <select
                       value={pv.status.toUpperCase()}
                       onChange={(e) => updateStatusMutation.mutate({ id: pv.id, status: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
                       className={`text-[10px] border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-500 w-full ${getStatusColor(pv.status)}`}
                     >
                       {STATUS_OPTIONS.map(option => (
@@ -441,24 +441,18 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
                   </td>
 
                   {/* Actions */}
-                  <td className="px-1 py-1 text-center">
+                  <td className="px-1 py-1 text-center" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-0.5">
-                      <Link
-                        href={`/dashboard/vendors/${pv.vendor.id}`}
-                        className="p-0.5 text-gray-400 hover:text-primary-600 rounded"
-                        title="View vendor"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation()
                           if (confirm('Remove this vendor from the project?')) {
                             removeVendorMutation.mutate(pv.id)
                           }
                         }}
                         disabled={removeVendorMutation.isPending}
                         className="p-0.5 text-gray-400 hover:text-red-600 rounded disabled:opacity-50"
-                        title="Remove"
+                        title="Remove from project"
                       >
                         <Trash2 className="h-3 w-3" />
                       </button>
