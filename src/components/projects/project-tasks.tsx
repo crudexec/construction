@@ -667,9 +667,8 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
 
     // Handle table view reordering (single droppable for all tasks)
     if (source.droppableId === 'table-tasks' && destination.droppableId === 'table-tasks') {
-      // Use sortedTasks for table view
-      const currentTasks = queryClient.getQueryData<Task[]>(['project-tasks', projectId]) || []
-      const reorderedTasks = [...currentTasks]
+      // Use sortedTasks (filtered/sorted view) for reordering since that's what's rendered
+      const reorderedTasks = [...sortedTasks]
       const [removed] = reorderedTasks.splice(source.index, 1)
 
       if (!removed) {
@@ -679,7 +678,7 @@ export function ProjectTasks({ projectId, shouldOpenAddModal, openTaskId }: Proj
 
       reorderedTasks.splice(destination.index, 0, removed)
 
-      // Get the new order of task IDs
+      // Get the new order of task IDs from the reordered visible tasks
       const reorderedTaskIds = reorderedTasks.map((task: Task) => task.id)
 
       // Optimistically update the UI
