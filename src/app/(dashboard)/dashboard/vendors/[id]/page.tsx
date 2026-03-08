@@ -43,7 +43,6 @@ import AddReviewModal from '@/components/vendors/add-review-modal'
 import { VendorScoreDisplay } from '@/components/vendors/vendor-score-display'
 import AddContactModal from '@/components/vendors/add-contact-modal'
 import EditContactModal from '@/components/vendors/edit-contact-modal'
-import VendorProcurementTab from '@/components/vendors/vendor-procurement-tab'
 import { VendorTagSelector } from '@/components/vendors/vendor-tag-selector'
 import { VendorPurchaseOrdersTab } from '@/components/vendors/vendor-purchase-orders-tab'
 import { VendorCommentsTab } from '@/components/vendors/vendor-comments-tab'
@@ -1229,7 +1228,6 @@ export default function VendorDetailPage() {
             { id: 'reviews', label: 'Reviews' },
             { id: 'comments', label: 'Comments' },
             { id: 'contracts', label: 'Contracts' },
-            { id: 'catalog', label: 'Catalog' },
             { id: 'purchase-orders', label: 'POs' },
             { id: 'portal', label: 'Portal' }
           ].map((tab) => (
@@ -2153,10 +2151,6 @@ export default function VendorDetailPage() {
             </div>
           )}
         </div>
-      )}
-
-      {activeTab === 'catalog' && (
-        <VendorProcurementTab vendorId={vendorId} vendorType={vendor.type} />
       )}
 
       {activeTab === 'purchase-orders' && (
