@@ -95,6 +95,7 @@ export async function fetchChangeOrderData(
   }
 
   return {
+    vendorId: changeOrder.contract.vendor.id,
     changeOrder: {
       number: `CO-${changeOrder.contract.contractNumber}-${changeOrder.changeOrderNumber}`,
       title: changeOrder.title,

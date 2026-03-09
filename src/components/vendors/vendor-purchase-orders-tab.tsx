@@ -37,13 +37,13 @@ interface PurchaseOrder {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
-  DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-800', icon: FileText },
-  PENDING_APPROVAL: { label: 'Pending Approval', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  APPROVED: { label: 'Approved', color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-  SENT: { label: 'Sent', color: 'bg-purple-100 text-purple-800', icon: Send },
-  PARTIALLY_RECEIVED: { label: 'Partially Received', color: 'bg-orange-100 text-orange-800', icon: Package },
-  RECEIVED: { label: 'Received', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  CANCELLED: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircle }
+  DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-700', icon: FileText },
+  PENDING_APPROVAL: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
+  APPROVED: { label: 'Approved', color: 'bg-blue-100 text-blue-700', icon: CheckCircle },
+  SENT: { label: 'Sent', color: 'bg-purple-100 text-purple-700', icon: Send },
+  PARTIALLY_RECEIVED: { label: 'Partial', color: 'bg-orange-100 text-orange-700', icon: Package },
+  RECEIVED: { label: 'Received', color: 'bg-green-100 text-green-700', icon: CheckCircle },
+  CANCELLED: { label: 'Cancelled', color: 'bg-red-100 text-red-700', icon: XCircle }
 }
 
 interface VendorPurchaseOrdersTabProps {
@@ -75,139 +75,110 @@ export function VendorPurchaseOrdersTab({ vendorId }: VendorPurchaseOrdersTabPro
   ).length
 
   return (
-    <div className="space-y-6">
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <FileText className="h-5 w-5 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total POs</p>
-              <p className="text-xl font-semibold">{totalPOs}</p>
-            </div>
-          </div>
+    <div className="space-y-3">
+      {/* Compact Stats Row */}
+      <div className="bg-white rounded border">
+        <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+          <h3 className="text-sm font-medium text-gray-900">Purchase Orders ({totalPOs})</h3>
+          <Link
+            href={`/dashboard/vendors/purchase-orders/new?vendorId=${vendorId}`}
+            className="text-xs text-white bg-primary-600 hover:bg-primary-700 px-2 py-1 rounded flex items-center gap-1"
+          >
+            <Plus className="h-3 w-3" /> Create PO
+          </Link>
         </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <DollarSign className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total Value</p>
-              <p className="text-xl font-semibold">{format(totalValue)}</p>
-            </div>
+        <div className="px-3 py-2 flex items-center gap-6 text-xs">
+          <div className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-blue-500" />
+            <span className="text-gray-500">Total:</span>
+            <span className="font-semibold text-gray-900">{totalPOs}</span>
           </div>
-        </div>
-
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <TrendingUp className="h-5 w-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Pending Deliveries</p>
-              <p className="text-xl font-semibold">{pendingDeliveries}</p>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <DollarSign className="h-3.5 w-3.5 text-green-500" />
+            <span className="text-gray-500">Value:</span>
+            <span className="font-semibold text-gray-900">{format(totalValue)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 text-orange-500" />
+            <span className="text-gray-500">Pending:</span>
+            <span className="font-semibold text-gray-900">{pendingDeliveries}</span>
           </div>
         </div>
       </div>
 
-      {/* Header with Create PO button */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium text-gray-900">Purchase Orders</h3>
-        <Link
-          href={`/dashboard/vendors/purchase-orders/new?vendorId=${vendorId}`}
-          className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create PO for this Vendor
-        </Link>
-      </div>
-
-      {/* Purchase Orders List */}
-      <div className="bg-white rounded-lg shadow border overflow-hidden">
+      {/* Compact PO Table */}
+      <div className="bg-white rounded border overflow-hidden">
         {isLoading ? (
-          <div className="p-8 text-center text-gray-500">Loading purchase orders...</div>
+          <div className="py-6 text-center">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
+          </div>
         ) : purchaseOrders.length === 0 ? (
-          <div className="p-8 text-center">
-            <ShoppingCart className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No purchase orders yet</h3>
-            <p className="text-gray-500 mb-4">
-              Create your first purchase order for this vendor
-            </p>
+          <div className="py-6 text-center">
+            <ShoppingCart className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+            <p className="text-xs text-gray-500 mb-2">No purchase orders yet</p>
             <Link
               href={`/dashboard/vendors/purchase-orders/new?vendorId=${vendorId}`}
-              className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+              className="text-xs text-primary-600 hover:text-primary-800"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Create Purchase Order
+              + Create Purchase Order
             </Link>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
+            <table className="min-w-full">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Order #</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Project</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Status</th>
+                  <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 uppercase">Total</th>
+                  <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Date</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {purchaseOrders.map((po) => {
+              <tbody className="divide-y divide-gray-100">
+                {purchaseOrders.map((po, idx) => {
                   const statusConfig = STATUS_CONFIG[po.status] || STATUS_CONFIG.DRAFT
                   const StatusIcon = statusConfig.icon
 
                   return (
-                    <tr key={po.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <tr
+                      key={po.id}
+                      className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                      onClick={() => window.location.href = `/dashboard/vendors/purchase-orders/${po.id}`}
+                    >
+                      <td className="px-3 py-1.5">
                         <Link
                           href={`/dashboard/vendors/purchase-orders/${po.id}`}
-                          className="text-primary-600 hover:text-primary-800 font-medium"
+                          className="text-xs font-medium text-primary-600 hover:text-primary-800"
+                          onClick={(e) => e.stopPropagation()}
                         >
                           {po.orderNumber}
                         </Link>
-                        <p className="text-xs text-gray-500">{po._count.lineItems} items</p>
+                        <span className="text-[10px] text-gray-400 ml-1">({po._count.lineItems})</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-1.5">
                         {po.project ? (
                           <Link
                             href={`/dashboard/projects/${po.project.id}`}
-                            className="text-gray-900 hover:text-primary-600"
+                            className="text-xs text-gray-700 hover:text-primary-600"
+                            onClick={(e) => e.stopPropagation()}
                           >
                             {po.project.title}
                           </Link>
                         ) : (
-                          <span className="text-gray-400">-</span>
+                          <span className="text-xs text-gray-400">-</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}
-                        >
-                          <StatusIcon className="h-3 w-3 mr-1" />
+                      <td className="px-3 py-1.5">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${statusConfig.color}`}>
+                          <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
                           {statusConfig.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right font-medium text-gray-900">
-                        {format(po.total)}
+                      <td className="px-3 py-1.5 text-right">
+                        <span className="text-xs font-medium text-gray-900">{format(po.total)}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-3 py-1.5 text-xs text-gray-500">
                         {new Date(po.createdAt).toLocaleDateString()}
                       </td>
                     </tr>

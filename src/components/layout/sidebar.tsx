@@ -105,7 +105,7 @@ export function Sidebar() {
       const mobile = window.innerWidth < 768 // md breakpoint
       setIsMobile(mobile)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -114,53 +114,74 @@ export function Sidebar() {
   return (
     <div
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex flex-col bg-gray-900 transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64"
+        "fixed inset-y-0 left-0 z-50 flex flex-col bg-slate-800 border-r border-slate-700 transition-all duration-200",
+        isCollapsed ? "w-12" : "w-48"
       )}
     >
-      <div className="flex h-16 items-center justify-between px-4">
+      {/* Compact Header */}
+      <div className={cn(
+        "flex items-center justify-between h-10 border-b border-slate-700",
+        isCollapsed ? "px-2" : "px-3"
+      )}>
         {!isCollapsed && (
-          <div className="flex items-center space-x-2">
-            <Building2 className="h-8 w-8 text-white" />
-            <span className="text-xl font-bold text-white">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Building2 className="h-4 w-4 text-amber-400 flex-shrink-0" />
+            <span className="text-xs font-semibold text-white truncate">
               {user?.company?.appName || 'BuildFlo'}
             </span>
           </div>
         )}
-        {!isMobile && (
+        {isCollapsed && (
+          <Building2 className="h-4 w-4 text-amber-400 mx-auto" />
+        )}
+        {!isMobile && !isCollapsed && (
           <button
             onClick={() => setCollapsed(!isCollapsed)}
-            className="text-gray-400 hover:text-white"
+            className="p-0.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
           >
-            {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+            <ChevronLeft className="h-3.5 w-3.5" />
           </button>
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 px-2 py-4">
-        {navigation.map((item) => {
+      {/* Expand button when collapsed */}
+      {!isMobile && isCollapsed && (
+        <button
+          onClick={() => setCollapsed(false)}
+          className="flex items-center justify-center h-6 border-b border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 transition-colors"
+        >
+          <ChevronRight className="h-3 w-3" />
+        </button>
+      )}
+
+      {/* Navigation */}
+      <nav className="flex-1 py-1 overflow-y-auto">
+        {navigation.map((item, idx) => {
           const isActive = pathname === item.href
           return (
             <Link
               key={item.name}
               href={item.href}
               className={cn(
-                "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors relative",
+                "group flex items-center px-2 py-1.5 text-xs transition-colors relative",
+                isCollapsed ? "justify-center" : "mx-1",
                 isActive
-                  ? "bg-gray-800 text-white"
-                  : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                  ? "bg-slate-700 text-white font-medium"
+                  : "text-slate-300 hover:bg-slate-700/50 hover:text-white",
+                !isCollapsed && "rounded"
               )}
               title={isCollapsed ? item.name : undefined}
             >
               <item.icon
                 className={cn(
-                  "flex-shrink-0 h-5 w-5",
-                  isCollapsed ? "mr-0" : "mr-3"
+                  "flex-shrink-0 h-3.5 w-3.5",
+                  isCollapsed ? "" : "mr-2",
+                  isActive ? "text-amber-400" : "text-slate-400 group-hover:text-slate-300"
                 )}
               />
-              {!isCollapsed && item.name}
+              {!isCollapsed && <span className="truncate">{item.name}</span>}
               {isCollapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                <div className="absolute left-full ml-1 px-1.5 py-0.5 bg-slate-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-slate-700">
                   {item.name}
                 </div>
               )}
@@ -172,11 +193,14 @@ export function Sidebar() {
         {user?.role === 'ADMIN' && (
           <>
             {!isCollapsed && (
-              <div className="pt-4 pb-2">
-                <span className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <div className="mt-2 mb-1 mx-2 pt-2 border-t border-slate-700">
+                <span className="px-1 text-[10px] font-medium text-slate-500 uppercase tracking-wider">
                   Admin
                 </span>
               </div>
+            )}
+            {isCollapsed && (
+              <div className="my-1 mx-2 border-t border-slate-700" />
             )}
             {adminNavigation.map((item) => {
               const isActive = pathname === item.href
@@ -185,22 +209,25 @@ export function Sidebar() {
                   key={item.name}
                   href={item.href}
                   className={cn(
-                    "group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors relative",
+                    "group flex items-center px-2 py-1.5 text-xs transition-colors relative",
+                    isCollapsed ? "justify-center" : "mx-1",
                     isActive
-                      ? "bg-gray-800 text-white"
-                      : "text-gray-300 hover:bg-gray-700 hover:text-white"
+                      ? "bg-slate-700 text-white font-medium"
+                      : "text-slate-300 hover:bg-slate-700/50 hover:text-white",
+                    !isCollapsed && "rounded"
                   )}
                   title={isCollapsed ? item.name : undefined}
                 >
                   <item.icon
                     className={cn(
-                      "flex-shrink-0 h-5 w-5",
-                      isCollapsed ? "mr-0" : "mr-3"
+                      "flex-shrink-0 h-3.5 w-3.5",
+                      isCollapsed ? "" : "mr-2",
+                      isActive ? "text-amber-400" : "text-slate-400 group-hover:text-slate-300"
                     )}
                   />
-                  {!isCollapsed && item.name}
+                  {!isCollapsed && <span className="truncate">{item.name}</span>}
                   {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                    <div className="absolute left-full ml-1 px-1.5 py-0.5 bg-slate-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-slate-700">
                       {item.name}
                     </div>
                   )}
@@ -211,27 +238,28 @@ export function Sidebar() {
         )}
       </nav>
 
-      <div className="border-t border-gray-700 p-4">
+      {/* User & Logout - Compact */}
+      <div className="border-t border-slate-700 p-1.5">
         {!isCollapsed && user && (
-          <div className="mb-3">
-            <p className="text-sm font-medium text-white">
+          <div className="px-1.5 py-1 mb-1 bg-slate-700/50 rounded">
+            <p className="text-[10px] font-medium text-white truncate">
               {user.firstName} {user.lastName}
             </p>
-            <p className="text-xs text-gray-400">{user.email}</p>
+            <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
           </div>
         )}
         <button
           onClick={handleLogout}
           className={cn(
-            "w-full flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors group relative",
-            isCollapsed ? "justify-center" : "justify-start"
+            "w-full flex items-center text-xs text-slate-300 hover:text-white hover:bg-slate-700/50 rounded transition-colors group relative",
+            isCollapsed ? "justify-center p-1.5" : "px-2 py-1.5"
           )}
           title={isCollapsed ? "Sign out" : undefined}
         >
-          <LogOut className={cn("h-5 w-5", isCollapsed ? "mr-0" : "mr-3")} />
+          <LogOut className={cn("h-3.5 w-3.5 text-slate-400 group-hover:text-slate-300", isCollapsed ? "" : "mr-2")} />
           {!isCollapsed && "Sign out"}
           {isCollapsed && (
-            <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+            <div className="absolute left-full ml-1 px-1.5 py-0.5 bg-slate-900 text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 border border-slate-700">
               Sign out
             </div>
           )}

@@ -40,8 +40,8 @@ export class DocumentGenerator {
       throw new Error('Template not found or inactive')
     }
 
-    // Fetch record data and get variable resolver
-    const variables = await this.getVariables(input.recordType, input.recordId)
+    // Fetch record data and get variable resolver + vendorId
+    const { variables, vendorId } = await this.getVariables(input.recordType, input.recordId)
 
     // Substitute variables in template content
     const html = this.substituteVariables(template.content, variables)
@@ -49,7 +49,7 @@ export class DocumentGenerator {
     // Generate filename
     const filename = this.generateFilename(input.recordType, variables)
 
-    return { html, filename }
+    return { html, filename, vendorId }
   }
 
   /**
@@ -87,18 +87,22 @@ export class DocumentGenerator {
 
   /**
    * Fetch data and create variable resolver based on record type
+   * Returns both the variables and vendorId for auto-saving
    */
   private async getVariables(
     recordType: GenerateDocumentInput['recordType'],
     recordId: string
-  ): Promise<VariableResolver> {
+  ): Promise<{ variables: VariableResolver; vendorId?: string }> {
     switch (recordType) {
       case 'change-order': {
         const data = await fetchChangeOrderData(recordId, this.companyId)
         if (!data) {
           throw new Error('Change order not found')
         }
-        return changeOrderToVariables(data, this.currency)
+        return {
+          variables: changeOrderToVariables(data, this.currency),
+          vendorId: data.vendorId,
+        }
       }
 
       // Future: Add other record types

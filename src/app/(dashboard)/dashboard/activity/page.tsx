@@ -1,11 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { 
-  Calendar,
+import {
   User,
-  Filter,
   Search,
   ArrowLeft,
   ArrowRight,
@@ -20,11 +18,9 @@ import {
   Upload,
   Download,
   Settings,
-  AlertCircle,
   Activity as ActivityIcon
 } from 'lucide-react'
 import { formatDistanceToNow, format } from 'date-fns'
-import { CompactFilters } from '@/components/ui/compact-filters'
 import { DatePicker } from '@/components/ui/date-picker'
 import Link from 'next/link'
 
@@ -96,7 +92,7 @@ async function fetchUsers() {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch('/api/users', {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -112,7 +108,7 @@ async function fetchProjects() {
     .split('; ')
     .find(row => row.startsWith('auth-token='))
     ?.split('=')[1]
-    
+
   const response = await fetch('/api/project', {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -173,30 +169,30 @@ const getActivityColor = (type: string) => {
     case 'card_created':
     case 'user_added':
     case 'user_joined':
-      return 'text-green-600 bg-green-100'
+      return 'text-green-600 bg-green-50'
     case 'task_updated':
     case 'project_updated':
     case 'comment_added':
-      return 'text-blue-600 bg-blue-100'
+      return 'text-blue-600 bg-blue-50'
     case 'task_deleted':
     case 'project_deleted':
-      return 'text-red-600 bg-red-100'
+      return 'text-red-600 bg-red-50'
     case 'task_completed':
-      return 'text-purple-600 bg-purple-100'
+      return 'text-purple-600 bg-purple-50'
     case 'user_invited':
-      return 'text-yellow-600 bg-yellow-100'
+      return 'text-yellow-600 bg-yellow-50'
     case 'user_login':
-      return 'text-cyan-600 bg-cyan-100'
+      return 'text-cyan-600 bg-cyan-50'
     case 'dailylog_created':
     case 'dailylog_updated':
-      return 'text-orange-600 bg-orange-100'
+      return 'text-orange-600 bg-orange-50'
     case 'dailylog_deleted':
-      return 'text-red-600 bg-red-100'
+      return 'text-red-600 bg-red-50'
     case 'document_uploaded':
     case 'document_downloaded':
-      return 'text-indigo-600 bg-indigo-100'
+      return 'text-indigo-600 bg-indigo-50'
     default:
-      return 'text-gray-600 bg-gray-100'
+      return 'text-gray-600 bg-gray-50'
   }
 }
 
@@ -240,7 +236,7 @@ export default function ActivityPage() {
   const typeCounts = response?.typeCounts || []
 
   const activityTypes = [
-    { value: 'all', label: 'All Activities' },
+    { value: 'all', label: 'All Types' },
     ...typeCounts.map(tc => ({
       value: tc.type,
       label: `${tc.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} (${tc.count})`
@@ -255,212 +251,200 @@ export default function ActivityPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center space-x-2 mb-4">
-          <ActivityIcon className="h-6 w-6 text-primary-600" />
-          <h1 className="text-xl font-semibold text-gray-900">Activity Log</h1>
+    <div className="space-y-2">
+      {/* Compact Header */}
+      <div className="flex justify-between items-center py-1">
+        <div className="flex items-center space-x-2">
+          <ActivityIcon className="h-4 w-4 text-gray-500" />
+          <h1 className="text-sm font-medium text-gray-900">Activity Log</h1>
           {pagination && (
-            <span className="text-sm text-gray-500">
-              ({pagination.totalCount} total activities)
-            </span>
+            <span className="text-xs text-gray-500">({pagination.totalCount} total)</span>
           )}
         </div>
+      </div>
 
-        {/* Date Range Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
-              From Date
-            </label>
+      {/* Compact Filters */}
+      <div className="bg-white border border-gray-200 rounded">
+        <div className="flex flex-wrap items-center gap-2 p-1.5">
+          <div className="relative flex-1 min-w-[150px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-6 pr-2 py-1 w-full text-xs border border-gray-200 rounded focus:border-primary-500 focus:outline-none"
+            />
+          </div>
+          <select
+            value={selectedType}
+            onChange={(e) => setSelectedType(e.target.value)}
+            className="text-xs border border-gray-200 rounded py-1 px-2 focus:border-primary-500 focus:outline-none"
+          >
+            {activityTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+          <select
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
+            className="text-xs border border-gray-200 rounded py-1 px-2 focus:border-primary-500 focus:outline-none"
+          >
+            <option value="all">All Users</option>
+            {Array.isArray(users) && users.map((user: any) => (
+              <option key={user.id} value={user.id}>{user.firstName} {user.lastName}</option>
+            ))}
+          </select>
+          <select
+            value={selectedProject}
+            onChange={(e) => setSelectedProject(e.target.value)}
+            className="text-xs border border-gray-200 rounded py-1 px-2 focus:border-primary-500 focus:outline-none"
+          >
+            <option value="all">All Projects</option>
+            {Array.isArray(projects) && projects.map((project: any) => (
+              <option key={project.id} value={project.id}>{project.title}</option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1">
             <DatePicker
               value={startDate}
               onChange={(date) => setStartDate(date)}
-              placeholder="Select start date"
+              placeholder="From"
               maxDate={endDate ? new Date(endDate) : undefined}
             />
-          </div>
-          <div>
-            <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
-              To Date
-            </label>
+            <span className="text-xs text-gray-400">-</span>
             <DatePicker
               value={endDate}
               onChange={(date) => setEndDate(date)}
-              placeholder="Select end date"
+              placeholder="To"
               minDate={startDate ? new Date(startDate) : undefined}
             />
           </div>
         </div>
-
-        {/* Filters */}
-        <CompactFilters
-          searchValue={searchTerm}
-          onSearchChange={setSearchTerm}
-          searchPlaceholder="Search activity descriptions..."
-          resultsCount={activities.length}
-          totalCount={pagination?.totalCount}
-          filters={[
-            {
-              key: 'type',
-              label: 'Activity Type',
-              value: selectedType,
-              onChange: setSelectedType,
-              options: activityTypes
-            },
-            {
-              key: 'user',
-              label: 'User',
-              value: selectedUser,
-              onChange: setSelectedUser,
-              options: [
-                { value: 'all', label: 'All Users' },
-                ...(Array.isArray(users) ? users.map((user: any) => ({
-                  value: user.id,
-                  label: `${user.firstName} ${user.lastName}`
-                })) : [])
-              ]
-            },
-            {
-              key: 'project',
-              label: 'Project',
-              value: selectedProject,
-              onChange: setSelectedProject,
-              options: [
-                { value: 'all', label: 'All Projects' },
-                ...(Array.isArray(projects) ? projects.map((project: any) => ({
-                  value: project.id,
-                  label: project.title
-                })) : [])
-              ]
-            }
-          ]}
-        />
       </div>
 
-      {/* Activities List */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="p-4">
-          <div className="space-y-4">
-            {activities.map((activity) => {
+      {/* Compact Activity Table */}
+      <div className="bg-white border border-gray-200 rounded overflow-hidden">
+        <table className="min-w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase w-8"></th>
+              <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Activity</th>
+              <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">User</th>
+              <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Project</th>
+              <th className="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">Time</th>
+            </tr>
+          </thead>
+          <tbody>
+            {activities.map((activity, index) => {
               const Icon = getActivityIcon(activity.type)
               const colorClasses = getActivityColor(activity.type)
 
               return (
-                <div key={activity.id} className="flex space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${colorClasses}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-900 mb-1">
-                          {activity.description}
-                        </p>
-                        
-                        <div className="flex items-center space-x-4 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <User className="w-3 h-3" />
-                            <span>
-                              {activity.user.firstName} {activity.user.lastName}
-                            </span>
-                            <span className={`px-1.5 py-0.5 rounded text-xs ${
-                              activity.user.role === 'ADMIN' ? 'bg-red-100 text-red-800' :
-                              activity.user.role === 'STAFF' ? 'bg-blue-100 text-blue-800' :
-                              activity.user.role === 'SUBCONTRACTOR' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {activity.user.role}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1">
-                            <FileText className="w-3 h-3" />
-                            <Link 
-                              href={`/dashboard/projects/${activity.card.id}`}
-                              className="text-primary-600 hover:text-primary-800 hover:underline"
-                            >
-                              {activity.card.title}
-                            </Link>
-                          </div>
-                          
-                          <div className="flex items-center space-x-1">
-                            <Clock className="w-3 h-3" />
-                            <span title={format(new Date(activity.createdAt), 'PPpp')}>
-                              {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
+                <tr key={activity.id} className={`border-b border-gray-100 hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                  <td className="px-2 py-1.5">
+                    <div className={`w-5 h-5 rounded flex items-center justify-center ${colorClasses}`}>
+                      <Icon className="w-2.5 h-2.5" />
                     </div>
-                  </div>
-                </div>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <div className="text-xs text-gray-900 truncate max-w-[250px]">
+                      {activity.description}
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs text-gray-700">
+                        {activity.user.firstName} {activity.user.lastName}
+                      </span>
+                      <span className={`px-1 py-0.5 rounded text-[9px] font-medium ${
+                        activity.user.role === 'ADMIN' ? 'bg-red-100 text-red-700' :
+                        activity.user.role === 'STAFF' ? 'bg-blue-100 text-blue-700' :
+                        activity.user.role === 'SUBCONTRACTOR' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {activity.user.role}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <Link
+                      href={`/dashboard/projects/${activity.card.id}`}
+                      className="text-xs text-primary-600 hover:text-primary-800 hover:underline truncate block max-w-[120px]"
+                    >
+                      {activity.card.title}
+                    </Link>
+                  </td>
+                  <td className="px-2 py-1.5 text-right">
+                    <span
+                      className="text-[10px] text-gray-500"
+                      title={format(new Date(activity.createdAt), 'PPpp')}
+                    >
+                      {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                    </span>
+                  </td>
+                </tr>
               )
             })}
+          </tbody>
+        </table>
 
-            {activities.length === 0 && (
-              <div className="text-center py-12">
-                <ActivityIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <div className="text-sm text-gray-500 mb-3">
-                  {searchTerm || selectedType !== 'all' || selectedUser !== 'all' || selectedProject !== 'all' || startDate || endDate
-                    ? 'No activities match your filters'
-                    : 'No activities found'}
-                </div>
-                {(searchTerm || selectedType !== 'all' || selectedUser !== 'all' || selectedProject !== 'all' || startDate || endDate) && (
-                  <button
-                    onClick={() => {
-                      setSearchTerm('')
-                      setSelectedType('all')
-                      setSelectedUser('all')
-                      setSelectedProject('all')
-                      setStartDate('')
-                      setEndDate('')
-                    }}
-                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
+        {activities.length === 0 && (
+          <div className="text-center py-8">
+            <ActivityIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+            <div className="text-xs text-gray-500">
+              {searchTerm || selectedType !== 'all' || selectedUser !== 'all' || selectedProject !== 'all' || startDate || endDate
+                ? 'No activities match your filters'
+                : 'No activities found'}
+            </div>
+            {(searchTerm || selectedType !== 'all' || selectedUser !== 'all' || selectedProject !== 'all' || startDate || endDate) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedType('all')
+                  setSelectedUser('all')
+                  setSelectedProject('all')
+                  setStartDate('')
+                  setEndDate('')
+                }}
+                className="mt-1 text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Clear filters
+              </button>
             )}
           </div>
-        </div>
+        )}
 
-        {/* Pagination */}
+        {/* Compact Pagination */}
         {pagination && pagination.totalPages > 1 && (
-          <div className="border-t px-4 py-3 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount} activities
+          <div className="border-t border-gray-200 px-2 py-1.5 flex items-center justify-between bg-gray-50">
+            <div className="text-[10px] text-gray-500">
+              {((pagination.page - 1) * pagination.limit) + 1}-{Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount}
             </div>
-            
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
                 disabled={pagination.page === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-0.5 text-xs border border-gray-200 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-3 h-3" />
               </button>
-              
-              <span className="text-sm text-gray-700">
-                Page {pagination.page} of {pagination.totalPages}
+              <span className="text-[10px] text-gray-600 px-1">
+                {pagination.page}/{pagination.totalPages}
               </span>
-              
               <button
                 onClick={() => handlePageChange(pagination.page + 1)}
                 disabled={pagination.page === pagination.totalPages}
-                className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-0.5 text-xs border border-gray-200 rounded hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-3 h-3" />
               </button>
             </div>
           </div>

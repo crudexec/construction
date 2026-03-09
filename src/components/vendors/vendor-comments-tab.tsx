@@ -536,78 +536,74 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
   const renderComment = (comment: Comment, isReply = false) => (
     <div
       key={comment.id}
-      className={`${isReply ? 'ml-10' : ''} mb-4 ${
-        comment.isPinned ? 'bg-amber-50 border-l-4 border-amber-400 pl-3 py-2 rounded-r-lg' : ''
-      } ${comment.isPrivate ? 'bg-purple-50 border-l-4 border-purple-400 pl-3 py-2 rounded-r-lg' : ''}`}
+      className={`${isReply ? 'ml-8 border-l-2 border-gray-100 pl-2' : 'px-3 py-2'} ${
+        comment.isPinned ? 'bg-amber-50/50 border-l-2 border-amber-400' : ''
+      } ${comment.isPrivate ? 'bg-purple-50/50 border-l-2 border-purple-400' : ''}`}
     >
       {/* Pinned indicator */}
       {comment.isPinned && !isReply && (
-        <div className="flex items-center space-x-1 text-xs text-amber-600 mb-2">
-          <Pin className="h-3 w-3" />
-          <span>
-            Pinned{comment.pinnedBy ? ` by ${comment.pinnedBy.firstName} ${comment.pinnedBy.lastName}` : ''}
-          </span>
+        <div className="flex items-center gap-1 text-[10px] text-amber-600 mb-1">
+          <Pin className="h-2.5 w-2.5" />
+          <span>Pinned{comment.pinnedBy ? ` by ${comment.pinnedBy.firstName}` : ''}</span>
         </div>
       )}
 
       {/* Private indicator */}
       {comment.isPrivate && (
-        <div className="flex items-center space-x-1 text-xs text-purple-600 mb-2">
-          <Lock className="h-3 w-3" />
-          <span>Admin only - Private comment</span>
+        <div className="flex items-center gap-1 text-[10px] text-purple-600 mb-1">
+          <Lock className="h-2.5 w-2.5" />
+          <span>Admin only</span>
         </div>
       )}
 
-      <div className="flex space-x-3">
+      <div className="flex gap-2">
         <div className="flex-shrink-0">
           {comment.author.avatar ? (
             <img
               src={comment.author.avatar}
               alt={`${comment.author.firstName} ${comment.author.lastName}`}
-              className="h-8 w-8 rounded-full object-cover"
+              className="h-6 w-6 rounded-full object-cover"
             />
           ) : (
-            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
-              <span className="text-xs font-medium text-primary-600">
+            <div className="h-6 w-6 rounded-full bg-primary-100 flex items-center justify-center">
+              <span className="text-[10px] font-medium text-primary-600">
                 {comment.author.firstName[0]}{comment.author.lastName[0]}
               </span>
             </div>
           )}
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           {editingCommentId === comment.id ? (
-            <div className="space-y-2 relative">
+            <div className="space-y-1.5 relative">
               <textarea
                 ref={editInputRef}
                 value={editingContent}
                 onChange={(e) => handleInputChange(e, setEditingContent, 'edit')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary-500"
-                rows={3}
+                className="w-full px-2 py-1.5 text-xs border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-primary-500"
+                rows={2}
               />
               {showMentions && activeInput === 'edit' && filteredMembers.length > 0 && (
-                <div className="absolute bottom-full mb-2 left-0 w-64 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200 z-10">
-                  <div className="py-2">
+                <div className="absolute bottom-full mb-1 left-0 w-48 max-h-32 overflow-y-auto bg-white rounded shadow-lg border border-gray-200 z-10">
+                  <div className="py-1">
                     {filteredMembers.map((member: User) => (
                       <button
                         key={member.id}
                         onClick={() => handleMention(member)}
-                        className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2"
+                        className="w-full text-left px-2 py-1 hover:bg-gray-50 flex items-center gap-1.5"
                       >
-                        <AtSign className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm">
-                          {member.firstName} {member.lastName}
-                        </span>
+                        <AtSign className="h-3 w-3 text-gray-400" />
+                        <span className="text-xs">{member.firstName} {member.lastName}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
-              <div className="flex space-x-2">
+              <div className="flex gap-1.5">
                 <button
                   onClick={handleUpdateComment}
                   disabled={updateMutation.isPending}
-                  className="px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700 text-sm"
+                  className="px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 text-[10px]"
                 >
                   Update
                 </button>
@@ -617,7 +613,7 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                     setEditingContent('')
                     setShowMentions(false)
                   }}
-                  className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 text-sm"
+                  className="px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-[10px]"
                 >
                   Cancel
                 </button>
@@ -626,33 +622,33 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
           ) : (
             <>
               <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-sm text-gray-900">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-medium text-xs text-gray-900">
                       {comment.author.firstName} {comment.author.lastName}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-[10px] text-gray-400">
                       {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                     </span>
                     {comment.isEdited && (
-                      <span className="text-xs text-gray-400">(edited)</span>
+                      <span className="text-[10px] text-gray-400">(edited)</span>
                     )}
                   </div>
                   <div
-                    className="mt-1 text-sm text-gray-700 whitespace-pre-wrap"
+                    className="mt-0.5 text-xs text-gray-700 whitespace-pre-wrap break-words"
                     dangerouslySetInnerHTML={{ __html: renderFormattedContent(comment.content) }}
                   />
 
                   {/* Attachments */}
                   {comment.attachments && comment.attachments.length > 0 && (
-                    <div className="mt-2 space-y-1">
+                    <div className="mt-1.5 space-y-1">
                       {comment.attachments.map((attachment) => {
                         const FileIcon = getFileIcon(attachment.mimeType)
                         const isImage = attachment.mimeType.startsWith('image/')
                         return (
                           <div
                             key={attachment.id}
-                            className="flex items-center space-x-2 p-2 bg-gray-50 rounded-md group"
+                            className="flex items-center gap-1.5 p-1.5 bg-gray-50 rounded group"
                           >
                             {isImage ? (
                               <a
@@ -664,41 +660,41 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                                 <img
                                   src={attachment.url}
                                   alt={attachment.fileName}
-                                  className="h-12 w-12 object-cover rounded"
+                                  className="h-8 w-8 object-cover rounded"
                                 />
                               </a>
                             ) : (
-                              <FileIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                              <FileIcon className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
                             )}
                             <div className="flex-1 min-w-0">
                               <a
                                 href={attachment.url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs font-medium text-primary-600 hover:text-primary-700 truncate block"
+                                className="text-[10px] font-medium text-primary-600 hover:text-primary-700 truncate block"
                               >
                                 {attachment.fileName}
                               </a>
-                              <span className="text-xs text-gray-400">
+                              <span className="text-[10px] text-gray-400">
                                 {formatFileSize(attachment.fileSize)}
                               </span>
                             </div>
-                            <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <a
                                 href={attachment.url}
                                 download={attachment.fileName}
-                                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                                className="p-0.5 text-gray-400 hover:text-gray-600 rounded"
                                 title="Download"
                               >
-                                <Download className="h-4 w-4" />
+                                <Download className="h-3 w-3" />
                               </a>
                               {(attachment.uploaderId === currentUserId || isAdmin) && (
                                 <button
                                   onClick={() => handleDeleteAttachment(comment.id, attachment.id)}
-                                  className="p-1 text-gray-400 hover:text-red-600 rounded"
+                                  className="p-0.5 text-gray-400 hover:text-red-600 rounded"
                                   title="Delete"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3" />
                                 </button>
                               )}
                             </div>
@@ -709,18 +705,18 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                   )}
                 </div>
 
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center gap-0.5 flex-shrink-0">
                   {/* Pin/Unpin button - visible for top-level comments only */}
                   {!isReply && (
                     <button
                       onClick={() => handleTogglePin(comment)}
                       disabled={pinMutation.isPending}
-                      className={`p-1.5 rounded hover:bg-gray-100 ${
+                      className={`p-1 rounded hover:bg-gray-100 ${
                         comment.isPinned ? 'text-amber-500' : 'text-gray-400 hover:text-gray-600'
                       }`}
                       title={comment.isPinned ? 'Unpin comment' : 'Pin comment'}
                     >
-                      {comment.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                      {comment.isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}
                     </button>
                   )}
 
@@ -728,21 +724,21 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                   {comment.authorId === currentUserId && (
                     <div className="relative group">
                       <button className="p-1 rounded hover:bg-gray-100">
-                        <MoreVertical className="h-4 w-4 text-gray-400" />
+                        <MoreVertical className="h-3 w-3 text-gray-400" />
                       </button>
-                      <div className="absolute right-0 mt-1 w-32 bg-white rounded-md shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
+                      <div className="absolute right-0 mt-0.5 w-24 bg-white rounded shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
                         <button
                           onClick={() => handleEditComment(comment)}
-                          className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                          className="block w-full text-left px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
                         >
-                          <Edit2 className="inline h-3 w-3 mr-2" />
+                          <Edit2 className="inline h-2.5 w-2.5 mr-1" />
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteComment(comment.id)}
-                          className="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-50"
+                          className="block w-full text-left px-2 py-1 text-xs text-red-600 hover:bg-gray-50"
                         >
-                          <Trash2 className="inline h-3 w-3 mr-2" />
+                          <Trash2 className="inline h-2.5 w-2.5 mr-1" />
                           Delete
                         </button>
                       </div>
@@ -752,18 +748,18 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
               </div>
 
               {!isReply && (
-                <div className="mt-2 flex items-center space-x-3">
+                <div className="mt-1 flex items-center gap-2">
                   <button
                     onClick={() => setReplyingToId(comment.id)}
-                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1"
+                    className="text-[10px] text-gray-500 hover:text-gray-700 flex items-center gap-0.5"
                   >
-                    <Reply className="h-3 w-3" />
+                    <Reply className="h-2.5 w-2.5" />
                     <span>Reply</span>
                   </button>
 
                   {/* Attach file to existing comment */}
-                  <label className="text-xs text-gray-500 hover:text-gray-700 flex items-center space-x-1 cursor-pointer">
-                    <Paperclip className="h-3 w-3" />
+                  <label className="text-[10px] text-gray-500 hover:text-gray-700 flex items-center gap-0.5 cursor-pointer">
+                    <Paperclip className="h-2.5 w-2.5" />
                     <span>Attach</span>
                     <input
                       type="file"
@@ -784,7 +780,7 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                   </label>
 
                   {uploadingCommentId === comment.id && (
-                    <span className="text-xs text-gray-400">Uploading...</span>
+                    <span className="text-[10px] text-gray-400">Uploading...</span>
                   )}
                 </div>
               )}
@@ -795,23 +791,23 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
 
       {/* Reply input */}
       {replyingToId === comment.id && (
-        <div className="ml-11 mt-3 relative">
-          <div className="flex space-x-2">
+        <div className="ml-8 mt-2 relative">
+          <div className="flex gap-1.5">
             <textarea
               ref={replyInputRef}
               value={replyContent}
               onChange={(e) => handleInputChange(e, setReplyContent, 'reply')}
-              placeholder="Write a reply... Use @ to mention someone"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="Write a reply..."
+              className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-primary-500"
               rows={2}
             />
-            <div className="flex flex-col space-y-2">
+            <div className="flex flex-col gap-1">
               <button
                 onClick={handleSubmitReply}
                 disabled={createMutation.isPending}
-                className="px-3 py-1 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="px-2 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-3 w-3" />
               </button>
               <button
                 onClick={() => {
@@ -819,25 +815,23 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
                   setReplyContent('')
                   setShowMentions(false)
                 }}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300"
+                className="px-2 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </button>
             </div>
           </div>
           {showMentions && activeInput === 'reply' && filteredMembers.length > 0 && (
-            <div className="absolute bottom-full mb-2 left-0 w-64 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200 z-10">
-              <div className="py-2">
+            <div className="absolute bottom-full mb-1 left-0 w-48 max-h-32 overflow-y-auto bg-white rounded shadow-lg border border-gray-200 z-10">
+              <div className="py-1">
                 {filteredMembers.map((member: User) => (
                   <button
                     key={member.id}
                     onClick={() => handleMention(member)}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2"
+                    className="w-full text-left px-2 py-1 hover:bg-gray-50 flex items-center gap-1.5"
                   >
-                    <AtSign className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm">
-                      {member.firstName} {member.lastName}
-                    </span>
+                    <AtSign className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs">{member.firstName} {member.lastName}</span>
                   </button>
                 ))}
               </div>
@@ -848,7 +842,7 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
 
       {/* Render replies */}
       {comment.replies && comment.replies.length > 0 && (
-        <div className="ml-11 mt-3 space-y-3">
+        <div className="ml-8 mt-2 space-y-2">
           {comment.replies.map(reply => renderComment(reply, true))}
         </div>
       )}
@@ -857,154 +851,159 @@ export function VendorCommentsTab({ vendorId }: VendorCommentsTabProps) {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="flex justify-center items-center py-6">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-2">
-          <MessageCircle className="h-5 w-5 text-gray-500" />
-          <h3 className="text-lg font-medium text-gray-900">
-            Internal Comments ({comments.length})
-          </h3>
+    <div className="space-y-3">
+      {/* Header */}
+      <div className="bg-white rounded border overflow-hidden">
+        <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <MessageCircle className="h-3.5 w-3.5 text-gray-500" />
+            <h3 className="text-sm font-medium text-gray-900">
+              Internal Comments ({comments.length})
+            </h3>
+          </div>
+          <span className="text-[10px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+            Team only
+          </span>
         </div>
-        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-          Only visible to your team
-        </span>
-      </div>
 
-      {/* New comment input */}
-      <div className={`p-4 rounded-lg relative ${isPrivateComment ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}`}>
-        <div className="flex space-x-2">
-          <textarea
-            ref={commentInputRef}
-            value={newComment}
-            onChange={(e) => handleInputChange(e, setNewComment, 'new')}
-            placeholder={isPrivateComment
-              ? "Add a private admin-only note..."
-              : "Add a note about this vendor... Use @ to mention someone"
-            }
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
-            rows={3}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && e.ctrlKey) {
-                handleSubmitComment()
+        {/* New comment input */}
+        <div className={`p-2 relative ${isPrivateComment ? 'bg-purple-50' : ''}`}>
+          <div className="flex gap-2">
+            <textarea
+              ref={commentInputRef}
+              value={newComment}
+              onChange={(e) => handleInputChange(e, setNewComment, 'new')}
+              placeholder={isPrivateComment
+                ? "Add a private admin-only note..."
+                : "Add a note... Use @ to mention"
               }
-            }}
-          />
-          <div className="flex flex-col space-y-2">
-            <button
-              onClick={handleSubmitComment}
-              disabled={createMutation.isPending || !newComment.trim()}
-              className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-            <label className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 cursor-pointer flex items-center justify-center">
-              <Paperclip className="h-4 w-4" />
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Pending files preview */}
-        {pendingFiles.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {pendingFiles.map((file, index) => {
-              const FileIcon = getFileIcon(file.type)
-              return (
-                <div
-                  key={index}
-                  className="flex items-center space-x-2 px-2 py-1 bg-white border border-gray-200 rounded-md text-xs"
-                >
-                  <FileIcon className="h-4 w-4 text-gray-400" />
-                  <span className="max-w-[150px] truncate">{file.name}</span>
-                  <span className="text-gray-400">{formatFileSize(file.size)}</span>
-                  <button
-                    onClick={() => removePendingFile(index)}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        )}
-        {showMentions && activeInput === 'new' && filteredMembers.length > 0 && (
-          <div className="absolute bottom-full mb-2 left-4 w-64 max-h-48 overflow-y-auto bg-white rounded-md shadow-lg border border-gray-200 z-10">
-            <div className="py-2">
-              {filteredMembers.map((member: User) => (
-                <button
-                  key={member.id}
-                  onClick={() => handleMention(member)}
-                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <AtSign className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm">
-                    {member.firstName} {member.lastName}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {member.email}
-                  </span>
-                </button>
-              ))}
+              className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded resize-none focus:outline-none focus:ring-1 focus:ring-primary-500 bg-white"
+              rows={2}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                  handleSubmitComment()
+                }
+              }}
+            />
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={handleSubmitComment}
+                disabled={createMutation.isPending || !newComment.trim()}
+                className="px-2 py-1.5 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send className="h-3 w-3" />
+              </button>
+              <label className="px-2 py-1.5 border border-gray-300 text-gray-600 rounded hover:bg-gray-100 cursor-pointer flex items-center justify-center">
+                <Paperclip className="h-3 w-3" />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </label>
             </div>
           </div>
-        )}
-        <div className="mt-2 flex items-center justify-between">
-          <div className="text-xs text-gray-500">
-            Press Ctrl+Enter to submit. Use @ to mention team members.
-          </div>
 
-          {/* Private comment toggle - Admin only */}
-          {isAdmin && (
-            <button
-              onClick={() => setIsPrivateComment(!isPrivateComment)}
-              className={`flex items-center space-x-1.5 px-2 py-1 rounded text-xs transition-colors ${
-                isPrivateComment
-                  ? 'bg-purple-100 text-purple-700 border border-purple-300'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-              title={isPrivateComment ? 'Make visible to all team members' : 'Make private (admin only)'}
-            >
-              {isPrivateComment ? (
-                <>
-                  <Lock className="h-3 w-3" />
-                  <span>Private</span>
-                </>
-              ) : (
-                <>
-                  <Eye className="h-3 w-3" />
-                  <span>Visible to team</span>
-                </>
-              )}
-            </button>
+          {/* Pending files preview */}
+          {pendingFiles.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {pendingFiles.map((file, index) => {
+                const FileIcon = getFileIcon(file.type)
+                return (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[10px]"
+                  >
+                    <FileIcon className="h-3 w-3 text-gray-400" />
+                    <span className="max-w-[100px] truncate">{file.name}</span>
+                    <span className="text-gray-400">{formatFileSize(file.size)}</span>
+                    <button
+                      onClick={() => removePendingFile(index)}
+                      className="text-gray-400 hover:text-red-500"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
           )}
+          {showMentions && activeInput === 'new' && filteredMembers.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-2 w-56 max-h-36 overflow-y-auto bg-white rounded shadow-lg border border-gray-200 z-10">
+              <div className="py-1">
+                {filteredMembers.map((member: User) => (
+                  <button
+                    key={member.id}
+                    onClick={() => handleMention(member)}
+                    className="w-full text-left px-2 py-1 hover:bg-gray-50 flex items-center gap-1.5"
+                  >
+                    <AtSign className="h-3 w-3 text-gray-400" />
+                    <span className="text-xs">
+                      {member.firstName} {member.lastName}
+                    </span>
+                    <span className="text-[10px] text-gray-400 truncate">
+                      {member.email}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="mt-1.5 flex items-center justify-between">
+            <div className="text-[10px] text-gray-400">
+              Ctrl+Enter to submit • @ to mention
+            </div>
+
+            {/* Private comment toggle - Admin only */}
+            {isAdmin && (
+              <button
+                onClick={() => setIsPrivateComment(!isPrivateComment)}
+                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors ${
+                  isPrivateComment
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                title={isPrivateComment ? 'Make visible to all team members' : 'Make private (admin only)'}
+              >
+                {isPrivateComment ? (
+                  <>
+                    <Lock className="h-2.5 w-2.5" />
+                    <span>Private</span>
+                  </>
+                ) : (
+                  <>
+                    <Eye className="h-2.5 w-2.5" />
+                    <span>Team</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Comments list */}
-      <div className="space-y-4 max-h-[500px] overflow-y-auto">
-        {comments.map((comment: Comment) => renderComment(comment))}
+      <div className="bg-white rounded border overflow-hidden">
+        <div className="max-h-[400px] overflow-y-auto divide-y divide-gray-100">
+          {comments.map((comment: Comment) => renderComment(comment))}
 
-        {comments.length === 0 && (
-          <div className="text-center py-12 bg-gray-50 rounded-lg">
-            <MessageCircle className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500">No comments yet.</p>
-            <p className="text-xs text-gray-400 mt-1">Add notes about this vendor for your team.</p>
-          </div>
-        )}
+          {comments.length === 0 && (
+            <div className="text-center py-6">
+              <MessageCircle className="h-6 w-6 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs text-gray-500">No comments yet</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Add notes about this vendor</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

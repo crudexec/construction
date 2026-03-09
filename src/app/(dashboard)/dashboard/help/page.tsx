@@ -850,95 +850,75 @@ export default function HelpPage() {
     : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <HelpCircle className="w-12 h-12 text-indigo-600 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-gray-900">Help Center</h1>
-            <p className="mt-2 text-lg text-gray-600">
-              Everything you need to know about using BuildFlow
-            </p>
+    <div className="space-y-2">
+      {/* Compact Header */}
+      <div className="bg-white border border-gray-200 rounded p-3">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <HelpCircle className="w-4 h-4 text-primary-600" />
+            <h1 className="text-sm font-medium text-gray-900">Help Center</h1>
           </div>
+          <div className="flex items-center gap-3 text-[10px] text-gray-500">
+            <span>{helpCategories.reduce((acc, c) => acc + c.faqs.length, 0)} FAQs</span>
+            <span>{helpCategories.reduce((acc, c) => acc + c.articles.length, 0)} Articles</span>
+            <span>{helpCategories.length} Categories</span>
+          </div>
+        </div>
 
-          {/* Search */}
-          <div className="mt-8 max-w-2xl mx-auto">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search for help articles, FAQs, and guides..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value)
-                  setSelectedCategory(null)
-                }}
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-lg"
-              />
-            </div>
-          </div>
+        {/* Compact Search */}
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search help articles, FAQs..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value)
+              setSelectedCategory(null)
+            }}
+            className="w-full pl-6 pr-2 py-1.5 text-xs border border-gray-200 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+          />
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Breadcrumb */}
-        {selectedCategory && (
-          <button
-            onClick={() => setSelectedCategory(null)}
-            className="flex items-center gap-2 text-indigo-600 hover:text-indigo-700 mb-6"
-          >
-            <ChevronRight className="w-4 h-4 rotate-180" />
-            <span>Back to all categories</span>
-          </button>
-        )}
+      {/* Breadcrumb */}
+      {selectedCategory && (
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className="flex items-center gap-1 text-xs text-primary-600 hover:text-primary-700"
+        >
+          <ChevronRight className="w-3 h-3 rotate-180" />
+          <span>Back to categories</span>
+        </button>
+      )}
 
-        {/* Category Grid or Category Detail */}
-        {!selectedCategory ? (
-          <>
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white rounded-lg p-6 border border-gray-200 text-center">
-                <div className="text-3xl font-bold text-indigo-600">
-                  {helpCategories.reduce((acc, c) => acc + c.faqs.length, 0)}
-                </div>
-                <div className="text-gray-600">FAQs</div>
-              </div>
-              <div className="bg-white rounded-lg p-6 border border-gray-200 text-center">
-                <div className="text-3xl font-bold text-indigo-600">
-                  {helpCategories.reduce((acc, c) => acc + c.articles.length, 0)}
-                </div>
-                <div className="text-gray-600">Help Articles</div>
-              </div>
-              <div className="bg-white rounded-lg p-6 border border-gray-200 text-center">
-                <div className="text-3xl font-bold text-indigo-600">
-                  {helpCategories.length}
-                </div>
-                <div className="text-gray-600">Topic Categories</div>
-              </div>
+      {/* Category Grid or Category Detail */}
+      {!selectedCategory ? (
+        <>
+          {/* Compact Categories Grid */}
+          <div className="bg-white border border-gray-200 rounded">
+            <div className="px-2 py-1.5 border-b border-gray-100">
+              <span className="text-xs font-medium text-gray-700">
+                {searchQuery ? 'Search Results' : 'Browse by Category'}
+              </span>
             </div>
-
-            {/* Categories */}
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {searchQuery ? 'Search Results' : 'Browse by Category'}
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-gray-100">
               {filteredCategories.map((category) => {
                 const Icon = category.icon
                 return (
                   <button
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
-                    className="bg-white rounded-lg p-6 border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all text-left"
+                    className="bg-white p-2 hover:bg-blue-50 transition-all text-left"
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="bg-indigo-100 rounded-lg p-3">
-                        <Icon className="w-6 h-6 text-indigo-600" />
+                    <div className="flex items-start gap-2">
+                      <div className="bg-primary-50 rounded p-1.5">
+                        <Icon className="w-3.5 h-3.5 text-primary-600" />
                       </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{category.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{category.description}</p>
-                        <div className="flex gap-4 mt-3 text-xs text-gray-500">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-xs font-medium text-gray-900">{category.title}</h3>
+                        <p className="text-[10px] text-gray-500 truncate">{category.description}</p>
+                        <div className="flex gap-2 mt-1 text-[9px] text-gray-400">
                           <span>{category.faqs.length} FAQs</span>
                           <span>{category.articles.length} Articles</span>
                         </div>
@@ -948,84 +928,87 @@ export default function HelpPage() {
                 )
               })}
             </div>
+          </div>
 
-            {filteredCategories.length === 0 && (
-              <div className="text-center py-12">
-                <HelpCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900">No results found</h3>
-                <p className="text-gray-600 mt-1">
-                  Try searching with different keywords or browse the categories above.
-                </p>
+          {filteredCategories.length === 0 && (
+            <div className="text-center py-6 bg-white border border-gray-200 rounded">
+              <HelpCircle className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <h3 className="text-xs font-medium text-gray-900">No results found</h3>
+              <p className="text-[10px] text-gray-500 mt-1">
+                Try different keywords or browse categories above.
+              </p>
+            </div>
+          )}
+
+          {/* Popular FAQs - Compact */}
+          {!searchQuery && (
+            <div className="bg-white border border-gray-200 rounded">
+              <div className="px-2 py-1.5 border-b border-gray-100">
+                <span className="text-xs font-medium text-gray-700">Popular Questions</span>
               </div>
-            )}
-
-            {/* Popular FAQs */}
-            {!searchQuery && (
-              <div className="mt-12">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Popular Questions</h2>
-                <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
-                  {helpCategories.slice(0, 3).flatMap(category =>
-                    category.faqs.slice(0, 2).map((faq, idx) => (
-                      <div key={`popular-${category.id}-${idx}`} className="p-4">
-                        <button
-                          onClick={() => {
-                            setSelectedCategory(category.id)
-                            setTimeout(() => toggleFaq(category.id, idx), 100)
-                          }}
-                          className="w-full text-left"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
-                              {category.title}
-                            </span>
-                          </div>
-                          <h4 className="font-medium text-gray-900 mt-2">{faq.question}</h4>
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{faq.answer}</p>
-                        </button>
-                      </div>
-                    ))
-                  )}
+              <div className="divide-y divide-gray-100">
+                {helpCategories.slice(0, 3).flatMap(category =>
+                  category.faqs.slice(0, 2).map((faq, idx) => (
+                    <div key={`popular-${category.id}-${idx}`} className="px-2 py-2 hover:bg-gray-50">
+                      <button
+                        onClick={() => {
+                          setSelectedCategory(category.id)
+                          setTimeout(() => toggleFaq(category.id, idx), 100)
+                        }}
+                        className="w-full text-left"
+                      >
+                        <span className="text-[9px] px-1 py-0.5 bg-primary-50 text-primary-700 rounded">
+                          {category.title}
+                        </span>
+                        <h4 className="text-xs font-medium text-gray-900 mt-1">{faq.question}</h4>
+                        <p className="text-[10px] text-gray-500 mt-0.5 line-clamp-1">{faq.answer}</p>
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      ) : currentCategory && (
+          <div className="space-y-2">
+            {/* Compact Category Header */}
+            <div className="bg-white border border-gray-200 rounded p-2">
+              <div className="flex items-center gap-2">
+                <div className="bg-primary-50 rounded p-1.5">
+                  <currentCategory.icon className="w-4 h-4 text-primary-600" />
                 </div>
-              </div>
-            )}
-          </>
-        ) : currentCategory && (
-          <div className="space-y-8">
-            {/* Category Header */}
-            <div className="flex items-center gap-4">
-              <div className="bg-indigo-100 rounded-lg p-4">
-                <currentCategory.icon className="w-8 h-8 text-indigo-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{currentCategory.title}</h2>
-                <p className="text-gray-600">{currentCategory.description}</p>
+                <div>
+                  <h2 className="text-sm font-medium text-gray-900">{currentCategory.title}</h2>
+                  <p className="text-[10px] text-gray-500">{currentCategory.description}</p>
+                </div>
               </div>
             </div>
 
-            {/* FAQs Section */}
+            {/* Compact FAQs Section */}
             {currentCategory.faqs.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <HelpCircle className="w-5 h-5" />
-                  Frequently Asked Questions
-                </h3>
-                <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
+              <div className="bg-white border border-gray-200 rounded">
+                <div className="px-2 py-1.5 border-b border-gray-100 flex items-center gap-1">
+                  <HelpCircle className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">FAQs</span>
+                </div>
+                <div className="divide-y divide-gray-100">
                   {currentCategory.faqs.map((faq, index) => {
                     const isExpanded = expandedFaqs.has(`${currentCategory.id}-${index}`)
                     return (
                       <div key={index}>
                         <button
                           onClick={() => toggleFaq(currentCategory.id, index)}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
+                          className="w-full px-2 py-2 flex items-center justify-between text-left hover:bg-gray-50"
                         >
-                          <span className="font-medium text-gray-900 pr-4">{faq.question}</span>
+                          <span className="text-xs font-medium text-gray-900 pr-2">{faq.question}</span>
                           <ChevronDown
-                            className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                           />
                         </button>
                         {isExpanded && (
-                          <div className="px-6 pb-4">
-                            <p className="text-gray-600">{faq.answer}</p>
+                          <div className="px-2 pb-2">
+                            <p className="text-[11px] text-gray-600 leading-relaxed">{faq.answer}</p>
                           </div>
                         )}
                       </div>
@@ -1035,35 +1018,35 @@ export default function HelpPage() {
               </div>
             )}
 
-            {/* Articles Section */}
+            {/* Compact Articles Section */}
             {currentCategory.articles.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <Book className="w-5 h-5" />
-                  Help Articles
-                </h3>
-                <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded">
+                <div className="px-2 py-1.5 border-b border-gray-100 flex items-center gap-1">
+                  <Book className="w-3 h-3 text-gray-500" />
+                  <span className="text-xs font-medium text-gray-700">Help Articles</span>
+                </div>
+                <div className="divide-y divide-gray-100">
                   {currentCategory.articles.map((article, index) => {
                     const isExpanded = expandedArticles.has(`${currentCategory.id}-${index}`)
                     return (
-                      <div key={index} className="bg-white rounded-lg border border-gray-200">
+                      <div key={index}>
                         <button
                           onClick={() => toggleArticle(currentCategory.id, index)}
-                          className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50"
+                          className="w-full px-2 py-2 flex items-center justify-between text-left hover:bg-gray-50"
                         >
                           <div>
-                            <h4 className="font-medium text-gray-900">{article.title}</h4>
-                            <p className="text-sm text-gray-600 mt-1">{article.description}</p>
+                            <h4 className="text-xs font-medium text-gray-900">{article.title}</h4>
+                            <p className="text-[10px] text-gray-500">{article.description}</p>
                           </div>
                           <ChevronDown
-                            className={`w-5 h-5 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                           />
                         </button>
                         {isExpanded && (
-                          <div className="px-6 pb-6 border-t border-gray-100 pt-4">
-                            <div className="space-y-3">
+                          <div className="px-2 pb-2 border-t border-gray-100 pt-2">
+                            <div className="space-y-1.5">
                               {article.content.map((paragraph, pIdx) => (
-                                <p key={pIdx} className="text-gray-600">
+                                <p key={pIdx} className="text-[11px] text-gray-600 leading-relaxed">
                                   {paragraph}
                                 </p>
                               ))}
@@ -1079,23 +1062,20 @@ export default function HelpPage() {
           </div>
         )}
 
-        {/* Contact Support */}
-        <div className="mt-12 bg-indigo-50 rounded-lg p-8 text-center">
-          <h3 className="text-lg font-semibold text-gray-900">Still need help?</h3>
-          <p className="text-gray-600 mt-2">
-            Can't find what you're looking for? Our support team is here to help.
+        {/* Compact Contact Support */}
+        <div className="bg-primary-50 border border-primary-100 rounded p-3 text-center mt-4">
+          <h3 className="text-xs font-medium text-gray-900">Still need help?</h3>
+          <p className="text-[10px] text-gray-500 mt-0.5">
+            Contact our support team for assistance.
           </p>
-          <div className="mt-4 flex justify-center gap-4">
-            <a
-              href="mailto:support@buildflow.com"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              <MessageSquare className="w-4 h-4" />
-              Contact Support
-            </a>
-          </div>
+          <a
+            href="mailto:support@buildflow.com"
+            className="inline-flex items-center gap-1 px-2 py-1 mt-2 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 transition-colors"
+          >
+            <MessageSquare className="w-3 h-3" />
+            Contact Support
+          </a>
         </div>
-      </div>
     </div>
   )
 }

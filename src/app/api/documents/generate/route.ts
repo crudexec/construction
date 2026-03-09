@@ -62,11 +62,12 @@ export async function POST(request: NextRequest) {
       options,
     })
 
-    // Return the generated HTML and filename
+    // Return the generated HTML, filename, and vendorId for auto-saving
     // Client will handle PDF conversion using html2pdf.js
     return NextResponse.json({
       html: document.html,
       filename: document.filename,
+      vendorId: document.vendorId,
     })
   } catch (error) {
     console.error('Error generating document:', error)

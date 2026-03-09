@@ -5,6 +5,17 @@ import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
+// Common document structure for file serving
+interface FileDocument {
+  id: string
+  name: string
+  fileName: string
+  fileSize: number
+  mimeType: string
+  url: string
+  companyId: string
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -12,10 +23,10 @@ export async function GET(
   try {
     const requestUrl = new URL(request.url)
     const authHeader = request.headers.get('authorization')
-    const token = authHeader?.replace('Bearer ', '') || 
-                  request.cookies.get('auth-token')?.value || 
+    const token = authHeader?.replace('Bearer ', '') ||
+                  request.cookies.get('auth-token')?.value ||
                   requestUrl.searchParams.get('t') // Token in query params for viewing
-    
+
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -28,9 +39,11 @@ export async function GET(
     const { id: documentId } = await params
     const download = requestUrl.searchParams.get('download') === 'true'
 
-    // Verify document exists and user has access
-    const document = await prisma.document.findFirst({
-      where: { 
+    let fileDoc: FileDocument | null = null
+
+    // Try to find project document first
+    const projectDocument = await prisma.document.findFirst({
+      where: {
         id: documentId
       },
       include: {
@@ -43,7 +56,46 @@ export async function GET(
       }
     })
 
-    if (!document || document.card.companyId !== user.companyId) {
+    if (projectDocument) {
+      fileDoc = {
+        id: projectDocument.id,
+        name: projectDocument.name,
+        fileName: projectDocument.fileName,
+        fileSize: projectDocument.fileSize,
+        mimeType: projectDocument.mimeType,
+        url: projectDocument.url,
+        companyId: projectDocument.card.companyId
+      }
+    } else {
+      // Try to find vendor document
+      const vendorDocument = await prisma.vendorDocument.findFirst({
+        where: {
+          id: documentId
+        },
+        include: {
+          vendor: {
+            select: {
+              companyId: true,
+              name: true
+            }
+          }
+        }
+      })
+
+      if (vendorDocument) {
+        fileDoc = {
+          id: vendorDocument.id,
+          name: vendorDocument.name,
+          fileName: vendorDocument.fileName,
+          fileSize: vendorDocument.fileSize,
+          mimeType: vendorDocument.mimeType,
+          url: vendorDocument.url,
+          companyId: vendorDocument.vendor.companyId
+        }
+      }
+    }
+
+    if (!fileDoc || fileDoc.companyId !== user.companyId) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 })
     }
 
@@ -52,19 +104,19 @@ export async function GET(
     let fileBuffer: Buffer
 
     // Handle different storage methods
-    if (document.url.startsWith('/uploads/') || document.url.startsWith('uploads/')) {
+    if (fileDoc.url.startsWith('/uploads/') || fileDoc.url.startsWith('uploads/')) {
       // Local file storage
       const uploadPath = process.env.UPLOAD_PATH || 'uploads'
-      filePath = join(process.cwd(), uploadPath, document.url.replace('/uploads/', '').replace('uploads/', ''))
-      
+      filePath = join(process.cwd(), uploadPath, fileDoc.url.replace('/uploads/', '').replace('uploads/', ''))
+
       if (!existsSync(filePath)) {
         return NextResponse.json({ error: 'File not found on disk' }, { status: 404 })
       }
-      
+
       fileBuffer = await readFile(filePath)
-    } else if (document.url.startsWith('http')) {
+    } else if (fileDoc.url.startsWith('http')) {
       // External URL - fetch and serve
-      const response = await fetch(document.url)
+      const response = await fetch(fileDoc.url)
       if (!response.ok) {
         return NextResponse.json({ error: 'Failed to fetch external file' }, { status: 404 })
       }
@@ -75,17 +127,17 @@ export async function GET(
 
     // Set appropriate headers
     const headers = new Headers()
-    headers.set('Content-Type', document.mimeType || 'application/octet-stream')
+    headers.set('Content-Type', fileDoc.mimeType || 'application/octet-stream')
     headers.set('Content-Length', fileBuffer.length.toString())
-    
+
     if (download) {
-      headers.set('Content-Disposition', `attachment; filename="${document.fileName}"`)
+      headers.set('Content-Disposition', `attachment; filename="${fileDoc.fileName}"`)
     } else {
       // For inline viewing (PDFs, images)
-      if (document.mimeType?.includes('pdf') || document.mimeType?.startsWith('image/')) {
-        headers.set('Content-Disposition', `inline; filename="${document.fileName}"`)
+      if (fileDoc.mimeType?.includes('pdf') || fileDoc.mimeType?.startsWith('image/')) {
+        headers.set('Content-Disposition', `inline; filename="${fileDoc.fileName}"`)
       } else {
-        headers.set('Content-Disposition', `attachment; filename="${document.fileName}"`)
+        headers.set('Content-Disposition', `attachment; filename="${fileDoc.fileName}"`)
       }
     }
 

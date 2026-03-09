@@ -27,7 +27,7 @@ async function fetchNotifications(unreadOnly = false) {
       'Cookie': document.cookie
     }
   })
-  
+
   if (!response.ok) throw new Error('Failed to fetch notifications')
   return response.json()
 }
@@ -50,7 +50,7 @@ async function markNotificationsAsRead(notificationIds?: string[]) {
       notificationIds
     })
   })
-  
+
   if (!response.ok) throw new Error('Failed to mark notifications as read')
   return response.json()
 }
@@ -62,7 +62,7 @@ export function NotificationBell() {
   const queryClient = useQueryClient()
 
   // Fetch unread count and recent notifications
-  const { data: notificationData, refetch } = useQuery({
+  const { data: notificationData } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => fetchNotifications(false),
     refetchInterval: 30000, // Refetch every 30 seconds
@@ -98,7 +98,7 @@ export function NotificationBell() {
     if (!notification.isRead) {
       markAsReadMutation.mutate([notification.id])
     }
-    
+
     // Navigate to task if metadata contains task info
     try {
       const metadata = JSON.parse(notification.metadata || '{}')
@@ -114,13 +114,13 @@ export function NotificationBell() {
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'task_due_soon':
-        return <Clock className="h-4 w-4 text-yellow-500" />
+        return <Clock className="h-3 w-3 text-yellow-500" />
       case 'task_due_today':
-        return <Calendar className="h-4 w-4 text-orange-500" />
+        return <Calendar className="h-3 w-3 text-orange-500" />
       case 'task_overdue':
-        return <AlertTriangle className="h-4 w-4 text-red-500" />
+        return <AlertTriangle className="h-3 w-3 text-red-500" />
       default:
-        return <Bell className="h-4 w-4 text-blue-500" />
+        return <Bell className="h-3 w-3 text-blue-500" />
     }
   }
 
@@ -128,7 +128,7 @@ export function NotificationBell() {
     const date = new Date(dateString)
     const now = new Date()
     const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    
+
     if (diffInHours < 1) {
       return 'Just now'
     } else if (diffInHours < 24) {
@@ -146,62 +146,62 @@ export function NotificationBell() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative text-gray-400 hover:text-gray-500 p-1 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+        className="relative text-gray-400 hover:text-gray-600 p-1 rounded hover:bg-gray-100 transition-colors"
       >
-        <Bell className="h-6 w-6" />
+        <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center font-medium">
+          <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center font-medium">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
+        <div className="absolute right-0 mt-1 w-80 bg-white rounded border border-gray-200 shadow-lg z-50 max-h-80 overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+          <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-700">Notifications</h3>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                className="text-[10px] text-blue-600 hover:text-blue-700 font-medium"
               >
-                Mark all as read
+                Mark all read
               </button>
             )}
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-64 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-6 text-center">
-                <Bell className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No notifications yet</p>
+              <div className="px-3 py-4 text-center">
+                <Bell className="h-5 w-5 text-gray-300 mx-auto mb-1" />
+                <p className="text-[10px] text-gray-400">No notifications</p>
               </div>
             ) : (
-              notifications.map((notification: Notification) => (
+              notifications.map((notification: Notification, idx: number) => (
                 <div
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    !notification.isRead ? 'bg-blue-50' : ''
-                  }`}
+                  className={`px-3 py-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                    !notification.isRead ? 'bg-blue-50/50' : ''
+                  } ${idx % 2 === 0 ? '' : 'bg-gray-50/30'}`}
                 >
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 mt-1">
+                  <div className="flex items-start gap-2">
+                    <div className="flex-shrink-0 mt-0.5">
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                      <p className={`text-xs leading-tight ${!notification.isRead ? 'font-medium text-gray-900' : 'text-gray-600'}`}>
                         {notification.message}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-[10px] text-gray-400 mt-0.5">
                         {getTimeAgo(notification.createdAt)}
                       </p>
                     </div>
                     {!notification.isRead && (
                       <div className="flex-shrink-0">
-                        <div className="h-2 w-2 bg-primary-600 rounded-full"></div>
+                        <div className="h-1.5 w-1.5 bg-blue-500 rounded-full"></div>
                       </div>
                     )}
                   </div>
@@ -212,16 +212,16 @@ export function NotificationBell() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
+            <div className="px-3 py-1.5 border-t border-gray-200 bg-gray-50">
               <button
                 onClick={() => {
                   setIsOpen(false)
                   router.push('/dashboard/notifications')
                 }}
-                className="text-xs text-gray-600 hover:text-gray-800 flex items-center"
+                className="text-[10px] text-gray-500 hover:text-gray-700 flex items-center"
               >
-                View all notifications
-                <ExternalLink className="h-3 w-3 ml-1" />
+                View all
+                <ExternalLink className="h-2.5 w-2.5 ml-1" />
               </button>
             </div>
           )}

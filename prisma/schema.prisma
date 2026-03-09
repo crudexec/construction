@@ -55,6 +55,9 @@ model Company {
 
   // Document Templates
   documentTemplates DocumentTemplate[]
+
+  // File Tags
+  fileTags FileTag[]
 }
 
 model User {
@@ -136,6 +139,9 @@ model User {
 
   // Document Templates
   documentTemplates DocumentTemplate[] @relation("DocumentTemplateCreator")
+
+  // Vendor Documents
+  vendorDocuments VendorDocument[] @relation("VendorDocumentUploader")
 
   // Inventory Management
   inventoryTransactions InventoryTransaction[]
@@ -398,6 +404,7 @@ model Document {
   card     Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
   folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   uploader User    @relation(fields: [uploaderId], references: [id])
+  tags     DocumentTagAssignment[]
 
   @@index([cardId])
   @@index([folderId])
@@ -867,6 +874,7 @@ model BidDocument {
 
   bidRequest BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
   uploadedBy User       @relation(fields: [uploadedById], references: [id])
+  tags       BidDocumentTagAssignment[]
 
   @@index([bidRequestId])
 }
@@ -1231,6 +1239,8 @@ model Vendor {
   notifications          Notification[]                @relation("VendorNotifications")
   notificationPreference VendorNotificationPreference?
   serviceTags            VendorServiceTagAssignment[]
+  folders                VendorFolder[]
+  documents              VendorDocument[]
 
   @@index([companyId])
   @@index([type])
@@ -1644,6 +1654,7 @@ model ContractDocument {
   createdAt    DateTime @default(now())
 
   contract VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tags     ContractDocumentTagAssignment[]
 
   @@index([contractId])
 }
@@ -3005,4 +3016,138 @@ model DocumentTemplate {
 
   @@index([companyId, type])
   @@index([createdById])
+}
+
+// =============================================================================
+// VENDOR FILES
+// =============================================================================
+
+model VendorFolder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  parentId    String?
+  vendorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor    Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  parent    VendorFolder?  @relation("VendorFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  VendorFolder[] @relation("VendorFolderHierarchy")
+  documents VendorDocument[]
+
+  @@unique([vendorId, name, parentId])
+  @@index([vendorId])
+  @@index([parentId])
+}
+
+model VendorDocument {
+  id              String    @id @default(cuid())
+  name            String
+  fileName        String
+  fileSize        Int
+  mimeType        String
+  url             String
+  folderId        String?
+  isShared        Boolean   @default(false)
+  shareLink       String?   @unique
+  shareLinkExpiry DateTime?
+  vendorId        String
+  uploaderId      String
+  version         Int       @default(1)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  folder   VendorFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader User          @relation("VendorDocumentUploader", fields: [uploaderId], references: [id])
+  tags     VendorDocumentTagAssignment[]
+
+  @@index([vendorId])
+  @@index([folderId])
+  @@index([shareLink])
+}
+
+// File Tags - Company-wide tags for all document types
+model FileTag {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  category    String?  // e.g., "Document Type", "Status", "Priority"
+  companyId   String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company              Company                        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendorDocuments      VendorDocumentTagAssignment[]
+  documents            DocumentTagAssignment[]
+  bidDocuments         BidDocumentTagAssignment[]
+  contractDocuments    ContractDocumentTagAssignment[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([category])
+}
+
+// Junction table for VendorDocument <-> FileTag
+model VendorDocumentTagAssignment {
+  id          String   @id @default(cuid())
+  documentId  String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  document VendorDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      FileTag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
+}
+
+// Junction table for Document (project files) <-> FileTag
+model DocumentTagAssignment {
+  id          String   @id @default(cuid())
+  documentId  String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      FileTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
+}
+
+// Junction table for BidDocument <-> FileTag
+model BidDocumentTagAssignment {
+  id          String   @id @default(cuid())
+  documentId  String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  document BidDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      FileTag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
+}
+
+// Junction table for ContractDocument <-> FileTag
+model ContractDocumentTagAssignment {
+  id          String   @id @default(cuid())
+  documentId  String
+  tagId       String
+  createdAt   DateTime @default(now())
+
+  document ContractDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag      FileTag          @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, tagId])
+  @@index([documentId])
+  @@index([tagId])
 }

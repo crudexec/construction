@@ -73,6 +73,7 @@ export interface GenerateDocumentOptions {
 export interface GeneratedDocument {
   html: string          // Rendered HTML with substituted variables
   filename: string      // Suggested filename
+  vendorId?: string     // Vendor ID for auto-saving to vendor files
 }
 
 // ============================================================================
@@ -80,6 +81,7 @@ export interface GeneratedDocument {
 // ============================================================================
 
 export interface ChangeOrderData {
+  vendorId: string      // For auto-saving generated documents
   changeOrder: {
     number: string
     title: string

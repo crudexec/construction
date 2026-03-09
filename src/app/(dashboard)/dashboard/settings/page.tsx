@@ -25,7 +25,8 @@ import {
   Link2,
   Tag,
   Tags,
-  Layers
+  Layers,
+  Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useModal } from '@/components/ui/modal-provider'
@@ -35,6 +36,7 @@ import { EmailConfigForm } from '@/components/settings/email-config-form'
 import { SMSConfigForm } from '@/components/settings/sms-config-form'
 import { VendorCategoryManager } from '@/components/settings/vendor-category-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
+import { FileTagManager } from '@/components/settings/file-tag-manager'
 
 interface Company {
   id: string
@@ -383,6 +385,7 @@ function SettingsContent() {
     { id: 'templates', name: 'Templates', icon: FileText },
     { id: 'vendor-categories', name: 'Vendor Categories', icon: Layers },
     { id: 'service-tags', name: 'Service Tags', icon: Tags },
+    { id: 'file-tags', name: 'File Tags', icon: Tag },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     { id: 'security', name: 'Security', icon: Shield },
     { id: 'billing', name: 'Billing', icon: CreditCard },
@@ -402,8 +405,8 @@ function SettingsContent() {
   
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex justify-center items-center h-32">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
       </div>
     )
   }
@@ -411,29 +414,29 @@ function SettingsContent() {
   const company = companyData?.company
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600">Manage your company settings and preferences</p>
+    <div className="space-y-2">
+      {/* Compact Header */}
+      <div className="flex items-center space-x-2 py-1">
+        <Settings className="h-4 w-4 text-gray-500" />
+        <h1 className="text-sm font-medium text-gray-900">Settings</h1>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
+      {/* Compact Tabs */}
+      <div className="border-b border-gray-200 bg-white">
+        <nav className="-mb-px flex flex-wrap">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                className={`py-1.5 px-2 border-b-2 text-xs flex items-center space-x-1 ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
+                    ? 'border-primary-500 text-primary-600 font-medium'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-3 w-3" />
                 <span>{tab.name}</span>
               </button>
             )
@@ -442,11 +445,11 @@ function SettingsContent() {
       </div>
 
       {/* Tab Content */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded border border-gray-200 p-4">
         {activeTab === 'company' && company && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Company Information</h3>
-            
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Company Information</h3>
+
             <Formik
               initialValues={{
                 name: company.name || '',
@@ -466,90 +469,45 @@ function SettingsContent() {
               enableReinitialize
             >
               {({ isSubmitting }) => (
-                <Form className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Form className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                      <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="name" className="block text-xs font-medium text-gray-700 mb-1">
                         Company Name *
                       </label>
                       <Field
                         id="name"
                         name="name"
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                         placeholder="Your Company Name"
                       />
-                      <ErrorMessage name="name" component="p" className="mt-1 text-sm text-red-600" />
+                      <ErrorMessage name="name" component="p" className="mt-0.5 text-[10px] text-red-600" />
                     </div>
 
                     <div>
-                      <label htmlFor="appName" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="appName" className="block text-xs font-medium text-gray-700 mb-1">
                         Application Name *
                       </label>
                       <Field
                         id="appName"
                         name="appName"
                         type="text"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                         placeholder="e.g., ABC Construction CRM"
                       />
-                      <ErrorMessage name="appName" component="p" className="mt-1 text-sm text-red-600" />
-                      <p className="mt-1 text-xs text-gray-500">
-                        This name will appear in the application header and branding
-                      </p>
+                      <ErrorMessage name="appName" component="p" className="mt-0.5 text-[10px] text-red-600" />
                     </div>
 
                     <div>
-                      <label htmlFor="website" className="block text-sm font-medium text-gray-700">
-                        Website
-                      </label>
-                      <Field
-                        id="website"
-                        name="website"
-                        type="url"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        placeholder="https://yourcompany.com"
-                      />
-                      <ErrorMessage name="website" component="p" className="mt-1 text-sm text-red-600" />
-                    </div>
-
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                        Phone Number
-                      </label>
-                      <Field
-                        id="phone"
-                        name="phone"
-                        type="tel"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        placeholder="(555) 123-4567"
-                      />
-                      <ErrorMessage name="phone" component="p" className="mt-1 text-sm text-red-600" />
-                    </div>
-
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                        Company Email
-                      </label>
-                      <Field
-                        id="email"
-                        name="email"
-                        type="email"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                        placeholder="contact@yourcompany.com"
-                      />
-                      <ErrorMessage name="email" component="p" className="mt-1 text-sm text-red-600" />
-                    </div>
-
-                    <div>
-                      <label htmlFor="currency" className="block text-sm font-medium text-gray-700">
+                      <label htmlFor="currency" className="block text-xs font-medium text-gray-700 mb-1">
                         Currency *
                       </label>
                       <Field
                         as="select"
                         id="currency"
                         name="currency"
-                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                       >
                         {currencies.map((currency) => (
                           <option key={currency.value} value={currency.value}>
@@ -557,81 +515,124 @@ function SettingsContent() {
                           </option>
                         ))}
                       </Field>
-                      <ErrorMessage name="currency" component="p" className="mt-1 text-sm text-red-600" />
+                      <ErrorMessage name="currency" component="p" className="mt-0.5 text-[10px] text-red-600" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="website" className="block text-xs font-medium text-gray-700 mb-1">
+                        Website
+                      </label>
+                      <Field
+                        id="website"
+                        name="website"
+                        type="url"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                        placeholder="https://yourcompany.com"
+                      />
+                      <ErrorMessage name="website" component="p" className="mt-0.5 text-[10px] text-red-600" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="phone" className="block text-xs font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <Field
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                        placeholder="(555) 123-4567"
+                      />
+                      <ErrorMessage name="phone" component="p" className="mt-0.5 text-[10px] text-red-600" />
+                    </div>
+
+                    <div>
+                      <label htmlFor="email" className="block text-xs font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <Field
+                        id="email"
+                        name="email"
+                        type="email"
+                        className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
+                        placeholder="contact@yourcompany.com"
+                      />
+                      <ErrorMessage name="email" component="p" className="mt-0.5 text-[10px] text-red-600" />
                     </div>
                   </div>
 
                   <div>
-                    <h4 className="text-md font-medium text-gray-900 mb-4">Address</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <h4 className="text-xs font-medium text-gray-900 mb-2">Address</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                       <div className="md:col-span-2">
-                        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="address" className="block text-xs font-medium text-gray-700 mb-1">
                           Street Address
                         </label>
                         <Field
                           id="address"
                           name="address"
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                           placeholder="123 Main Street"
                         />
-                        <ErrorMessage name="address" component="p" className="mt-1 text-sm text-red-600" />
+                        <ErrorMessage name="address" component="p" className="mt-0.5 text-[10px] text-red-600" />
                       </div>
 
                       <div>
-                        <label htmlFor="city" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="city" className="block text-xs font-medium text-gray-700 mb-1">
                           City
                         </label>
                         <Field
                           id="city"
                           name="city"
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                           placeholder="City"
                         />
-                        <ErrorMessage name="city" component="p" className="mt-1 text-sm text-red-600" />
+                        <ErrorMessage name="city" component="p" className="mt-0.5 text-[10px] text-red-600" />
                       </div>
 
                       <div>
-                        <label htmlFor="state" className="block text-sm font-medium text-gray-700">
-                          State/Province
+                        <label htmlFor="state" className="block text-xs font-medium text-gray-700 mb-1">
+                          State
                         </label>
                         <Field
                           id="state"
                           name="state"
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                           placeholder="State"
                         />
-                        <ErrorMessage name="state" component="p" className="mt-1 text-sm text-red-600" />
+                        <ErrorMessage name="state" component="p" className="mt-0.5 text-[10px] text-red-600" />
                       </div>
 
                       <div>
-                        <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
-                          ZIP/Postal Code
+                        <label htmlFor="zipCode" className="block text-xs font-medium text-gray-700 mb-1">
+                          ZIP
                         </label>
                         <Field
                           id="zipCode"
                           name="zipCode"
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                           placeholder="12345"
                         />
-                        <ErrorMessage name="zipCode" component="p" className="mt-1 text-sm text-red-600" />
+                        <ErrorMessage name="zipCode" component="p" className="mt-0.5 text-[10px] text-red-600" />
                       </div>
-
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
                       <div>
-                        <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                        <label htmlFor="country" className="block text-xs font-medium text-gray-700 mb-1">
                           Country
                         </label>
                         <Field
                           id="country"
                           name="country"
                           type="text"
-                          className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                          className="block w-full rounded border border-gray-300 px-2 py-1.5 text-xs focus:border-primary-500 focus:outline-none"
                           placeholder="United States"
                         />
-                        <ErrorMessage name="country" component="p" className="mt-1 text-sm text-red-600" />
+                        <ErrorMessage name="country" component="p" className="mt-0.5 text-[10px] text-red-600" />
                       </div>
                     </div>
                   </div>
@@ -640,7 +641,7 @@ function SettingsContent() {
                     <button
                       type="submit"
                       disabled={isSubmitting || updateMutation.isPending}
-                      className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50"
+                      className="inline-flex items-center px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
                     >
                       {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
                     </button>
@@ -653,55 +654,41 @@ function SettingsContent() {
 
         {activeTab === 'team' && (
           <div>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-medium text-gray-900">Team Management</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-medium text-gray-900">Team Management</h3>
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                className="inline-flex items-center px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
               >
-                <UserPlus className="h-4 w-4 mr-2" />
-                Invite Member
+                <UserPlus className="h-3 w-3 mr-1" />
+                Invite
               </button>
             </div>
 
             {teamMembers && teamMembers.length > 0 ? (
-              <div className="overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Role
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
+              <div className="border border-gray-200 rounded overflow-hidden">
+                <table className="min-w-full">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Name</th>
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Email</th>
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Role</th>
+                      <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-2 py-1.5 text-right text-[10px] font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {teamMembers.map((member: User) => (
-                      <tr key={member.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {member.firstName} {member.lastName}
-                          </div>
+                  <tbody>
+                    {teamMembers.map((member: User, index: number) => (
+                      <tr key={member.id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                        <td className="px-2 py-1.5 text-xs font-medium text-gray-900">
+                          {member.firstName} {member.lastName}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{member.email}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 py-1.5 text-xs text-gray-500">{member.email}</td>
+                        <td className="px-2 py-1.5">
                           <select
                             value={member.role}
                             onChange={(e) => updateTeamMutation.mutate({ id: member.id, role: e.target.value as User['role'] })}
-                            className="text-sm border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                            className="text-xs border-gray-200 rounded py-0.5 px-1 focus:ring-primary-500 focus:border-primary-500"
                             disabled={member.id === user?.id}
                           >
                             <option value="ADMIN">Admin</option>
@@ -710,26 +697,26 @@ function SettingsContent() {
                             <option value="CLIENT">Client</option>
                           </select>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            member.isActive !== false ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        <td className="px-2 py-1.5">
+                          <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                            member.isActive !== false ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                           }`}>
                             {member.isActive !== false ? 'Active' : 'Inactive'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-2 py-1.5 text-right">
                           {member.id !== user?.id && (
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center justify-end space-x-1">
                               <button
                                 onClick={() => {
                                   setSelectedMemberId(member.id)
                                   setSelectedMemberName(`${member.firstName} ${member.lastName}`)
                                   setShowPasswordResetModal(true)
                                 }}
-                                className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                                className="p-0.5 text-blue-600 hover:bg-blue-50 rounded"
                                 title="Reset Password"
                               >
-                                <Key className="h-4 w-4" />
+                                <Key className="h-3 w-3" />
                               </button>
                               <button
                                 onClick={async () => {
@@ -741,10 +728,10 @@ function SettingsContent() {
                                     deleteTeamMutation.mutate(member.id)
                                   }
                                 }}
-                                className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                                className="p-0.5 text-red-600 hover:bg-red-50 rounded"
                                 title="Remove Member"
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-3 w-3" />
                               </button>
                             </div>
                           )}
@@ -755,15 +742,15 @@ function SettingsContent() {
                 </table>
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h4 className="text-lg font-medium text-gray-900 mb-2">No Team Members</h4>
-                <p className="text-gray-600 mb-4">Start building your team by inviting members</p>
+              <div className="text-center py-8">
+                <Users className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <h4 className="text-xs font-medium text-gray-900 mb-1">No Team Members</h4>
+                <p className="text-[10px] text-gray-500 mb-2">Start building your team by inviting members</p>
                 <button
                   onClick={() => setShowInviteModal(true)}
-                  className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+                  className="inline-flex items-center px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700"
                 >
-                  <UserPlus className="h-4 w-4 mr-2" />
+                  <UserPlus className="h-3 w-3 mr-1" />
                   Invite First Member
                 </button>
               </div>
@@ -1039,31 +1026,35 @@ function SettingsContent() {
           <VendorServiceTagManager />
         )}
 
+        {activeTab === 'file-tags' && (
+          <FileTagManager />
+        )}
+
         {activeTab === 'notifications' && (
-          <div className="space-y-8">
+          <div className="space-y-4">
             {/* Email Configuration Section (Admin Only) */}
             {user?.role === 'ADMIN' && (
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Email Service Configuration</h3>
-                <p className="text-gray-600 mb-6">Configure your email provider to send notification emails.</p>
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Email Service Configuration</h3>
+                <p className="text-xs text-gray-500 mb-3">Configure your email provider to send notification emails.</p>
                 <EmailConfigForm />
               </div>
             )}
 
             {/* SMS Configuration Section (Admin Only) */}
             {user?.role === 'ADMIN' && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">SMS Service Configuration</h3>
-                <p className="text-gray-600 mb-6">Configure Africa&apos;s Talking to send SMS notifications.</p>
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">SMS Service Configuration</h3>
+                <p className="text-xs text-gray-500 mb-3">Configure Africa&apos;s Talking to send SMS notifications.</p>
                 <SMSConfigForm />
               </div>
             )}
 
             {/* Notification Preferences */}
             {notificationData?.preferences && (
-              <div className="pt-6 border-t">
-                <h3 className="text-lg font-medium text-gray-900 mb-6">Notification Preferences</h3>
-                <p className="text-gray-600 mb-6">Choose how you want to be notified about important events and updates.</p>
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">Notification Preferences</h3>
+                <p className="text-xs text-gray-500 mb-3">Choose how you want to be notified about important events.</p>
 
                 <div className="space-y-6">
                   {/* Email Notifications */}
@@ -1201,24 +1192,24 @@ function SettingsContent() {
 
         {activeTab === 'security' && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Security Settings</h3>
-            <div className="text-center py-12">
-              <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">Security</h4>
-              <p className="text-gray-600 mb-4">Manage passwords, 2FA, and access controls</p>
-              <p className="text-sm text-gray-500">Coming soon...</p>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Security Settings</h3>
+            <div className="text-center py-8">
+              <Shield className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <h4 className="text-xs font-medium text-gray-900 mb-1">Security</h4>
+              <p className="text-[10px] text-gray-500">Manage passwords, 2FA, and access controls</p>
+              <p className="text-[10px] text-gray-400 mt-1">Coming soon...</p>
             </div>
           </div>
         )}
 
         {activeTab === 'billing' && (
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-6">Billing & Subscription</h3>
-            <div className="text-center py-12">
-              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h4 className="text-lg font-medium text-gray-900 mb-2">Billing</h4>
-              <p className="text-gray-600 mb-4">Manage your subscription and billing information</p>
-              <p className="text-sm text-gray-500">Coming soon...</p>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Billing & Subscription</h3>
+            <div className="text-center py-8">
+              <CreditCard className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+              <h4 className="text-xs font-medium text-gray-900 mb-1">Billing</h4>
+              <p className="text-[10px] text-gray-500">Manage your subscription and billing information</p>
+              <p className="text-[10px] text-gray-400 mt-1">Coming soon...</p>
             </div>
           </div>
         )}

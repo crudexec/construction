@@ -12,11 +12,16 @@ import { taskDueReminderSMS } from '@/lib/sms/templates/notifications'
 // This should be called by a cron job daily (e.g., Vercel cron at 8am)
 export async function GET(request: NextRequest) {
   try {
-    // Verify cron secret for security
+    // Verify cron secret for security - REQUIRED
     const authHeader = request.headers.get('authorization')
     const cronSecret = process.env.CRON_SECRET
 
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    if (!cronSecret) {
+      console.error('CRON_SECRET environment variable is not set')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

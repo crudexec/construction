@@ -71,7 +71,7 @@ export function GenerateDocumentButton({
         throw new Error(error.error || 'Failed to generate document')
       }
 
-      const { html, filename } = await response.json()
+      const { html, filename, vendorId } = await response.json()
 
       // Use html2pdf.js to convert HTML to PDF
       const html2pdf = (await import('html2pdf.js')).default
@@ -86,8 +86,8 @@ export function GenerateDocumentButton({
       container.style.lineHeight = '1.5'
       document.body.appendChild(container)
 
-      // Generate PDF
-      await html2pdf()
+      // Generate PDF and get blob for auto-save
+      const pdfBlob = await html2pdf()
         .set({
           margin: [0.5, 0.5, 0.5, 0.5],
           filename,
@@ -96,12 +96,47 @@ export function GenerateDocumentButton({
           jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
         })
         .from(container)
-        .save()
+        .outputPdf('blob')
+
+      // Download the PDF
+      const url = window.URL.createObjectURL(pdfBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
 
       // Clean up
       document.body.removeChild(container)
 
-      toast.success('Document generated successfully')
+      // Auto-save to vendor files if vendorId is available
+      if (vendorId) {
+        try {
+          const formData = new FormData()
+          formData.append('file', pdfBlob, filename)
+          formData.append('filename', filename)
+          formData.append('documentType', recordType)
+
+          const saveResponse = await fetch(`/api/vendor/${vendorId}/files/auto-save`, {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (saveResponse.ok) {
+            toast.success('Document generated and saved to vendor files')
+          } else {
+            // Still show success for generation, but note the save failed
+            toast.success('Document generated (auto-save to vendor failed)')
+          }
+        } catch (saveError) {
+          console.error('Error auto-saving document:', saveError)
+          toast.success('Document generated (auto-save to vendor failed)')
+        }
+      } else {
+        toast.success('Document generated successfully')
+      }
     } catch (error) {
       console.error('Error generating document:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to generate document')

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Search, Menu, ChevronDown, User, Settings, LogOut, Users } from 'lucide-react'
+import { Search, ChevronDown, User, Settings, LogOut, Users } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { NotificationBell } from './notification-bell'
 
@@ -33,46 +33,46 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 bg-white border-b border-gray-200">
-      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-10 items-center justify-between px-3 sm:px-4 lg:px-6">
         <div className="flex flex-1 items-center">
-          <div className="relative w-full max-w-md">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <Search className="h-5 w-5 text-gray-400" />
+          <div className="relative w-full max-w-sm">
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2">
+              <Search className="h-3.5 w-3.5 text-gray-400" />
             </div>
             <input
               type="search"
-              placeholder="Search leads, projects, documents..."
-              className="block w-full rounded-md border border-gray-300 bg-white py-2 pl-10 pr-3 text-sm placeholder-gray-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              placeholder="Search..."
+              className="block w-full rounded border border-gray-200 bg-gray-50 py-1 pl-7 pr-2 text-xs placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="ml-4 flex items-center space-x-4">
+        <div className="ml-3 flex items-center gap-2">
           <NotificationBell />
 
           {/* User Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-md p-1"
+              className="flex items-center gap-1 text-gray-600 hover:text-gray-900 focus:outline-none rounded p-0.5 hover:bg-gray-100 transition-colors"
             >
-              <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-semibold">
+              <div className="h-6 w-6 rounded bg-slate-700 flex items-center justify-center text-white text-[10px] font-semibold">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3 w-3 text-gray-400" />
             </button>
 
             {showDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 py-1 z-50">
+              <div className="absolute right-0 mt-1 w-44 bg-white rounded border border-gray-200 shadow-lg py-1 z-50">
                 {/* User Info */}
-                <div className="px-4 py-3 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                <div className="px-3 py-2 border-b border-gray-100">
+                  <p className="text-xs font-medium text-gray-900 truncate">
                     {user?.firstName} {user?.lastName}
                   </p>
-                  <p className="text-sm text-gray-500 truncate" title={user?.email}>
+                  <p className="text-[10px] text-gray-500 truncate" title={user?.email}>
                     {user?.email}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1 capitalize">{user?.role?.toLowerCase()}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5 capitalize">{user?.role?.toLowerCase()}</p>
                 </div>
 
                 {/* Activity Link */}
@@ -81,9 +81,9 @@ export function Header() {
                     setShowDropdown(false)
                     router.push('/dashboard/activity')
                   }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                 >
-                  <User className="h-4 w-4 mr-3" />
+                  <User className="h-3 w-3 mr-2 text-gray-400" />
                   My Activity
                 </button>
 
@@ -93,9 +93,9 @@ export function Header() {
                     setShowDropdown(false)
                     router.push('/dashboard/settings?tab=team')
                   }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                 >
-                  <Users className="h-4 w-4 mr-3" />
+                  <Users className="h-3 w-3 mr-2 text-gray-400" />
                   Team
                 </button>
 
@@ -105,13 +105,13 @@ export function Header() {
                     setShowDropdown(false)
                     router.push('/dashboard/settings')
                   }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center w-full px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
                 >
-                  <Settings className="h-4 w-4 mr-3" />
+                  <Settings className="h-3 w-3 mr-2 text-gray-400" />
                   Settings
                 </button>
 
-                <div className="border-t border-gray-100 my-1"></div>
+                <div className="border-t border-gray-100 my-0.5"></div>
 
                 {/* Sign Out */}
                 <button
@@ -119,9 +119,9 @@ export function Header() {
                     setShowDropdown(false)
                     handleSignOut()
                   }}
-                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                  className="flex items-center w-full px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
                 >
-                  <LogOut className="h-4 w-4 mr-3" />
+                  <LogOut className="h-3 w-3 mr-2" />
                   Sign Out
                 </button>
               </div>

@@ -46,6 +46,8 @@ import EditContactModal from '@/components/vendors/edit-contact-modal'
 import { VendorTagSelector } from '@/components/vendors/vendor-tag-selector'
 import { VendorPurchaseOrdersTab } from '@/components/vendors/vendor-purchase-orders-tab'
 import { VendorCommentsTab } from '@/components/vendors/vendor-comments-tab'
+import { VendorFiles } from '@/components/vendors/vendor-files'
+import { VendorOverview } from '@/components/vendors/vendor-overview'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
 import { ContractLineItems } from '@/components/contracts/contract-line-items'
@@ -606,6 +608,28 @@ export default function VendorDetailPage() {
     enabled: !!vendorId && activeTab === 'overview',
     staleTime: 0,
     refetchOnMount: 'always'
+  })
+
+  // Fetch vendor files for overview widget
+  const { data: vendorFilesOverview = [] } = useQuery({
+    queryKey: ['vendor-files-overview', vendorId],
+    queryFn: async () => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/vendor/${vendorId}/files`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Cookie': document.cookie
+        }
+      })
+      if (!response.ok) throw new Error('Failed to fetch files')
+      return response.json()
+    },
+    enabled: !!vendorId && activeTab === 'overview',
+    staleTime: 30000
   })
 
   // Fetch all projects for milestone creation
@@ -1223,11 +1247,12 @@ export default function VendorDetailPage() {
         <nav className="-mb-px flex space-x-1 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'files', label: 'Files' },
             { id: 'projects', label: 'Projects' },
             { id: 'milestones', label: 'Milestones' },
+            { id: 'contracts', label: 'Contracts' },
             { id: 'reviews', label: 'Reviews' },
             { id: 'comments', label: 'Comments' },
-            { id: 'contracts', label: 'Contracts' },
             { id: 'purchase-orders', label: 'POs' },
             { id: 'portal', label: 'Portal' }
           ].map((tab) => (
@@ -1248,350 +1273,57 @@ export default function VendorDetailPage() {
 
       {/* Tab Content */}
       {activeTab === 'overview' && (
-        <div className="space-y-3">
-          {/* Vendor Information - Collapsible */}
-          <div className="bg-white rounded border">
-            <div
-              className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50"
-              onClick={() => setIsVendorInfoCollapsed(!isVendorInfoCollapsed)}
-            >
-              <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                {isVendorInfoCollapsed ? (
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                )}
-                Vendor Information
-              </h3>
-              {isVendorInfoCollapsed && (
-                <div className="flex items-center gap-3 text-xs text-gray-600">
-                  <span className="text-blue-600 font-medium">
-                    {getVendorTypeLabel(vendor.type)}
-                  </span>
-                  {vendor.email && (
-                    <span className="flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      {vendor.email}
-                    </span>
-                  )}
-                  {vendor.phone && (
-                    <span className="flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      {vendor.phone}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {!isVendorInfoCollapsed && (
-              <div className="px-3 pb-3 pt-1 border-t border-gray-100">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-xs">
-                  <div>
-                    <span className="text-gray-500">Type:</span>
-                    <span className="ml-1 text-gray-900 font-medium">{getVendorTypeLabel(vendor.type)}</span>
-                  </div>
-                  {vendor.email && (
-                    <div className="flex items-center gap-1">
-                      <Mail className="h-3 w-3 text-gray-400" />
-                      <span className="text-gray-900">{vendor.email}</span>
-                    </div>
-                  )}
-                  {vendor.phone && (
-                    <div className="flex items-center gap-1">
-                      <Phone className="h-3 w-3 text-gray-400" />
-                      <span className="text-gray-900">{vendor.phone}</span>
-                    </div>
-                  )}
-                  {vendor.website && (
-                    <div className="flex items-center gap-1">
-                      <Globe className="h-3 w-3 text-gray-400" />
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:text-primary-800 truncate max-w-[200px]">
-                        {vendor.website}
-                      </a>
-                    </div>
-                  )}
-                  {(vendor.address || vendor.city || vendor.state || vendor.zipCode) && (
-                    <div className="flex items-center gap-1 md:col-span-2">
-                      <MapPin className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                      <span className="text-gray-900 truncate">
-                        {vendor.address && `${vendor.address}, `}
-                        {vendor.city}{vendor.city && vendor.state && ', '}{vendor.state} {vendor.zipCode}
-                      </span>
-                    </div>
-                  )}
-                  {vendor.licenseNumber && (
-                    <div>
-                      <span className="text-gray-500">License:</span>
-                      <span className="ml-1 text-gray-900">{vendor.licenseNumber}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Milestones & Tasks - Compact View */}
-          <div className="bg-white rounded border overflow-hidden">
-            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
-                <Target className="h-4 w-4 text-gray-400" />
-                Milestones & Tasks
-              </h3>
-              <button
-                onClick={() => setIsAddMilestoneModalOpen(true)}
-                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
-              >
-                <Plus className="h-3 w-3" />
-                Add
-              </button>
-            </div>
-
-            {isLoadingMilestones ? (
-              <div className="flex items-center justify-center py-6">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
-              </div>
-            ) : projectMilestones.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-xs text-gray-500">No milestones assigned</p>
-                <button
-                  onClick={() => setIsAddMilestoneModalOpen(true)}
-                  className="mt-1 text-xs text-primary-600 hover:text-primary-800"
-                >
-                  + Add Milestone
-                </button>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {projectMilestones.slice(0, 5).map((milestone) => {
-                  const tasks = (milestone as any).tasks || []
-                  const taskCount = (milestone as any).totalTasksCount || tasks.length
-                  const completedTaskCount = (milestone as any).completedTasksCount || tasks.filter((t: any) => t.status === 'COMPLETED').length
-
-                  return (
-                    <div key={milestone.id} className="px-3 py-2 hover:bg-gray-50">
-                      {/* Milestone Row */}
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                          milestone.status === 'COMPLETED' ? 'bg-green-500' :
-                          milestone.status === 'IN_PROGRESS' ? 'bg-blue-500' :
-                          milestone.status === 'OVERDUE' ? 'bg-red-500' :
-                          'bg-gray-300'
-                        }`} />
-                        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium text-gray-900 truncate">{milestone.title}</p>
-                            <Link
-                              href={`/dashboard/projects/${milestone.project.id}`}
-                              className="text-[10px] text-primary-600 hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                                {milestone.project.title}
-                              </Link>
-                            </div>
-                          <div className="flex items-center gap-2 flex-shrink-0 text-[10px] text-gray-500">
-                            {taskCount > 0 && (
-                              <span>{completedTaskCount}/{taskCount}</span>
-                            )}
-                            {milestone.amount && (
-                              <span>{formatCurrency(milestone.amount)}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-
-                {projectMilestones.length > 5 && (
-                  <div className="px-3 py-1.5 bg-gray-50 border-t">
-                    <button
-                      onClick={() => setActiveTab('milestones')}
-                      className="text-xs text-primary-600 hover:text-primary-800 w-full text-center"
-                    >
-                      View all {projectMilestones.length} milestones
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Contracts Section - Compact */}
-          <div className="bg-white rounded border overflow-hidden">
-            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-sm font-medium text-gray-900">Contracts</h3>
-              <button
-                onClick={() => setIsContractModalOpen(true)}
-                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
-              >
-                <Plus className="h-3 w-3" />
-                Add
-              </button>
-            </div>
-            {isLoadingContracts ? (
-              <div className="py-4 text-center">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
-              </div>
-            ) : contractsError ? (
-              <div className="py-4 text-center">
-                <p className="text-xs text-red-500">Failed to load</p>
-                <button onClick={() => refetchContracts()} className="text-xs text-primary-600 hover:underline mt-1">
-                  Retry
-                </button>
-              </div>
-            ) : contracts.length === 0 ? (
-              <div className="py-4 text-center">
-                <p className="text-xs text-gray-500">No contracts yet</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {contracts.slice(0, 3).map((contract) => (
-                  <div
-                    key={contract.id}
-                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/dashboard/vendors/${vendorId}/contracts/${contract.id}`)}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{contract.contractNumber}</p>
-                          <p className="text-[10px] text-gray-500">
-                            {getContractTypeLabel(contract.type)} • {formatCurrency(contract.totalSum)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {getContractStatusBadge(contract.status)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {contracts.length > 3 && (
-                  <div className="px-3 py-1.5 bg-gray-50 border-t">
-                    <button
-                      onClick={() => setActiveTab('contracts')}
-                      className="text-xs text-primary-600 hover:text-primary-800 w-full text-center"
-                    >
-                      View all {contracts.length} contracts
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Contacts Section - Compact */}
-          <div className="bg-white rounded border overflow-hidden">
-            <div className="px-3 py-2 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-sm font-medium text-gray-900">Contacts</h3>
-              <button
-                onClick={() => setIsContactModalOpen(true)}
-                className="text-xs text-primary-600 hover:text-primary-800 flex items-center gap-0.5"
-              >
-                <Plus className="h-3 w-3" />
-                Add
-              </button>
-            </div>
-            {vendor.contacts.length === 0 ? (
-              <div className="py-4 text-center">
-                <p className="text-xs text-gray-500">No contacts yet</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-100">
-                {vendor.contacts.slice(0, 4).map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/dashboard/vendors/${vendor.id}/contacts/${contact.id}`)}
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[10px] font-medium text-gray-600">
-                            {contact.firstName[0]}{contact.lastName[0]}
-                          </span>
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {contact.firstName} {contact.lastName}
-                          </p>
-                          <p className="text-[10px] text-gray-500 truncate">{contact.position || contact.email || contact.phone}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {contact.isPrimary && (
-                          <span className="text-[10px] text-blue-600">Primary</span>
-                        )}
-                        {contact.isBilling && (
-                          <span className="text-[10px] text-green-600">Billing</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {vendor.contacts.length > 4 && (
-                  <div className="px-3 py-1.5 bg-gray-50 border-t text-center">
-                    <span className="text-xs text-gray-500">+{vendor.contacts.length - 4} more contacts</span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <VendorOverview
+          vendor={vendor}
+          contracts={contracts}
+          milestones={projectMilestones}
+          files={vendorFilesOverview}
+          onTabChange={setActiveTab}
+        />
       )}
 
-      {/* Keep rest of tabs unchanged - they'll need separate updates */}
       {activeTab === 'projects' && (
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Associated Projects</h3>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+            <h3 className="text-sm font-medium text-gray-900">Associated Projects ({vendor.projectVendors.length})</h3>
           </div>
           {vendor.projectVendors.length === 0 ? (
-            <div className="p-12 text-center">
-              <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No projects assigned yet</p>
+            <div className="py-8 text-center">
+              <Users className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p className="text-xs text-gray-500">No projects assigned yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Project
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Assigned Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Project</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Status</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Assigned</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 uppercase">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {vendor.projectVendors.map((pv) => (
-                    <tr key={pv.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{pv.project.title}</div>
+                <tbody className="divide-y divide-gray-100">
+                  {vendor.projectVendors.map((pv, idx) => (
+                    <tr key={pv.id} className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} onClick={() => router.push(`/dashboard/projects/${pv.project.id}`)}>
+                      <td className="px-3 py-1.5">
+                        <span className="text-xs font-medium text-gray-900">{pv.project.title}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(pv.project.status)}`}>
+                      <td className="px-3 py-1.5">
+                        <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${getStatusColor(pv.project.status)}`}>
                           {pv.project.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-3 py-1.5 text-xs text-gray-500">
                         {new Date(pv.assignedAt).toLocaleDateString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 py-1.5 text-right">
                         <Link
                           href={`/dashboard/projects/${pv.project.id}`}
-                          className="text-primary-600 hover:text-primary-900"
+                          className="text-xs text-primary-600 hover:text-primary-800"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          View Project
+                          View
                         </Link>
                       </td>
                     </tr>
@@ -1604,14 +1336,13 @@ export default function VendorDetailPage() {
       )}
 
       {activeTab === 'milestones' && (
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Assigned Milestones</h3>
-              <div className="flex items-center gap-3">
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-900">Assigned Milestones ({projectMilestones.length})</h3>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
-                    // Open task modal with ability to select milestone
                     setSelectedMilestoneForTask(null)
                     setTaskForm({
                       projectId: '',
@@ -1625,310 +1356,166 @@ export default function VendorDetailPage() {
                     })
                     setIsAddTaskModalOpen(true)
                   }}
-                  className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center space-x-2"
+                  className="text-xs text-gray-600 hover:text-gray-800 px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-1"
                 >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Task</span>
+                  <Plus className="h-3 w-3" />
+                  <span>Task</span>
                 </button>
                 <button
                   onClick={() => setIsAddMilestoneModalOpen(true)}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+                  className="text-xs text-white bg-primary-600 hover:bg-primary-700 px-2 py-1 rounded flex items-center gap-1"
                 >
-                  <Plus className="h-4 w-4" />
-                  <span>Add Milestone</span>
+                  <Plus className="h-3 w-3" />
+                  <span>Milestone</span>
                 </button>
               </div>
             </div>
-            {/* Filter Controls */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Filter by Project:</label>
-                <select
-                  value={milestoneProjectFilter}
-                  onChange={(e) => setMilestoneProjectFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">All Projects</option>
-                  {uniqueProjects.map((project: { id: string; title: string }) => (
-                    <option key={project.id} value={project.id}>
-                      {project.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Status:</label>
-                <select
-                  value={milestoneStatusFilter}
-                  onChange={(e) => setMilestoneStatusFilter(e.target.value)}
-                  className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                >
-                  <option value="">All Statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="IN_PROGRESS">In Progress</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="OVERDUE">Overdue</option>
-                </select>
-              </div>
+            {/* Compact Filter Controls */}
+            <div className="flex items-center gap-3 mt-2">
+              <select
+                value={milestoneProjectFilter}
+                onChange={(e) => setMilestoneProjectFilter(e.target.value)}
+                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All Projects</option>
+                {uniqueProjects.map((project: { id: string; title: string }) => (
+                  <option key={project.id} value={project.id}>{project.title}</option>
+                ))}
+              </select>
+              <select
+                value={milestoneStatusFilter}
+                onChange={(e) => setMilestoneStatusFilter(e.target.value)}
+                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="PENDING">Pending</option>
+                <option value="IN_PROGRESS">In Progress</option>
+                <option value="COMPLETED">Completed</option>
+                <option value="OVERDUE">Overdue</option>
+              </select>
               {(milestoneProjectFilter || milestoneStatusFilter) && (
                 <button
-                  onClick={() => {
-                    setMilestoneProjectFilter('')
-                    setMilestoneStatusFilter('')
-                  }}
-                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                  onClick={() => { setMilestoneProjectFilter(''); setMilestoneStatusFilter('') }}
+                  className="text-[10px] text-gray-500 hover:text-gray-700 flex items-center gap-0.5"
                 >
-                  <X className="h-3 w-3" />
-                  Clear filters
+                  <X className="h-3 w-3" /> Clear
                 </button>
               )}
             </div>
           </div>
           {isLoadingMilestones ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">Loading milestones...</p>
+            <div className="py-6 text-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
             </div>
           ) : projectMilestones.length === 0 ? (
-            <div className="p-12 text-center">
-              <Activity className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No milestones assigned yet</p>
-              <p className="text-sm text-gray-400 mt-1">Click the Add Milestone button to create one</p>
+            <div className="py-6 text-center">
+              <Activity className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p className="text-xs text-gray-500">No milestones assigned yet</p>
               <button
                 onClick={() => setIsAddMilestoneModalOpen(true)}
-                className="mt-4 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 inline-flex items-center space-x-2"
+                className="mt-2 text-xs text-primary-600 hover:text-primary-800"
               >
-                <Plus className="h-4 w-4" />
-                <span>Add Milestone</span>
+                + Add Milestone
               </button>
             </div>
           ) : (
-            <div className="divide-y divide-gray-200">
-              {projectMilestones.map((milestone) => {
-                const isExpanded = expandedMilestones.has(milestone.id)
+            <div className="divide-y divide-gray-100">
+              {projectMilestones.map((milestone, idx) => {
                 const tasks = (milestone as any).tasks || []
                 const taskCount = (milestone as any).totalTasksCount || tasks.length
                 const completedCount = (milestone as any).completedTasksCount || tasks.filter((t: any) => t.status === 'COMPLETED').length
                 const progress = (milestone as any).progress || (taskCount > 0 ? Math.round((completedCount / taskCount) * 100) : 0)
 
                 return (
-                  <div key={milestone.id} className="border-b border-gray-200 last:border-b-0">
-                    {/* Milestone Header */}
-                    <div className="p-4 bg-gray-50">
-                      <div className="flex items-start gap-3">
-                        {/* Milestone Icon */}
-                        <div className="flex-shrink-0 mt-0.5">
-                          <Target className="h-5 w-5 text-indigo-500" />
-                        </div>
-
-                        {/* Milestone Content */}
+                  <div key={milestone.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
+                    {/* Compact Milestone Header */}
+                    <div className="px-3 py-2 border-b border-gray-100">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 flex-wrap">
-                                <h3 className="text-base font-semibold text-gray-900">{milestone.title}</h3>
-                                <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
-                                  milestone.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
-                                  milestone.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-800' :
-                                  milestone.status === 'OVERDUE' ? 'bg-red-100 text-red-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {milestone.status.replace('_', ' ')}
-                                </span>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-medium text-gray-900">{milestone.title}</span>
+                            <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                              milestone.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                              milestone.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                              milestone.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {milestone.status.replace('_', ' ')}
+                            </span>
+                            <Link href={`/dashboard/projects/${milestone.project.id}`} className="text-[10px] text-primary-600 hover:underline">
+                              {milestone.project.title}
+                            </Link>
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5 text-[10px] text-gray-500">
+                            {milestone.amount && <span>{formatCurrency(milestone.amount)}</span>}
+                            {milestone.targetDate && <span>{new Date(milestone.targetDate).toLocaleDateString()}</span>}
+                            {taskCount > 0 && <span>{completedCount}/{taskCount} tasks</span>}
+                            {taskCount > 0 && (
+                              <div className="flex-1 max-w-[100px] h-1 bg-gray-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-500 rounded-full" style={{ width: `${progress}%` }} />
                               </div>
-                              <p className="text-sm text-gray-600 mt-1">
-                                Project: <Link href={`/dashboard/projects/${milestone.project.id}`} className="text-primary-600 hover:text-primary-800">{milestone.project.title}</Link>
-                              </p>
-                              {milestone.description && (
-                                <p className="text-sm text-gray-500 mt-1">{milestone.description}</p>
-                              )}
-
-                              <div className="flex flex-wrap items-center gap-4 mt-2">
-                                {milestone.amount && (
-                                  <span className="inline-flex items-center text-sm text-gray-600">
-                                    <DollarSign className="h-4 w-4 mr-1 text-gray-400" />
-                                    {formatCurrency(milestone.amount)}
-                                  </span>
-                                )}
-                                {milestone.targetDate && (
-                                  <span className="inline-flex items-center text-sm text-gray-600">
-                                    <Calendar className="h-4 w-4 mr-1 text-gray-400" />
-                                    {new Date(milestone.targetDate).toLocaleDateString()}
-                                  </span>
-                                )}
-                                {taskCount > 0 && (
-                                  <span className="text-sm text-gray-600">
-                                    {completedCount}/{taskCount} tasks completed
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Progress Bar */}
-                              {taskCount > 0 && (
-                                <div className="mt-3 max-w-md">
-                                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-green-500 rounded-full transition-all duration-500"
-                                      style={{ width: `${progress}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    </div>
-
-                    {/* Tasks Section - Always Visible */}
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                          <CheckSquare className="h-4 w-4 text-gray-400" />
-                          Tasks
-                        </h4>
                         <button
                           onClick={() => {
                             setSelectedMilestoneForTask(milestone)
-                            setTaskForm({
-                              projectId: milestone.project.id,
-                              milestoneId: milestone.id,
-                              title: '',
-                              description: '',
-                              priority: 'MEDIUM',
-                              dueDate: '',
-                              categoryId: '',
-                              assigneeId: ''
-                            })
+                            setTaskForm({ projectId: milestone.project.id, milestoneId: milestone.id, title: '', description: '', priority: 'MEDIUM', dueDate: '', categoryId: '', assigneeId: '' })
                             setIsAddTaskModalOpen(true)
                           }}
-                          className="bg-primary-600 text-white text-xs px-3 py-1.5 rounded-md hover:bg-primary-700 flex items-center gap-1 font-medium"
+                          className="text-[10px] text-primary-600 hover:text-primary-800 flex items-center gap-0.5 flex-shrink-0"
                         >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Task
+                          <Plus className="h-3 w-3" /> Task
                         </button>
                       </div>
+                    </div>
 
-                      {tasks.length === 0 ? (
-                        <div className="text-center py-6 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                          <CheckSquare className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                          <p className="text-sm text-gray-500 mb-3">No tasks yet</p>
-                          <button
-                            onClick={() => {
-                              setSelectedMilestoneForTask(milestone)
-                              setTaskForm({
-                                projectId: milestone.project.id,
-                                milestoneId: milestone.id,
-                                title: '',
-                                description: '',
-                                priority: 'MEDIUM',
-                                dueDate: '',
-                                categoryId: '',
-                                assigneeId: ''
-                              })
-                              setIsAddTaskModalOpen(true)
-                            }}
-                            className="bg-primary-600 text-white text-sm px-4 py-2 rounded-md hover:bg-primary-700 inline-flex items-center gap-2 font-medium"
-                          >
-                            <Plus className="h-4 w-4" />
-                            Add First Task
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
+                    {/* Compact Tasks List */}
+                    {tasks.length > 0 && (
+                      <div className="px-3 py-1.5 pl-8">
+                        <div className="space-y-1">
                           {tasks.map((task: any) => (
-                            <div
-                              key={task.id}
-                              className="flex items-start gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-                            >
-                              {/* Task Status Icon - Clickable to cycle status */}
+                            <div key={task.id} className="flex items-center gap-2 py-1 px-2 rounded hover:bg-gray-100">
                               <button
                                 onClick={() => {
-                                  const nextStatus = task.status === 'TODO' ? 'IN_PROGRESS' :
-                                    task.status === 'IN_PROGRESS' ? 'COMPLETED' : 'TODO'
-                                  updateTaskStatusMutation.mutate({
-                                    taskId: task.id,
-                                    projectId: milestone.project.id,
-                                    status: nextStatus
-                                  })
+                                  const nextStatus = task.status === 'TODO' ? 'IN_PROGRESS' : task.status === 'IN_PROGRESS' ? 'COMPLETED' : 'TODO'
+                                  updateTaskStatusMutation.mutate({ taskId: task.id, projectId: milestone.project.id, status: nextStatus })
                                 }}
-                                className="flex-shrink-0 mt-0.5 hover:scale-110 transition-transform"
-                                title={`Click to change status (${task.status === 'TODO' ? 'Mark In Progress' : task.status === 'IN_PROGRESS' ? 'Mark Complete' : 'Mark Todo'})`}
+                                className="flex-shrink-0"
                               >
-                                {task.status === 'COMPLETED' ? (
-                                  <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                ) : task.status === 'IN_PROGRESS' ? (
-                                  <Clock className="h-5 w-5 text-blue-500" />
-                                ) : (
-                                  <Circle className="h-5 w-5 text-gray-300 hover:text-gray-400" />
-                                )}
+                                {task.status === 'COMPLETED' ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" /> :
+                                 task.status === 'IN_PROGRESS' ? <Clock className="h-3.5 w-3.5 text-blue-500" /> :
+                                 <Circle className="h-3.5 w-3.5 text-gray-300" />}
                               </button>
-
-                              {/* Task Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1">
-                                    <p className={`text-sm font-medium ${
-                                      task.status === 'COMPLETED' ? 'text-gray-500 line-through' : 'text-gray-900'
-                                    }`}>
-                                      {task.title}
-                                    </p>
-                                    {task.description && (
-                                      <p className="text-xs text-gray-500 mt-1 line-clamp-2">{task.description}</p>
-                                    )}
-                                    <div className="flex items-center gap-3 mt-2 flex-wrap">
-                                      {task.assignee && (
-                                        <span className="text-xs text-gray-600 flex items-center gap-1">
-                                          <Users className="h-3 w-3" />
-                                          {task.assignee.firstName} {task.assignee.lastName}
-                                        </span>
-                                      )}
-                                      {task.dueDate && (
-                                        <span className="text-xs text-gray-500 flex items-center gap-1">
-                                          <Calendar className="h-3 w-3" />
-                                          {new Date(task.dueDate).toLocaleDateString()}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  {/* Status Dropdown and Priority */}
-                                  <div className="flex items-center gap-2 flex-shrink-0">
-                                    <select
-                                      value={task.status}
-                                      onChange={(e) => {
-                                        updateTaskStatusMutation.mutate({
-                                          taskId: task.id,
-                                          projectId: milestone.project.id,
-                                          status: e.target.value
-                                        })
-                                      }}
-                                      className={`text-xs px-2 py-1 rounded border-0 cursor-pointer font-medium ${
-                                        task.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
-                                        task.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-700'
-                                      }`}
-                                    >
-                                      <option value="TODO">TODO</option>
-                                      <option value="IN_PROGRESS">IN PROGRESS</option>
-                                      <option value="COMPLETED">COMPLETED</option>
-                                    </select>
-                                    <span className={`text-xs px-2 py-0.5 rounded ${
-                                      task.priority === 'URGENT' ? 'bg-red-100 text-red-700' :
-                                      task.priority === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                                      task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-700' :
-                                      'bg-gray-100 text-gray-700'
-                                    }`}>
-                                      {task.priority}
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
+                              <span className={`text-xs flex-1 truncate ${task.status === 'COMPLETED' ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                {task.title}
+                              </span>
+                              {task.assignee && (
+                                <span className="text-[10px] text-gray-500">{task.assignee.firstName}</span>
+                              )}
+                              <span className={`text-[10px] px-1 py-0.5 rounded ${
+                                task.priority === 'URGENT' ? 'bg-red-100 text-red-600' :
+                                task.priority === 'HIGH' ? 'bg-orange-100 text-orange-600' :
+                                task.priority === 'MEDIUM' ? 'bg-blue-100 text-blue-600' :
+                                'bg-gray-100 text-gray-600'
+                              }`}>
+                                {task.priority[0]}
+                              </span>
+                              <select
+                                value={task.status}
+                                onChange={(e) => updateTaskStatusMutation.mutate({ taskId: task.id, projectId: milestone.project.id, status: e.target.value })}
+                                className="text-[10px] px-1 py-0.5 rounded border-0 bg-transparent cursor-pointer"
+                              >
+                                <option value="TODO">TODO</option>
+                                <option value="IN_PROGRESS">IN PROG</option>
+                                <option value="COMPLETED">DONE</option>
+                              </select>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -1938,210 +1525,134 @@ export default function VendorDetailPage() {
       )}
 
       {activeTab === 'reviews' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Performance Reviews</h3>
-            <button
-              onClick={() => setIsReviewModalOpen(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Add Review</span>
-            </button>
-          </div>
-
-          {/* Aggregate Score Summary */}
-          <div className="bg-white rounded-lg shadow border p-6">
-            <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-4">Overall Performance Score</h4>
-            <VendorScoreDisplay vendorId={vendorId} size="lg" showBreakdown={true} />
+        <div className="space-y-3">
+          {/* Compact Header & Score */}
+          <div className="bg-white rounded border">
+            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+              <h3 className="text-sm font-medium text-gray-900">Performance Reviews ({vendor.reviews.length})</h3>
+              <button
+                onClick={() => setIsReviewModalOpen(true)}
+                className="text-xs text-white bg-primary-600 hover:bg-primary-700 px-2 py-1 rounded flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> Add Review
+              </button>
+            </div>
+            <div className="px-3 py-2">
+              <VendorScoreDisplay vendorId={vendorId} size="sm" showBreakdown={true} />
+            </div>
           </div>
 
           {vendor.reviews.length === 0 ? (
-            <div className="bg-white rounded-lg shadow border p-12 text-center">
-              <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No reviews yet</p>
+            <div className="bg-white rounded border py-6 text-center">
+              <Star className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p className="text-xs text-gray-500">No reviews yet</p>
             </div>
           ) : (
-            <div className="grid gap-6">
-              {vendor.reviews.map((review) => (
-                <div key={review.id} className="bg-white rounded-lg shadow border p-6">
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <div className="flex">
-                          {renderStars(review.overallRating)}
+            <div className="bg-white rounded border overflow-hidden">
+              <div className="divide-y divide-gray-100">
+                {vendor.reviews.map((review, idx) => (
+                  <div key={review.id} className={`px-3 py-2 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                        <span className="text-sm font-semibold text-gray-900">{review.overallRating.toFixed(1)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 text-xs text-gray-600 mb-1">
+                          <span className="font-medium">{review.reviewerName}</span>
+                          <span>•</span>
+                          <span>{new Date(review.createdAt).toLocaleDateString()}</span>
+                          {review.projectName && <><span>•</span><span className="text-primary-600">{review.projectName}</span></>}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">
-                          {review.overallRating.toFixed(1)}/5.0
-                        </span>
+                        <div className="flex flex-wrap gap-2 text-[10px]">
+                          {review.qualityRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Quality: {review.qualityRating}</span>}
+                          {review.timelinessRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Time: {review.timelinessRating}</span>}
+                          {review.communicationRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Comm: {review.communicationRating}</span>}
+                          {review.professionalismRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Prof: {review.professionalismRating}</span>}
+                          {review.pricingAccuracyRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Price: {review.pricingAccuracyRating}</span>}
+                          {review.safetyComplianceRating && <span className="px-1.5 py-0.5 bg-gray-100 rounded">Safety: {review.safetyComplianceRating}</span>}
+                        </div>
+                        {review.comments && (
+                          <p className="text-xs text-gray-600 mt-1 line-clamp-2">{review.comments}</p>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600">
-                        by {review.reviewerName} • {new Date(review.createdAt).toLocaleDateString()}
-                      </p>
-                      {review.projectName && (
-                        <p className="text-sm text-gray-500">Project: {review.projectName}</p>
-                      )}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    {review.qualityRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.qualityRating}</div>
-                        <div className="text-xs text-gray-500">Quality</div>
-                      </div>
-                    )}
-                    {review.timelinessRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.timelinessRating}</div>
-                        <div className="text-xs text-gray-500">Timeliness</div>
-                      </div>
-                    )}
-                    {review.communicationRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.communicationRating}</div>
-                        <div className="text-xs text-gray-500">Communication</div>
-                      </div>
-                    )}
-                    {review.professionalismRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.professionalismRating}</div>
-                        <div className="text-xs text-gray-500">Professionalism</div>
-                      </div>
-                    )}
-                    {review.pricingAccuracyRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.pricingAccuracyRating}</div>
-                        <div className="text-xs text-gray-500">Pricing</div>
-                      </div>
-                    )}
-                    {review.safetyComplianceRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.safetyComplianceRating}</div>
-                        <div className="text-xs text-gray-500">Safety</div>
-                      </div>
-                    )}
-                    {review.problemResolutionRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.problemResolutionRating}</div>
-                        <div className="text-xs text-gray-500">Problem Resolution</div>
-                      </div>
-                    )}
-                    {review.documentationRating && (
-                      <div className="text-center">
-                        <div className="text-lg font-semibold text-gray-900">{review.documentationRating}</div>
-                        <div className="text-xs text-gray-500">Documentation</div>
-                      </div>
-                    )}
-                  </div>
-                  {review.comments && (
-                    <div className="bg-gray-50 rounded-md p-3">
-                      <p className="text-sm text-gray-900">{review.comments}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </div>
       )}
 
       {activeTab === 'comments' && (
-        <div className="bg-white rounded-lg shadow border p-6">
-          <VendorCommentsTab vendorId={vendorId} />
-        </div>
+        <VendorCommentsTab vendorId={vendorId} />
       )}
 
       {activeTab === 'contracts' && (
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Contracts</h3>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+            <h3 className="text-sm font-medium text-gray-900">Contracts ({contracts.length})</h3>
             <button
               onClick={() => setIsContractModalOpen(true)}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+              className="text-xs text-white bg-primary-600 hover:bg-primary-700 px-2 py-1 rounded flex items-center gap-1"
             >
-              <Plus className="h-4 w-4" />
-              <span>Add Contract</span>
+              <Plus className="h-3 w-3" /> Add Contract
             </button>
           </div>
           {isLoadingContracts ? (
-            <div className="p-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-              <p className="text-sm text-gray-500 mt-2">Loading contracts...</p>
+            <div className="py-6 text-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
             </div>
           ) : contractsError ? (
-            <div className="p-12 text-center">
-              <AlertCircle className="h-12 w-12 mx-auto text-red-400 mb-4" />
-              <p className="text-red-500">Failed to load contracts</p>
-              <p className="text-sm text-gray-400 mt-1">{(contractsError as Error).message}</p>
-              <button
-                onClick={() => refetchContracts()}
-                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
-              >
-                Retry
-              </button>
+            <div className="py-6 text-center">
+              <AlertCircle className="h-6 w-6 mx-auto text-red-400 mb-1" />
+              <p className="text-xs text-red-500">Failed to load</p>
+              <button onClick={() => refetchContracts()} className="text-xs text-primary-600 hover:underline mt-1">Retry</button>
             </div>
           ) : contracts.length === 0 ? (
-            <div className="p-12 text-center">
-              <Briefcase className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No contracts yet</p>
-              <p className="text-sm text-gray-400 mt-1">Add a contract to track agreements with this vendor</p>
+            <div className="py-6 text-center">
+              <Briefcase className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+              <p className="text-xs text-gray-500">No contracts yet</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Contract #
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Type
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Duration
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
+              <table className="min-w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Contract #</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Type</th>
+                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 uppercase">Amount</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Duration</th>
+                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Status</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {contracts.map((contract) => (
+                <tbody className="divide-y divide-gray-100">
+                  {contracts.map((contract, idx) => (
                     <tr
                       key={contract.id}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                       onClick={() => router.push(`/dashboard/vendors/${vendorId}/contracts/${contract.id}`)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{contract.contractNumber}</div>
+                      <td className="px-3 py-1.5">
+                        <span className="text-xs font-medium text-gray-900">{contract.contractNumber}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
+                      <td className="px-3 py-1.5">
+                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700">
                           {getContractTypeLabel(contract.type)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(contract.totalSum)}
-                        </div>
+                      <td className="px-3 py-1.5 text-right">
+                        <span className="text-xs font-medium text-gray-900">{formatCurrency(contract.totalSum)}</span>
                         {contract.retentionPercent && contract.retentionPercent > 0 && (
-                          <div className="text-xs text-gray-500">
-                            {contract.retentionPercent}% retention
-                          </div>
+                          <span className="text-[10px] text-gray-500 ml-1">({contract.retentionPercent}% ret)</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <div>{new Date(contract.startDate).toLocaleDateString()}</div>
-                        {contract.endDate ? (
-                          <div>to {new Date(contract.endDate).toLocaleDateString()}</div>
-                        ) : (
-                          <div className="text-gray-400 italic">Ongoing</div>
-                        )}
+                      <td className="px-3 py-1.5 text-xs text-gray-500">
+                        {new Date(contract.startDate).toLocaleDateString()}
+                        {contract.endDate ? ` - ${new Date(contract.endDate).toLocaleDateString()}` : ' - Ongoing'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-1.5">
                         {getContractStatusBadge(contract.status)}
                       </td>
                     </tr>
@@ -2157,124 +1668,142 @@ export default function VendorDetailPage() {
         <VendorPurchaseOrdersTab vendorId={vendorId} />
       )}
 
+      {activeTab === 'files' && (
+        <VendorFiles vendorId={vendorId} />
+      )}
+
       {activeTab === 'portal' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow border p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className={`h-12 w-12 rounded-full flex items-center justify-center ${
+        <div className="space-y-3">
+          {/* Portal Access Card */}
+          <div className="bg-white rounded border overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <div className={`h-6 w-6 rounded flex items-center justify-center ${
                   portalAccess?.hasPortalAccess ? 'bg-green-100' : 'bg-gray-100'
                 }`}>
-                  <Key className={`h-6 w-6 ${
+                  <Key className={`h-3.5 w-3.5 ${
                     portalAccess?.hasPortalAccess ? 'text-green-600' : 'text-gray-400'
                   }`} />
                 </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">Vendor Portal Access</h3>
-                  <p className="text-sm text-gray-500">
-                    {portalAccess?.hasPortalAccess
-                      ? 'Vendor can access the portal'
-                      : 'Portal access not configured'}
-                  </p>
-                </div>
+                <h3 className="text-sm font-medium text-gray-900">Portal Access</h3>
               </div>
               {portalAccess?.hasPortalAccess ? (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  <Check className="h-4 w-4" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700">
+                  <Check className="h-2.5 w-2.5" />
                   Enabled
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
-                  <X className="h-4 w-4" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
+                  <X className="h-2.5 w-2.5" />
                   Disabled
                 </span>
               )}
             </div>
 
-            {portalAccess?.hasPortalAccess ? (
-              <div className="space-y-4">
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Portal Email:</span>
-                    <p className="text-gray-900">{portalAccess.portalEmail}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Last Login:</span>
-                    <p className="text-gray-900">
-                      {portalAccess.lastLogin
-                        ? new Date(portalAccess.lastLogin).toLocaleString()
-                        : 'Never'}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Portal URL:</span>
-                    <p className="text-primary-600">
-                      {typeof window !== 'undefined' ? `${window.location.origin}/vendor/login` : '/vendor/login'}
-                    </p>
+            <div className="px-3 py-2">
+              {portalAccess?.hasPortalAccess ? (
+                <div className="space-y-2">
+                  {/* Portal Details Table */}
+                  <table className="w-full">
+                    <tbody className="divide-y divide-gray-100">
+                      <tr className="bg-gray-50/50">
+                        <td className="px-2 py-1.5 text-xs text-gray-500 w-28">Email</td>
+                        <td className="px-2 py-1.5 text-xs font-medium text-gray-900">{portalAccess.portalEmail}</td>
+                      </tr>
+                      <tr>
+                        <td className="px-2 py-1.5 text-xs text-gray-500">Last Login</td>
+                        <td className="px-2 py-1.5 text-xs text-gray-900">
+                          {portalAccess.lastLogin
+                            ? new Date(portalAccess.lastLogin).toLocaleString()
+                            : 'Never'}
+                        </td>
+                      </tr>
+                      <tr className="bg-gray-50/50">
+                        <td className="px-2 py-1.5 text-xs text-gray-500">Portal URL</td>
+                        <td className="px-2 py-1.5 text-xs text-primary-600">
+                          {typeof window !== 'undefined' ? `${window.location.origin}/vendor/login` : '/vendor/login'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => {
+                        setPortalForm({
+                          email: portalAccess.portalEmail || '',
+                          password: '',
+                          confirmPassword: ''
+                        })
+                        setIsPortalModalOpen(true)
+                      }}
+                      className="text-xs bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700 flex items-center gap-1"
+                    >
+                      <Edit className="h-3 w-3" />
+                      Update
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm('Are you sure you want to disable portal access for this vendor?')) {
+                          disablePortalMutation.mutate()
+                        }
+                      }}
+                      disabled={disablePortalMutation.isPending}
+                      className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700 flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <Lock className="h-3 w-3" />
+                      {disablePortalMutation.isPending ? 'Disabling...' : 'Disable'}
+                    </button>
                   </div>
                 </div>
-                <div className="flex space-x-3">
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-600">
+                    Enable portal access to allow this vendor to log in and view their assigned tasks, contracts, payments, and ratings.
+                  </p>
                   <button
                     onClick={() => {
                       setPortalForm({
-                        email: portalAccess.portalEmail || '',
+                        email: vendor?.email || '',
                         password: '',
                         confirmPassword: ''
                       })
                       setIsPortalModalOpen(true)
                     }}
-                    className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
+                    className="text-xs bg-primary-600 text-white px-2 py-1 rounded hover:bg-primary-700 flex items-center gap-1"
                   >
-                    <Edit className="h-4 w-4" />
-                    <span>Update Credentials</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (confirm('Are you sure you want to disable portal access for this vendor?')) {
-                        disablePortalMutation.mutate()
-                      }
-                    }}
-                    disabled={disablePortalMutation.isPending}
-                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center space-x-2 disabled:opacity-50"
-                  >
-                    <Lock className="h-4 w-4" />
-                    <span>{disablePortalMutation.isPending ? 'Disabling...' : 'Disable Access'}</span>
+                    <Key className="h-3 w-3" />
+                    Enable Portal Access
                   </button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-gray-600">
-                  Enable portal access to allow this vendor to log in and view their assigned tasks,
-                  contracts, payments, and ratings.
-                </p>
-                <button
-                  onClick={() => {
-                    setPortalForm({
-                      email: vendor?.email || '',
-                      password: '',
-                      confirmPassword: ''
-                    })
-                    setIsPortalModalOpen(true)
-                  }}
-                  className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2"
-                >
-                  <Key className="h-4 w-4" />
-                  <span>Enable Portal Access</span>
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Portal Info Card */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="font-medium text-blue-900 mb-2">What vendors can access:</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• View their assigned tasks and update progress</li>
-              <li>• Access contract details and documents</li>
-              <li>• View payment history</li>
-              <li>• See their performance ratings and reviews</li>
-            </ul>
+          <div className="bg-white rounded border overflow-hidden">
+            <div className="px-3 py-2 border-b border-gray-100 bg-blue-50">
+              <h4 className="text-xs font-medium text-blue-900">What vendors can access:</h4>
+            </div>
+            <div className="px-3 py-2">
+              <ul className="text-xs text-gray-700 space-y-1">
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-green-500" />
+                  View assigned tasks and update progress
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-green-500" />
+                  Access contract details and documents
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-green-500" />
+                  View payment history
+                </li>
+                <li className="flex items-center gap-1.5">
+                  <Check className="h-3 w-3 text-green-500" />
+                  See performance ratings and reviews
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       )}
@@ -2282,16 +1811,16 @@ export default function VendorDetailPage() {
       {/* Portal Access Modal */}
       {isPortalModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <div className="px-4 py-2 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <h3 className="text-sm font-medium text-gray-900">
                 {portalAccess?.hasPortalAccess ? 'Update Portal Credentials' : 'Enable Portal Access'}
               </h3>
               <button
                 onClick={() => setIsPortalModalOpen(false)}
                 className="text-gray-400 hover:text-gray-500"
               >
-                <X className="h-6 w-6" />
+                <X className="h-4 w-4" />
               </button>
             </div>
             <form
@@ -2306,10 +1835,10 @@ export default function VendorDetailPage() {
                   password: portalForm.password
                 })
               }}
-              className="p-6 space-y-4"
+              className="p-4 space-y-3"
             >
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Portal Email <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2317,16 +1846,16 @@ export default function VendorDetailPage() {
                   value={portalForm.email}
                   onChange={(e) => setPortalForm({ ...portalForm, email: e.target.value })}
                   placeholder="vendor@example.com"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  The email address the vendor will use to log in
+                <p className="text-[10px] text-gray-500 mt-0.5">
+                  Email address the vendor will use to log in
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
@@ -2335,22 +1864,22 @@ export default function VendorDetailPage() {
                     value={portalForm.password}
                     onChange={(e) => setPortalForm({ ...portalForm, password: e.target.value })}
                     placeholder="Minimum 8 characters"
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    className="w-full border border-gray-300 rounded px-2 py-1.5 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Confirm Password <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -2358,37 +1887,37 @@ export default function VendorDetailPage() {
                   value={portalForm.confirmPassword}
                   onChange={(e) => setPortalForm({ ...portalForm, confirmPassword: e.target.value })}
                   placeholder="Confirm password"
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary-500"
                   required
                   minLength={8}
                 />
                 {portalForm.password && portalForm.confirmPassword && portalForm.password !== portalForm.confirmPassword && (
-                  <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                  <p className="text-[10px] text-red-500 mt-0.5">Passwords do not match</p>
                 )}
               </div>
 
               {enablePortalMutation.error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800 text-sm">
+                <div className="bg-red-50 border border-red-200 rounded p-2 text-red-800 text-xs">
                   {enablePortalMutation.error.message}
                 </div>
               )}
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setIsPortalModalOpen(false)}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-3 py-1.5 text-xs text-gray-700 border border-gray-300 rounded hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={enablePortalMutation.isPending || !portalForm.email || !portalForm.password || portalForm.password !== portalForm.confirmPassword}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                  className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
                 >
                   {enablePortalMutation.isPending ? (
                     <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                      <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full" />
                       <span>Saving...</span>
                     </>
                   ) : (
