@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import { DocumentTemplateType } from '@prisma/client'
 import { getVariablesForType } from '@/lib/documents'
 
@@ -9,8 +9,18 @@ interface TemplatePreviewProps {
   documentType: DocumentTemplateType
 }
 
-// Sample data for preview
+interface CompanyData {
+  name: string
+  logo: string | null
+}
+
+// Placeholder for when no logo is available
+const LOGO_PLACEHOLDER = '<div style="display: inline-block; width: 120px; height: 40px; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); border-radius: 4px; color: white; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; padding: 8px;">Your Logo Here</div>'
+
+// Sample data for preview (logo will be overridden with actual company logo if available)
 const SAMPLE_DATA: Record<string, string> = {
+  // Company logo - will be replaced with actual logo or placeholder
+  '{{company.logo}}': LOGO_PLACEHOLDER,
   '{{changeOrder.number}}': 'CO-CON-2026-001-1',
   '{{changeOrder.title}}': 'Additional Electrical Work',
   '{{changeOrder.description}}': 'Installation of additional power outlets in the main conference room as requested by the client.',
@@ -95,12 +105,42 @@ const SAMPLE_DATA: Record<string, string> = {
 }
 
 export function TemplatePreview({ content, documentType }: TemplatePreviewProps) {
+  const [companyData, setCompanyData] = useState<CompanyData | null>(null)
+
+  // Fetch company data on mount to get actual logo
+  useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const response = await fetch('/api/company/settings')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.company) {
+            setCompanyData(data.company)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch company data for preview:', error)
+      }
+    }
+    fetchCompanyData()
+  }, [])
+
   // Substitute variables with sample data
   const renderedContent = useMemo(() => {
     let result = content
 
+    // Build sample data with actual company logo if available
+    const previewData = { ...SAMPLE_DATA }
+
+    if (companyData?.logo) {
+      previewData['{{company.logo}}'] = `<img src="${companyData.logo}" alt="${companyData.name || 'Company Logo'}" style="max-height: 60px; max-width: 200px;" />`
+    }
+    if (companyData?.name) {
+      previewData['{{company.name}}'] = companyData.name
+    }
+
     // Replace all known variables with sample data
-    Object.entries(SAMPLE_DATA).forEach(([key, value]) => {
+    Object.entries(previewData).forEach(([key, value]) => {
       result = result.split(key).join(value)
     })
 
@@ -111,7 +151,7 @@ export function TemplatePreview({ content, documentType }: TemplatePreviewProps)
     )
 
     return result
-  }, [content])
+  }, [content, companyData])
 
   return (
     <div className="border rounded-lg overflow-hidden">

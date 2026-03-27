@@ -126,139 +126,122 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <Package className="h-4 w-4" />
-          Line Items
-        </h4>
-        {!readonly && (
+    <div>
+      {!readonly && (
+        <div className="px-3 py-1.5 border-b bg-white flex justify-end">
           <button
             onClick={() => setIsAdding(true)}
             disabled={isAdding}
-            className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 rounded-md hover:bg-primary-100 disabled:opacity-50"
+            className="inline-flex items-center gap-0.5 text-[10px] text-primary-600 hover:text-primary-800 disabled:opacity-50"
           >
-            <Plus className="h-3 w-3 mr-1" />
+            <Plus className="h-3 w-3" />
             Add Item
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {lineItems.length === 0 && !isAdding ? (
-        <div className="bg-gray-50 rounded-lg p-4 text-center">
-          <Package className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-          <p className="text-sm text-gray-500">No line items</p>
-          {!readonly && (
-            <p className="text-xs text-gray-400">Add itemized breakdown of the contract</p>
-          )}
-        </div>
+        <div className="px-3 py-4 text-center text-[10px] text-gray-500">No line items</div>
       ) : (
-        <div className="border rounded-lg overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unit</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Unit Price</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                {!readonly && <th className="px-4 py-2 w-20"></th>}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {lineItems.map((item) => (
-                <tr key={item.id}>
-                  {editingId === item.id ? (
-                    <>
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          value={editItem.description ?? item.description}
-                          onChange={(e) => setEditItem({ ...editItem, description: e.target.value })}
-                          className="w-full border rounded px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="number"
-                          value={editItem.quantity ?? item.quantity}
-                          onChange={(e) => setEditItem({ ...editItem, quantity: parseFloat(e.target.value) })}
-                          className="w-20 border rounded px-2 py-1 text-sm text-right"
-                          step="0.01"
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <select
-                          value={editItem.unit ?? item.unit}
-                          onChange={(e) => setEditItem({ ...editItem, unit: e.target.value })}
-                          className="border rounded px-2 py-1 text-sm"
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Description</th>
+              <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-16">Qty</th>
+              <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 w-14">Unit</th>
+              <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-20">Price</th>
+              <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-24">Total</th>
+              {!readonly && <th className="px-2 py-1 w-14"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {lineItems.map((item, idx) => (
+              <tr key={item.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                {editingId === item.id ? (
+                  <>
+                    <td className="px-3 py-1">
+                      <input
+                        type="text"
+                        value={editItem.description ?? item.description}
+                        onChange={(e) => setEditItem({ ...editItem, description: e.target.value })}
+                        className="w-full border rounded px-1.5 py-0.5 text-xs"
+                      />
+                    </td>
+                    <td className="px-3 py-1">
+                      <input
+                        type="number"
+                        value={editItem.quantity ?? item.quantity}
+                        onChange={(e) => setEditItem({ ...editItem, quantity: parseFloat(e.target.value) })}
+                        className="w-14 border rounded px-1.5 py-0.5 text-xs text-right"
+                        step="0.01"
+                      />
+                    </td>
+                    <td className="px-3 py-1">
+                      <select
+                        value={editItem.unit ?? item.unit}
+                        onChange={(e) => setEditItem({ ...editItem, unit: e.target.value })}
+                        className="border rounded px-1 py-0.5 text-xs"
+                      >
+                        {UNIT_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.value}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-3 py-1">
+                      <input
+                        type="number"
+                        value={editItem.unitPrice ?? item.unitPrice}
+                        onChange={(e) => setEditItem({ ...editItem, unitPrice: parseFloat(e.target.value) })}
+                        className="w-18 border rounded px-1.5 py-0.5 text-xs text-right"
+                        step="0.01"
+                      />
+                    </td>
+                    <td className="px-3 py-1 text-right text-xs">
+                      {formatCurrency((editItem.quantity ?? item.quantity) * (editItem.unitPrice ?? item.unitPrice))}
+                    </td>
+                    <td className="px-2 py-1">
+                      <div className="flex items-center justify-end gap-0.5">
+                        <button
+                          onClick={() => updateMutation.mutate({ id: item.id, ...editItem })}
+                          disabled={updateMutation.isPending}
+                          className="p-0.5 text-green-600 hover:text-green-800"
                         >
-                          {UNIT_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="number"
-                          value={editItem.unitPrice ?? item.unitPrice}
-                          onChange={(e) => setEditItem({ ...editItem, unitPrice: parseFloat(e.target.value) })}
-                          className="w-24 border rounded px-2 py-1 text-sm text-right"
-                          step="0.01"
-                        />
-                      </td>
-                      <td className="px-4 py-2 text-right text-sm">
-                        {formatCurrency((editItem.quantity ?? item.quantity) * (editItem.unitPrice ?? item.unitPrice))}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center justify-end gap-1">
+                          <Save className="h-3 w-3" />
+                        </button>
+                        <button
+                          onClick={() => { setEditingId(null); setEditItem({}) }}
+                          className="p-0.5 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="px-3 py-1.5">
+                      <div className="text-xs text-gray-900">{item.description}</div>
+                      {item.notes && <div className="text-[10px] text-gray-500">{item.notes}</div>}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-gray-900">{item.quantity}</td>
+                    <td className="px-3 py-1.5 text-gray-500">{item.unit}</td>
+                    <td className="px-3 py-1.5 text-right text-gray-900">{formatCurrency(item.unitPrice)}</td>
+                    <td className="px-3 py-1.5 text-right font-medium text-gray-900">{formatCurrency(item.totalPrice)}</td>
+                    {!readonly && (
+                      <td className="px-2 py-1.5">
+                        <div className="flex items-center justify-end gap-0.5">
                           <button
-                            onClick={() => updateMutation.mutate({ id: item.id, ...editItem })}
-                            disabled={updateMutation.isPending}
-                            className="p-1 text-green-600 hover:text-green-800"
+                            onClick={() => { setEditingId(item.id); setEditItem({}) }}
+                            className="p-0.5 text-gray-400 hover:text-primary-600"
                           >
-                            <Save className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => { setEditingId(null); setEditItem({}) }}
-                            className="p-1 text-gray-400 hover:text-gray-600"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-2">
-                        <div className="text-sm text-gray-900">{item.description}</div>
-                        {item.notes && (
-                          <div className="text-xs text-gray-500">{item.notes}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-900">{item.quantity}</td>
-                      <td className="px-4 py-2 text-sm text-gray-500">{item.unit}</td>
-                      <td className="px-4 py-2 text-right text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
-                      <td className="px-4 py-2 text-right text-sm font-medium text-gray-900">{formatCurrency(item.totalPrice)}</td>
-                      {!readonly && (
-                        <td className="px-4 py-2">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => { setEditingId(item.id); setEditItem({}) }}
-                              className="p-1 text-gray-400 hover:text-primary-600"
-                            >
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-3 w-3" />
                             </button>
                             <button
-                              onClick={() => {
-                                if (confirm('Delete this line item?')) {
-                                  deleteMutation.mutate(item.id)
-                                }
-                              }}
+                              onClick={() => { if (confirm('Delete this line item?')) deleteMutation.mutate(item.id) }}
                               disabled={deleteMutation.isPending}
-                              className="p-1 text-gray-400 hover:text-red-600"
+                              className="p-0.5 text-gray-400 hover:text-red-600"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-3 w-3" />
                             </button>
                           </div>
                         </td>
@@ -269,85 +252,77 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
               ))}
 
               {isAdding && (
-                <tr className="bg-blue-50">
-                  <td className="px-4 py-2">
+                <tr className="bg-blue-50/50">
+                  <td className="px-3 py-1">
                     <input
                       type="text"
                       value={newItem.description}
                       onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                       placeholder="Description"
-                      className="w-full border rounded px-2 py-1 text-sm"
+                      className="w-full border rounded px-1.5 py-0.5 text-xs"
                       autoFocus
                     />
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-3 py-1">
                     <input
                       type="number"
                       value={newItem.quantity}
                       onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
-                      className="w-20 border rounded px-2 py-1 text-sm text-right"
+                      className="w-14 border rounded px-1.5 py-0.5 text-xs text-right"
                       step="0.01"
                     />
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-3 py-1">
                     <select
                       value={newItem.unit}
                       onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
-                      className="border rounded px-2 py-1 text-sm"
+                      className="border rounded px-1 py-0.5 text-xs"
                     >
                       {UNIT_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        <option key={opt.value} value={opt.value}>{opt.value}</option>
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-2">
+                  <td className="px-3 py-1">
                     <input
                       type="number"
                       value={newItem.unitPrice}
                       onChange={(e) => setNewItem({ ...newItem, unitPrice: parseFloat(e.target.value) || 0 })}
-                      className="w-24 border rounded px-2 py-1 text-sm text-right"
+                      className="w-18 border rounded px-1.5 py-0.5 text-xs text-right"
                       step="0.01"
                     />
                   </td>
-                  <td className="px-4 py-2 text-right text-sm font-medium">
+                  <td className="px-3 py-1 text-right text-xs font-medium">
                     {formatCurrency(newItem.quantity * newItem.unitPrice)}
                   </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-end gap-1">
+                  <td className="px-2 py-1">
+                    <div className="flex items-center justify-end gap-0.5">
                       <button
                         onClick={() => createMutation.mutate(newItem)}
                         disabled={createMutation.isPending || !newItem.description}
-                        className="p-1 text-green-600 hover:text-green-800 disabled:opacity-50"
+                        className="p-0.5 text-green-600 hover:text-green-800 disabled:opacity-50"
                       >
-                        <Save className="h-4 w-4" />
+                        <Save className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => {
-                          setIsAdding(false)
-                          setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' })
-                        }}
-                        className="p-1 text-gray-400 hover:text-gray-600"
+                        onClick={() => { setIsAdding(false); setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }) }}
+                        className="p-0.5 text-gray-400 hover:text-gray-600"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                       </button>
                     </div>
                   </td>
                 </tr>
               )}
             </tbody>
-            <tfoot className="bg-gray-50">
-              <tr>
-                <td colSpan={4} className="px-4 py-2 text-right text-sm font-medium text-gray-700">
-                  Total:
-                </td>
-                <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">
-                  {formatCurrency(totalAmount)}
-                </td>
+            <tfoot>
+              <tr className="bg-gray-100 border-t border-gray-200">
+                <td colSpan={4} className="px-3 py-1.5 text-right text-xs font-semibold text-gray-700">Total:</td>
+                <td className="px-3 py-1.5 text-right text-xs font-bold text-gray-900">{formatCurrency(totalAmount)}</td>
                 {!readonly && <td></td>}
               </tr>
             </tfoot>
           </table>
-        </div>
       )}
     </div>
   )

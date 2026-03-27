@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import {
   Star,
   Briefcase,
@@ -21,9 +23,32 @@ import {
   Paperclip,
   Building2,
   Shield,
-  Activity
+  Activity,
+  Upload
 } from 'lucide-react'
 import { useCurrency } from '@/hooks/useCurrency'
+
+async function uploadFile(vendorId: string, file: File) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('name', file.name)
+
+  const response = await fetch(`/api/vendor/${vendorId}/files`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Cookie': document.cookie
+    },
+    body: formData
+  })
+  if (!response.ok) throw new Error('Failed to upload file')
+  return response.json()
+}
 
 interface VendorOverviewProps {
   vendor: any
@@ -68,6 +93,31 @@ export function VendorOverview({
   onTabChange
 }: VendorOverviewProps) {
   const { format: formatCurrency } = useCurrency()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
+
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) => uploadFile(vendor.id, file),
+    onSuccess: () => {
+      toast.success('File uploaded successfully!')
+      queryClient.invalidateQueries({ queryKey: ['vendor-files', vendor.id] })
+      queryClient.invalidateQueries({ queryKey: ['vendor-files-overview', vendor.id] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload file')
+    }
+  })
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      uploadMutation.mutate(file)
+    }
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
 
   // Calculate metrics
   const activeContracts = contracts.filter(c => c.status === 'ACTIVE').length
@@ -208,13 +258,23 @@ export function VendorOverview({
                 </thead>
                 <tbody>
                   {contracts.slice(0, 4).map((contract, idx) => (
-                    <tr key={contract.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    <tr key={contract.id} className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                       <td className="px-3 py-1.5">
-                        <div className="truncate max-w-[150px]">{contract.contractNumber}</div>
-                        <div className="text-[10px] text-gray-500">{getContractTypeLabel(contract.type)}</div>
+                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
+                          <div className="truncate max-w-[150px]">{contract.contractNumber}</div>
+                          <div className="text-[10px] text-gray-500">{getContractTypeLabel(contract.type)}</div>
+                        </Link>
                       </td>
-                      <td className="px-3 py-1.5 text-right font-medium">{formatCurrency(contract.totalSum)}</td>
-                      <td className="px-3 py-1.5 text-center">{getStatusBadge(contract.status)}</td>
+                      <td className="px-3 py-1.5 text-right font-medium">
+                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
+                          {formatCurrency(contract.totalSum)}
+                        </Link>
+                      </td>
+                      <td className="px-3 py-1.5 text-center">
+                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
+                          {getStatusBadge(contract.status)}
+                        </Link>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -328,14 +388,30 @@ export function VendorOverview({
 
           {/* Recent Files */}
           <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              className="hidden"
+            />
             <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Paperclip className="h-4 w-4 text-cyan-600" />
                 <span className="text-xs font-semibold text-gray-700">Recent Files</span>
               </div>
-              <button onClick={() => onTabChange?.('files')} className="text-[10px] text-blue-600 hover:underline">
-                View all
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadMutation.isPending}
+                  className="text-[10px] text-gray-600 hover:text-gray-800 flex items-center gap-0.5 disabled:opacity-50"
+                >
+                  <Upload className="h-3 w-3" />
+                  {uploadMutation.isPending ? 'Uploading...' : 'Upload'}
+                </button>
+                <button onClick={() => onTabChange?.('files')} className="text-[10px] text-blue-600 hover:underline">
+                  View all
+                </button>
+              </div>
             </div>
             {files.length > 0 ? (
               <table className="w-full text-xs">

@@ -4,13 +4,11 @@ import { useState } from 'react'
 import {
   Plus,
   FileText,
-  MoreVertical,
   Edit,
   Trash2,
   Star,
-  StarOff,
   Copy,
-  Check
+  MoreHorizontal
 } from 'lucide-react'
 import { DocumentTemplateType } from '@prisma/client'
 import { formatDistanceToNow } from 'date-fns'
@@ -48,7 +46,7 @@ const TYPE_LABELS: Record<DocumentTemplateType, string> = {
   ESTIMATE: 'Estimate',
   BID: 'Bid',
   INTENT_TO_AWARD: 'Intent to Award',
-  NON_COMPLIANCE_NOTICE: 'Non-Compliance Notice',
+  NON_COMPLIANCE_NOTICE: 'Non-Compliance',
   CUSTOM: 'Custom',
 }
 
@@ -74,9 +72,10 @@ export function TemplateList({
 }: TemplateListProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [filterType, setFilterType] = useState<DocumentTemplateType | 'ALL'>('ALL')
 
   const handleDelete = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this template?')) {
       return
     }
     setDeletingId(templateId)
@@ -88,167 +87,154 @@ export function TemplateList({
     }
   }
 
-  const groupedTemplates = templates.reduce((acc, template) => {
-    if (!acc[template.type]) {
-      acc[template.type] = []
-    }
-    acc[template.type].push(template)
-    return acc
-  }, {} as Record<DocumentTemplateType, Template[]>)
+  const filteredTemplates = filterType === 'ALL'
+    ? templates
+    : templates.filter(t => t.type === filterType)
+
+  // Get unique types from templates for filter
+  const availableTypes = [...new Set(templates.map(t => t.type))]
 
   return (
-    <div>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Document Templates</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Create and manage templates for generating documents
-          </p>
+    <div className="bg-white border border-gray-200 rounded-md overflow-hidden">
+      {/* Compact Header */}
+      <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-gray-500" />
+          <h1 className="text-sm font-medium text-gray-900">Document Templates</h1>
+          <span className="text-[10px] text-gray-500">({templates.length})</span>
         </div>
-        <button
-          onClick={onCreate}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Template
-        </button>
-      </div>
-
-      {/* Template List */}
-      {templates.length === 0 ? (
-        <div className="bg-white rounded-lg border border-dashed border-gray-300 p-12 text-center">
-          <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            No templates yet
-          </h3>
-          <p className="text-gray-500 mb-4">
-            Create your first document template to get started
-          </p>
+        <div className="flex items-center gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value as DocumentTemplateType | 'ALL')}
+            className="text-[10px] border border-gray-200 rounded px-1.5 py-0.5 bg-white"
+          >
+            <option value="ALL">All Types</option>
+            {availableTypes.map(type => (
+              <option key={type} value={type}>{TYPE_LABELS[type]}</option>
+            ))}
+          </select>
           <button
             onClick={onCreate}
-            className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+            className="inline-flex items-center gap-0.5 px-2 py-1 text-[10px] font-medium text-white bg-primary-600 rounded hover:bg-primary-700"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            Create Template
+            <Plus className="h-3 w-3" />
+            New Template
+          </button>
+        </div>
+      </div>
+
+      {/* Template Table */}
+      {templates.length === 0 ? (
+        <div className="px-3 py-8 text-center">
+          <FileText className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-xs text-gray-500 mb-2">No templates yet</p>
+          <button
+            onClick={onCreate}
+            className="inline-flex items-center gap-0.5 px-2 py-1 text-[10px] font-medium text-white bg-primary-600 rounded hover:bg-primary-700"
+          >
+            <Plus className="h-3 w-3" />
+            Create First Template
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {Object.entries(groupedTemplates).map(([type, typeTemplates]) => (
-            <div key={type}>
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`px-2 py-1 text-xs font-medium rounded ${TYPE_COLORS[type as DocumentTemplateType]}`}>
-                  {TYPE_LABELS[type as DocumentTemplateType]}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {typeTemplates.length} template{typeTemplates.length !== 1 ? 's' : ''}
-                </span>
-              </div>
-              <div className="bg-white rounded-lg border divide-y">
-                {typeTemplates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="p-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {template.name}
-                          </h3>
-                          {template.isDefault && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
-                              <Star className="h-3 w-3 mr-1" />
-                              Default
-                            </span>
-                          )}
-                          {!template.isActive && (
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 rounded">
-                              Inactive
-                            </span>
-                          )}
-                        </div>
-                        {template.description && (
-                          <p className="text-sm text-gray-500 mt-1 truncate">
-                            {template.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-gray-400">
-                          <span>
-                            Created by {template.createdBy.firstName} {template.createdBy.lastName}
-                          </span>
-                          <span>
-                            Updated {formatDistanceToNow(new Date(template.updatedAt), { addSuffix: true })}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 ml-4">
-                        <button
-                          onClick={() => onEdit(template)}
-                          className="p-2 text-gray-400 hover:text-blue-600 rounded"
-                          title="Edit template"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <div className="relative">
-                          <button
-                            onClick={() => setOpenMenuId(openMenuId === template.id ? null : template.id)}
-                            className="p-2 text-gray-400 hover:text-gray-600 rounded"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                          {openMenuId === template.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={() => setOpenMenuId(null)}
-                              />
-                              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-20 border py-1">
-                                <button
-                                  onClick={() => {
-                                    onDuplicate(template.id)
-                                    setOpenMenuId(null)
-                                  }}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                >
-                                  <Copy className="h-4 w-4 mr-3 text-gray-400" />
-                                  Duplicate
-                                </button>
-                                {!template.isDefault && (
-                                  <button
-                                    onClick={() => {
-                                      onSetDefault(template.id)
-                                      setOpenMenuId(null)
-                                    }}
-                                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                  >
-                                    <Star className="h-4 w-4 mr-3 text-gray-400" />
-                                    Set as Default
-                                  </button>
-                                )}
-                                <div className="border-t my-1" />
-                                <button
-                                  onClick={() => handleDelete(template.id)}
-                                  disabled={deletingId === template.id}
-                                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-3" />
-                                  {deletingId === template.id ? 'Deleting...' : 'Delete'}
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+        <table className="w-full">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-600 uppercase">Name</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-600 uppercase w-28">Type</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-600 uppercase w-24">Status</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-600 uppercase w-28">Created By</th>
+              <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-600 uppercase w-24">Updated</th>
+              <th className="px-2 py-1.5 w-20"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTemplates.map((template, idx) => (
+              <tr
+                key={template.id}
+                className={`border-b border-gray-100 hover:bg-blue-50/50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                onClick={() => onEdit(template)}
+              >
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-medium text-gray-900">{template.name}</span>
+                    {template.isDefault && (
+                      <Star className="h-3 w-3 text-yellow-500 fill-yellow-500" />
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                  {template.description && (
+                    <p className="text-[10px] text-gray-500 truncate max-w-xs">{template.description}</p>
+                  )}
+                </td>
+                <td className="px-3 py-1.5">
+                  <span className={`inline-block px-1.5 py-0.5 text-[10px] font-medium rounded ${TYPE_COLORS[template.type]}`}>
+                    {TYPE_LABELS[template.type]}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5">
+                  <div className="flex items-center gap-1">
+                    {template.isDefault && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-medium bg-yellow-100 text-yellow-700 rounded">
+                        Default
+                      </span>
+                    )}
+                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${template.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {template.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-1.5 text-[10px] text-gray-600">
+                  {template.createdBy.firstName} {template.createdBy.lastName}
+                </td>
+                <td className="px-3 py-1.5 text-[10px] text-gray-500">
+                  {formatDistanceToNow(new Date(template.updatedAt), { addSuffix: true }).replace('about ', '')}
+                </td>
+                <td className="px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-0.5">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onEdit(template) }}
+                      className="p-1 text-gray-400 hover:text-primary-600 rounded"
+                      title="Edit"
+                    >
+                      <Edit className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDuplicate(template.id) }}
+                      className="p-1 text-gray-400 hover:text-primary-600 rounded"
+                      title="Duplicate"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </button>
+                    {!template.isDefault && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSetDefault(template.id) }}
+                        className="p-1 text-gray-400 hover:text-yellow-600 rounded"
+                        title="Set as Default"
+                      >
+                        <Star className="h-3 w-3" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(template.id) }}
+                      disabled={deletingId === template.id}
+                      className="p-1 text-gray-400 hover:text-red-600 rounded disabled:opacity-50"
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* Footer with count */}
+      {templates.length > 0 && (
+        <div className="px-3 py-1.5 border-t bg-gray-50 text-[10px] text-gray-500">
+          Showing {filteredTemplates.length} of {templates.length} templates
         </div>
       )}
     </div>

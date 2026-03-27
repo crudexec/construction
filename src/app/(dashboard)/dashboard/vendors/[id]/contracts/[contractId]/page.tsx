@@ -100,15 +100,15 @@ async function fetchContract(contractId: string): Promise<VendorContract> {
 
 const getContractStatusBadge = (status: string) => {
   const config: Record<string, { bg: string; text: string }> = {
-    'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-800' },
-    'ACTIVE': { bg: 'bg-green-100', text: 'text-green-800' },
-    'COMPLETED': { bg: 'bg-blue-100', text: 'text-blue-800' },
-    'TERMINATED': { bg: 'bg-red-100', text: 'text-red-800' },
-    'EXPIRED': { bg: 'bg-yellow-100', text: 'text-yellow-800' }
+    'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-700' },
+    'ACTIVE': { bg: 'bg-green-100', text: 'text-green-700' },
+    'COMPLETED': { bg: 'bg-blue-100', text: 'text-blue-700' },
+    'TERMINATED': { bg: 'bg-red-100', text: 'text-red-700' },
+    'EXPIRED': { bg: 'bg-yellow-100', text: 'text-yellow-700' }
   }
   const c = config[status] || config['DRAFT']
   return (
-    <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${c.bg} ${c.text}`}>
+    <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${c.bg} ${c.text}`}>
       {status}
     </span>
   )
@@ -297,171 +297,147 @@ export default function ContractDetailPage() {
   const paidPercentage = contract.totalSum > 0 ? (totalPaid / contract.totalSum) * 100 : 0
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
+      <div className="flex items-center justify-between bg-white border rounded px-3 py-2">
+        <div className="flex items-center gap-3">
           <Link
             href={`/dashboard/vendors/${vendorId}?tab=contracts`}
-            className="p-1.5 hover:bg-gray-100 rounded-md"
+            className="p-1 hover:bg-gray-100 rounded"
           >
             <ArrowLeft className="h-4 w-4 text-gray-500" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-lg font-bold text-gray-900">Contract Details</h1>
-              {getContractStatusBadge(contract.status)}
-              <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                {getContractTypeLabel(contract.type)}
-              </span>
-            </div>
-            <p className="text-xs text-gray-500">{contract.contractNumber}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-sm font-semibold text-gray-900">{contract.contractNumber}</h1>
+            {getContractStatusBadge(contract.status)}
+            <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700">
+              {getContractTypeLabel(contract.type)}
+            </span>
           </div>
         </div>
-      </div>
-
-      {/* Top Row: Vendor + Retention */}
-      <div className="flex gap-3">
-        {/* Vendor Info Card */}
-        <div className="bg-white rounded-lg border p-3 flex-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
-                <Building2 className="h-4 w-4 text-gray-500" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Vendor</p>
-                <p className="text-sm font-medium text-gray-900">{contract.vendor.companyName}</p>
-              </div>
-            </div>
-            <Link
-              href={`/dashboard/vendors/${vendorId}`}
-              className="text-xs text-primary-600 hover:text-primary-700 flex items-center gap-1"
-            >
-              View <ExternalLink className="h-3 w-3" />
-            </Link>
-          </div>
+        <div className="flex items-center gap-3 text-xs">
+          <Link
+            href={`/dashboard/vendors/${vendorId}`}
+            className="flex items-center gap-1 text-gray-600 hover:text-gray-900"
+          >
+            <Building2 className="h-3.5 w-3.5" />
+            <span>{contract.vendor.companyName}</span>
+          </Link>
+          {contract.retentionPercent && contract.retentionPercent > 0 && (
+            <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
+              <Shield className="h-3 w-3" />
+              {contract.retentionPercent}% retention
+            </span>
+          )}
         </div>
-
-        {/* Retention Info */}
-        {contract.retentionPercent && contract.retentionPercent > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-            <div className="flex items-center gap-1.5">
-              <Shield className="h-4 w-4 text-amber-600" />
-              <span className="text-xs font-medium text-amber-800">Retention</span>
-            </div>
-            <p className="text-sm font-semibold text-amber-900">
-              {contract.retentionPercent}%
-              {contract.retentionAmount && (
-                <span className="text-amber-700 ml-1 text-xs">
-                  ({formatCurrency(contract.retentionAmount)})
-                </span>
-              )}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Contract Summary */}
       <ContractSummaryCard contractId={contract.id} />
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         {/* Line Items */}
-        <div className="bg-white rounded-lg border">
-          <div className="px-4 py-2 border-b">
-            <h2 className="text-sm font-semibold text-gray-900">Line Items</h2>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50">
+            <h2 className="text-xs font-semibold text-gray-700">Line Items</h2>
           </div>
-          <div className="p-3">
-            <ContractLineItems contractId={contract.id} />
-          </div>
+          <ContractLineItems contractId={contract.id} />
         </div>
 
         {/* Change Orders */}
-        <div className="bg-white rounded-lg border">
-          <div className="px-4 py-2 border-b">
-            <h2 className="text-sm font-semibold text-gray-900">Change Orders</h2>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50">
+            <h2 className="text-xs font-semibold text-gray-700">Change Orders</h2>
           </div>
-          <div className="p-3">
-            <ContractChangeOrders contractId={contract.id} />
-          </div>
+          <ContractChangeOrders contractId={contract.id} />
         </div>
       </div>
 
       {/* Contract Details Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
         {/* Dates & Duration */}
-        <div className="bg-white rounded-lg border p-3">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-1.5">
-            <Calendar className="h-4 w-4 text-gray-400" />
-            Duration
-          </h3>
-          <div className="space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-gray-500">Start</span>
-              <span className="font-medium text-gray-900">
-                {new Date(contract.startDate).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">End</span>
-              <span className="font-medium text-gray-900">
-                {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : <span className="text-gray-400 italic">TBD</span>}
-              </span>
-            </div>
-            <div className="flex justify-between pt-1.5 border-t">
-              <span className="text-gray-500">Warranty</span>
-              <span className="font-medium text-gray-900">
-                {contract.warrantyYears} yr{contract.warrantyYears > 1 ? 's' : ''}
-              </span>
-            </div>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-gray-500" />
+            <h3 className="text-xs font-semibold text-gray-700">Duration</h3>
           </div>
+          <table className="w-full text-xs">
+            <tbody>
+              <tr className="border-b border-gray-100">
+                <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50 w-20">Start</td>
+                <td className="px-3 py-1.5 font-medium text-gray-900">
+                  {new Date(contract.startDate).toLocaleDateString()}
+                </td>
+              </tr>
+              <tr className="border-b border-gray-100">
+                <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50">End</td>
+                <td className="px-3 py-1.5 font-medium text-gray-900">
+                  {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : <span className="text-gray-400 italic">TBD</span>}
+                </td>
+              </tr>
+              <tr>
+                <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50">Warranty</td>
+                <td className="px-3 py-1.5 font-medium text-gray-900">
+                  {contract.warrantyYears} yr{contract.warrantyYears > 1 ? 's' : ''}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         {/* Projects */}
-        <div className="bg-white rounded-lg border p-3">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Projects</h3>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-700">Projects</h3>
+          </div>
           {contract.projects.length === 0 ? (
-            <p className="text-xs text-gray-500">No projects linked</p>
+            <div className="px-3 py-3 text-center text-[10px] text-gray-500">No projects linked</div>
           ) : (
-            <div className="space-y-1">
-              {contract.projects.map(({ project }) => (
-                <Link
-                  key={project.id}
-                  href={`/dashboard/projects/${project.id}`}
-                  className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100 text-xs"
-                >
-                  <span className="font-medium text-gray-900 truncate">{project.title}</span>
-                  <span className={`px-1.5 py-0.5 rounded-full ${
-                    project.status === 'ACTIVE' ? 'bg-green-100 text-green-800' :
-                    project.status === 'COMPLETED' ? 'bg-blue-100 text-blue-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {project.status}
-                  </span>
-                </Link>
-              ))}
-            </div>
+            <table className="w-full text-xs">
+              <tbody>
+                {contract.projects.map(({ project }, idx) => (
+                  <tr
+                    key={project.id}
+                    className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    onClick={() => router.push(`/dashboard/projects/${project.id}`)}
+                  >
+                    <td className="px-3 py-1.5 font-medium text-gray-900 truncate">{project.title}</td>
+                    <td className="px-3 py-1.5 text-right">
+                      <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${
+                        project.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                        project.status === 'COMPLETED' ? 'bg-blue-100 text-blue-700' :
+                        'bg-gray-100 text-gray-700'
+                      }`}>
+                        {project.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
         {/* Terms & Notes Combined */}
-        <div className="bg-white rounded-lg border p-3">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Terms & Notes</h3>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50">
+            <h3 className="text-xs font-semibold text-gray-700">Terms & Notes</h3>
+          </div>
           {!contract.terms && !contract.notes ? (
-            <p className="text-xs text-gray-500">No terms or notes</p>
+            <div className="px-3 py-3 text-center text-[10px] text-gray-500">No terms or notes</div>
           ) : (
-            <div className="space-y-2 text-xs">
+            <div className="px-3 py-2 space-y-2 text-xs">
               {contract.terms && (
                 <div>
-                  <p className="text-gray-500 mb-0.5">Terms</p>
-                  <p className="text-gray-700 line-clamp-3">{contract.terms}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">Terms</p>
+                  <p className="text-gray-700 line-clamp-2">{contract.terms}</p>
                 </div>
               )}
               {contract.notes && (
                 <div>
-                  <p className="text-gray-500 mb-0.5">Notes</p>
-                  <p className="text-gray-700 line-clamp-3">{contract.notes}</p>
+                  <p className="text-[10px] text-gray-500 uppercase">Notes</p>
+                  <p className="text-gray-700 line-clamp-2">{contract.notes}</p>
                 </div>
               )}
             </div>
@@ -470,14 +446,14 @@ export default function ContractDetailPage() {
       </div>
 
       {/* Documents & Payments Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
         {/* Documents Section */}
-        <div className="bg-white rounded-lg border">
-          <div className="px-4 py-2 border-b flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-              <Paperclip className="h-4 w-4 text-gray-400" />
-              Documents
-            </h2>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Paperclip className="h-3.5 w-3.5 text-gray-500" />
+              <h2 className="text-xs font-semibold text-gray-700">Documents</h2>
+            </div>
             <div>
               <input
                 type="file"
@@ -490,153 +466,127 @@ export default function ContractDetailPage() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingDocument}
-                className="inline-flex items-center px-2 py-1 text-xs font-medium text-primary-600 bg-primary-50 rounded hover:bg-primary-100 disabled:opacity-50"
+                className="inline-flex items-center gap-0.5 text-[10px] text-primary-600 hover:text-primary-800 disabled:opacity-50"
               >
                 {isUploadingDocument ? (
                   <>
-                    <div className="animate-spin h-3 w-3 border-2 border-primary-600 border-t-transparent rounded-full mr-1" />
+                    <div className="animate-spin h-2.5 w-2.5 border border-primary-600 border-t-transparent rounded-full" />
                     Uploading...
                   </>
                 ) : (
                   <>
-                    <Upload className="h-3 w-3 mr-1" />
+                    <Upload className="h-3 w-3" />
                     Upload
                   </>
                 )}
               </button>
             </div>
           </div>
-          <div className="p-3">
-            {(!contract.documents || contract.documents.length === 0) ? (
-              <div className="text-center py-4">
-                <Paperclip className="h-6 w-6 mx-auto text-gray-300 mb-1" />
-                <p className="text-xs text-gray-500">No documents</p>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {contract.documents.map((doc) => (
-                  <div
+          {(!contract.documents || contract.documents.length === 0) ? (
+            <div className="px-3 py-4 text-center text-[10px] text-gray-500">No documents</div>
+          ) : (
+            <table className="w-full text-xs">
+              <tbody>
+                {contract.documents.map((doc, idx) => (
+                  <tr
                     key={doc.id}
-                    className="flex items-center justify-between p-2 bg-gray-50 rounded hover:bg-gray-100"
+                    className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    onClick={() => window.open(doc.url, '_blank')}
                   >
-                    <div className="flex items-center space-x-2 flex-1 min-w-0">
-                      <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-gray-900 truncate">{doc.fileName}</p>
-                        <p className="text-[10px] text-gray-500">
-                          {formatFileSize(doc.fileSize)} - {new Date(doc.createdAt).toLocaleDateString()}
-                        </p>
+                    <td className="px-3 py-1.5">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                        <span className="font-medium text-gray-900 truncate max-w-[150px]">{doc.fileName}</span>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-1 ml-2">
-                      <a
-                        href={doc.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1 text-gray-400 hover:text-primary-600 rounded"
-                      >
-                        <Download className="h-3.5 w-3.5" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm('Delete this document?')) {
-                            deleteDocumentMutation.mutate({ documentId: doc.id })
-                          }
-                        }}
-                        className="p-1 text-gray-400 hover:text-red-600 rounded"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                    </td>
+                    <td className="px-3 py-1.5 text-[10px] text-gray-500 text-right w-16">{formatFileSize(doc.fileSize)}</td>
+                    <td className="px-3 py-1.5 text-[10px] text-gray-500 text-right w-20">{new Date(doc.createdAt).toLocaleDateString()}</td>
+                    <td className="px-2 py-1.5 text-right w-16">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); window.open(doc.url, '_blank') }}
+                          className="p-0.5 text-gray-400 hover:text-primary-600"
+                        >
+                          <Download className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); if (confirm('Delete this document?')) deleteDocumentMutation.mutate({ documentId: doc.id }) }}
+                          className="p-0.5 text-gray-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
-          </div>
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* Payments Section */}
-        <div className="bg-white rounded-lg border">
-          <div className="px-4 py-2 border-b flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-gray-400" />
-              Payments
-            </h2>
+        <div className="bg-white rounded border overflow-hidden">
+          <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <DollarSign className="h-3.5 w-3.5 text-gray-500" />
+              <h2 className="text-xs font-semibold text-gray-700">Payments</h2>
+            </div>
             <button
               type="button"
               onClick={() => setIsAddPaymentModalOpen(true)}
-              className="inline-flex items-center px-2 py-1 text-xs font-medium text-primary-600 bg-primary-50 rounded hover:bg-primary-100"
+              className="inline-flex items-center gap-0.5 text-[10px] text-primary-600 hover:text-primary-800"
             >
-              <Plus className="h-3 w-3 mr-1" />
+              <Plus className="h-3 w-3" />
               Add
             </button>
           </div>
-          <div className="p-3">
-            {/* Payment Progress */}
-            {contract.payments && contract.payments.length > 0 && (
-              <div className="bg-blue-50 rounded p-3 mb-3">
-                <div className="grid grid-cols-3 gap-3 mb-2 text-xs">
-                  <div>
-                    <p className="text-gray-600">Total</p>
-                    <p className="text-sm font-bold text-gray-900">{formatCurrency(contract.totalSum)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Paid</p>
-                    <p className="text-sm font-bold text-green-600">{formatCurrency(totalPaid)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Remaining</p>
-                    <p className="text-sm font-bold text-blue-600">{formatCurrency(remaining)}</p>
-                  </div>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className="bg-green-600 h-1.5 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(paidPercentage, 100)}%` }}
-                  />
-                </div>
-                <p className="text-[10px] text-gray-600 mt-1 text-right">{Math.round(paidPercentage)}% paid</p>
-              </div>
-            )}
 
-            {(!contract.payments || contract.payments.length === 0) ? (
-              <div className="text-center py-4">
-                <DollarSign className="h-6 w-6 mx-auto text-gray-300 mb-1" />
-                <p className="text-xs text-gray-500">No payments</p>
+          {/* Payment Progress */}
+          {contract.payments && contract.payments.length > 0 && (
+            <div className="px-3 py-2 border-b bg-blue-50/50">
+              <div className="flex items-center justify-between text-[10px] mb-1">
+                <span className="text-gray-600">Total: <span className="font-semibold text-gray-900">{formatCurrency(contract.totalSum)}</span></span>
+                <span className="text-gray-600">Paid: <span className="font-semibold text-green-600">{formatCurrency(totalPaid)}</span></span>
+                <span className="text-gray-600">Remaining: <span className="font-semibold text-blue-600">{formatCurrency(remaining)}</span></span>
               </div>
-            ) : (
-              <div className="space-y-1.5">
-                {contract.payments.map((payment) => (
-                  <div
-                    key={payment.id}
-                    className="p-2 bg-gray-50 rounded"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-gray-900">
-                        {formatCurrency(payment.amount)}
-                      </span>
-                      <span className="text-[10px] text-gray-500">
-                        {new Date(payment.paymentDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">
-                      {payment.reference && <span>Ref: {payment.reference}</span>}
-                      <span>by {payment.createdBy.firstName} {payment.createdBy.lastName}</span>
-                    </div>
-                    {payment.notes && (
-                      <p className="text-[10px] text-gray-600 mt-1">{payment.notes}</p>
-                    )}
-                  </div>
+              <div className="w-full bg-gray-200 rounded-full h-1">
+                <div className="bg-green-600 h-1 rounded-full transition-all duration-300" style={{ width: `${Math.min(paidPercentage, 100)}%` }} />
+              </div>
+              <p className="text-[9px] text-gray-500 mt-0.5 text-right">{Math.round(paidPercentage)}% paid</p>
+            </div>
+          )}
+
+          {(!contract.payments || contract.payments.length === 0) ? (
+            <div className="px-3 py-4 text-center text-[10px] text-gray-500">No payments</div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Amount</th>
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Date</th>
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Reference</th>
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contract.payments.map((payment, idx) => (
+                  <tr key={payment.id} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <td className="px-3 py-1.5 font-semibold text-gray-900">{formatCurrency(payment.amount)}</td>
+                    <td className="px-3 py-1.5 text-gray-600">{new Date(payment.paymentDate).toLocaleDateString()}</td>
+                    <td className="px-3 py-1.5 text-gray-600">{payment.reference || '-'}</td>
+                    <td className="px-3 py-1.5 text-gray-500 text-[10px]">{payment.createdBy.firstName} {payment.createdBy.lastName}</td>
+                  </tr>
                 ))}
-              </div>
-            )}
-          </div>
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="text-xs text-gray-400">
+      <div className="text-[10px] text-gray-400 mt-1">
         Created {new Date(contract.createdAt).toLocaleDateString()}
       </div>
 

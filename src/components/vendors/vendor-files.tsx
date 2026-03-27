@@ -661,7 +661,8 @@ export function VendorFiles({ vendorId }: VendorFilesProps) {
               {filteredFiles.map((file: Document, index: number) => (
                 <tr
                   key={file.id}
-                  className={`border-b border-gray-50 hover:bg-blue-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                  className={`border-b border-gray-50 hover:bg-blue-50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                  onClick={() => handleView(file, index)}
                 >
                   <td className="px-2 py-1">
                     <div className="flex items-center space-x-1.5">
@@ -686,7 +687,7 @@ export function VendorFiles({ vendorId }: VendorFilesProps) {
                       <span className="text-[9px] text-gray-300">—</span>
                     )}
                   </td>
-                  <td className="px-2 py-1">
+                  <td className="px-2 py-1" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end space-x-0.5">
                       <button
                         onClick={() => {
@@ -699,7 +700,7 @@ export function VendorFiles({ vendorId }: VendorFilesProps) {
                         <Tag className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => handleView(file, filteredFiles.indexOf(file))}
+                        onClick={() => handleView(file, index)}
                         className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                         title="View"
                       >

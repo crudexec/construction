@@ -154,7 +154,7 @@ export default function DocumentTemplatesPage() {
   // Show editor if creating or editing
   if (isCreating || editingTemplate) {
     return (
-      <div className="max-w-7xl mx-auto">
+      <div>
         <TemplateEditor
           initialName={editingTemplate?.name}
           initialDescription={editingTemplate?.description || ''}
@@ -168,11 +168,11 @@ export default function DocumentTemplatesPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
       {/* Loading State */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
         </div>
       ) : (
         <TemplateList

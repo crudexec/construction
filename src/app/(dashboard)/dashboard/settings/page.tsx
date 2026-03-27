@@ -450,6 +450,91 @@ function SettingsContent() {
           <div>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Company Information</h3>
 
+            {/* Logo Upload Section */}
+            <div className="mb-4 p-3 border border-gray-200 rounded-md bg-gray-50">
+              <label className="block text-xs font-medium text-gray-700 mb-2">Company Logo</label>
+              <div className="flex items-center gap-4">
+                {company.logo ? (
+                  <img
+                    src={company.logo}
+                    alt="Company Logo"
+                    className="h-16 w-auto max-w-[200px] object-contain border border-gray-200 rounded bg-white p-1"
+                  />
+                ) : (
+                  <div className="h-16 w-32 border-2 border-dashed border-gray-300 rounded flex items-center justify-center bg-white">
+                    <span className="text-xs text-gray-400">No logo</span>
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <label className="cursor-pointer inline-flex items-center px-2 py-1 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50">
+                    <Upload className="h-3 w-3 mr-1" />
+                    {company.logo ? 'Change Logo' : 'Upload Logo'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+
+                        if (file.size > 2 * 1024 * 1024) {
+                          toast.error('Logo must be less than 2MB')
+                          return
+                        }
+
+                        const formData = new FormData()
+                        formData.append('logo', file)
+
+                        try {
+                          const token = document.cookie
+                            .split('; ')
+                            .find(row => row.startsWith('auth-token='))
+                            ?.split('=')[1]
+
+                          const response = await fetch('/api/company/logo', {
+                            method: 'POST',
+                            headers: {
+                              'Authorization': `Bearer ${token}`,
+                            },
+                            body: formData,
+                          })
+
+                          if (!response.ok) throw new Error('Failed to upload logo')
+
+                          const data = await response.json()
+                          queryClient.invalidateQueries({ queryKey: ['company-settings'] })
+                          toast.success('Logo uploaded successfully!')
+                        } catch (error) {
+                          toast.error('Failed to upload logo')
+                        }
+                      }}
+                    />
+                  </label>
+                  {company.logo && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await updateCompanySettings({ logo: null } as any)
+                          queryClient.invalidateQueries({ queryKey: ['company-settings'] })
+                          toast.success('Logo removed')
+                        } catch (error) {
+                          toast.error('Failed to remove logo')
+                        }
+                      }}
+                      className="inline-flex items-center px-2 py-1 text-xs text-red-600 bg-white border border-red-200 rounded hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-500 mt-2">
+                Recommended: PNG or JPG, max 2MB. This logo will appear on generated documents.
+              </p>
+            </div>
+
             <Formik
               initialValues={{
                 name: company.name || '',

@@ -3,6 +3,20 @@ import { formatCurrency } from '@/lib/currency'
 import { ChangeOrderData, VariableResolver } from '../types'
 
 /**
+ * Convert a relative URL to an absolute URL for PDF generation
+ */
+function getAbsoluteUrl(url: string): string {
+  if (!url) return ''
+  // Already absolute
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url
+  }
+  // Relative URL - prepend base URL
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+/**
  * Fetch change order data and prepare it for variable substitution
  */
 export async function fetchChangeOrderData(
@@ -49,6 +63,7 @@ export async function fetchChangeOrderData(
     where: { id: companyId },
     select: {
       name: true,
+      logo: true,
       address: true,
       city: true,
       state: true,
@@ -123,6 +138,7 @@ export async function fetchChangeOrderData(
     },
     company: {
       name: company.name,
+      logo: company.logo,
       address: company.address,
       cityStateZip: companyCityStateZip,
       phone: company.phone,
@@ -188,6 +204,9 @@ export function changeOrderToVariables(
 
     // Company
     '{{company.name}}': data.company.name,
+    '{{company.logo}}': data.company.logo
+      ? `<img src="${getAbsoluteUrl(data.company.logo)}" alt="${data.company.name}" style="max-height: 60px; max-width: 200px;" crossorigin="anonymous" />`
+      : '',
     '{{company.address}}': data.company.address || '',
     '{{company.cityStateZip}}': data.company.cityStateZip,
     '{{company.phone}}': data.company.phone || '',
@@ -220,14 +239,14 @@ function generateLineItemsTable(
   const total = lineItems.reduce((sum, item) => sum + item.totalPrice, 0)
 
   let html = `
-    <table style="width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 14px;">
+    <table style="border-collapse: collapse; margin: 10px 0; font-size: 10px;">
       <thead>
         <tr style="background-color: #f3f4f6;">
-          <th style="border: 1px solid #d1d5db; padding: 10px; text-align: left; font-weight: 600;">Description</th>
-          <th style="border: 1px solid #d1d5db; padding: 10px; text-align: right; width: 80px; font-weight: 600;">Qty</th>
-          <th style="border: 1px solid #d1d5db; padding: 10px; text-align: center; width: 60px; font-weight: 600;">Unit</th>
-          <th style="border: 1px solid #d1d5db; padding: 10px; text-align: right; width: 100px; font-weight: 600;">Unit Price</th>
-          <th style="border: 1px solid #d1d5db; padding: 10px; text-align: right; width: 100px; font-weight: 600;">Total</th>
+          <th style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: left; font-weight: 600;">Description</th>
+          <th style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right; font-weight: 600; width: 40px;">Qty</th>
+          <th style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center; font-weight: 600; width: 40px;">Unit</th>
+          <th style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right; font-weight: 600; width: 65px;">Unit Price</th>
+          <th style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right; font-weight: 600; width: 65px;">Total</th>
         </tr>
       </thead>
       <tbody>
@@ -237,11 +256,11 @@ function generateLineItemsTable(
     const bgColor = index % 2 === 0 ? '#ffffff' : '#f9fafb'
     html += `
         <tr style="background-color: ${bgColor};">
-          <td style="border: 1px solid #d1d5db; padding: 10px;">${escapeHtml(item.description)}</td>
-          <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">${item.quantity}</td>
-          <td style="border: 1px solid #d1d5db; padding: 10px; text-align: center;">${escapeHtml(item.unit)}</td>
-          <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">${formatCurrency(item.unitPrice, currency)}</td>
-          <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">${formatCurrency(item.totalPrice, currency)}</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px;">${escapeHtml(item.description)}</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right;">${item.quantity}</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: center;">${escapeHtml(item.unit)}</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right;">${formatCurrency(item.unitPrice, currency)}</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right;">${formatCurrency(item.totalPrice, currency)}</td>
         </tr>
     `
   })
@@ -250,8 +269,8 @@ function generateLineItemsTable(
       </tbody>
       <tfoot>
         <tr style="background-color: #f3f4f6; font-weight: 600;">
-          <td colspan="4" style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">Total:</td>
-          <td style="border: 1px solid #d1d5db; padding: 10px; text-align: right;">${formatCurrency(total, currency)}</td>
+          <td colspan="4" style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right;">Total:</td>
+          <td style="border: 1px solid #d1d5db; padding: 4px 6px; text-align: right;">${formatCurrency(total, currency)}</td>
         </tr>
       </tfoot>
     </table>

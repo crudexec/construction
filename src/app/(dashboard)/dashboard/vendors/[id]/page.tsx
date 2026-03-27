@@ -432,15 +432,15 @@ async function fetchVendorContracts(vendorId: string): Promise<VendorContract[]>
 
 const getContractStatusBadge = (status: string) => {
   const config: Record<string, { bg: string; text: string }> = {
-    'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-800' },
-    'ACTIVE': { bg: 'bg-green-100', text: 'text-green-800' },
-    'COMPLETED': { bg: 'bg-blue-100', text: 'text-blue-800' },
-    'TERMINATED': { bg: 'bg-red-100', text: 'text-red-800' },
-    'EXPIRED': { bg: 'bg-yellow-100', text: 'text-yellow-800' }
+    'DRAFT': { bg: 'bg-gray-100', text: 'text-gray-700' },
+    'ACTIVE': { bg: 'bg-green-100', text: 'text-green-700' },
+    'COMPLETED': { bg: 'bg-blue-100', text: 'text-blue-700' },
+    'TERMINATED': { bg: 'bg-red-100', text: 'text-red-700' },
+    'EXPIRED': { bg: 'bg-yellow-100', text: 'text-yellow-700' }
   }
   const c = config[status] || config['DRAFT']
   return (
-    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${c.bg} ${c.text}`}>
+    <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${c.bg} ${c.text}`}>
       {status}
     </span>
   )
@@ -464,6 +464,11 @@ export default function VendorDetailPage() {
   const { symbol: currencySymbol, format: formatCurrency } = useCurrency()
   const initialTab = searchParams.get('tab') || 'overview'
   const [activeTab, setActiveTab] = useState(initialTab)
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    router.push(`/dashboard/vendors/${vendorId}?tab=${tab}`, { scroll: false })
+  }
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false)
   const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false)
@@ -1248,17 +1253,15 @@ export default function VendorDetailPage() {
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'files', label: 'Files' },
-            { id: 'projects', label: 'Projects' },
             { id: 'milestones', label: 'Milestones' },
             { id: 'contracts', label: 'Contracts' },
             { id: 'reviews', label: 'Reviews' },
             { id: 'comments', label: 'Comments' },
-            { id: 'purchase-orders', label: 'POs' },
             { id: 'portal', label: 'Portal' }
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-b-2 border-primary-500 text-primary-600'
@@ -1278,61 +1281,8 @@ export default function VendorDetailPage() {
           contracts={contracts}
           milestones={projectMilestones}
           files={vendorFilesOverview}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
         />
-      )}
-
-      {activeTab === 'projects' && (
-        <div className="bg-white rounded border overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50">
-            <h3 className="text-sm font-medium text-gray-900">Associated Projects ({vendor.projectVendors.length})</h3>
-          </div>
-          {vendor.projectVendors.length === 0 ? (
-            <div className="py-8 text-center">
-              <Users className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-              <p className="text-xs text-gray-500">No projects assigned yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Project</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Status</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Assigned</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {vendor.projectVendors.map((pv, idx) => (
-                    <tr key={pv.id} className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`} onClick={() => router.push(`/dashboard/projects/${pv.project.id}`)}>
-                      <td className="px-3 py-1.5">
-                        <span className="text-xs font-medium text-gray-900">{pv.project.title}</span>
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${getStatusColor(pv.project.status)}`}>
-                          {pv.project.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5 text-xs text-gray-500">
-                        {new Date(pv.assignedAt).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <Link
-                          href={`/dashboard/projects/${pv.project.id}`}
-                          className="text-xs text-primary-600 hover:text-primary-800"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
       )}
 
       {activeTab === 'milestones' && (
@@ -1591,81 +1541,69 @@ export default function VendorDetailPage() {
 
       {activeTab === 'contracts' && (
         <div className="bg-white rounded border overflow-hidden">
-          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
-            <h3 className="text-sm font-medium text-gray-900">Contracts ({contracts.length})</h3>
+          <div className="px-3 py-1.5 border-b border-gray-200 bg-white flex justify-end">
             <button
               onClick={() => setIsContractModalOpen(true)}
-              className="text-xs text-white bg-primary-600 hover:bg-primary-700 px-2 py-1 rounded flex items-center gap-1"
+              className="inline-flex items-center gap-0.5 text-[10px] text-primary-600 hover:text-primary-800"
             >
               <Plus className="h-3 w-3" /> Add Contract
             </button>
           </div>
           {isLoadingContracts ? (
-            <div className="py-6 text-center">
+            <div className="py-4 text-center">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600 mx-auto"></div>
             </div>
           ) : contractsError ? (
-            <div className="py-6 text-center">
-              <AlertCircle className="h-6 w-6 mx-auto text-red-400 mb-1" />
-              <p className="text-xs text-red-500">Failed to load</p>
-              <button onClick={() => refetchContracts()} className="text-xs text-primary-600 hover:underline mt-1">Retry</button>
+            <div className="py-4 text-center">
+              <AlertCircle className="h-5 w-5 mx-auto text-red-400 mb-1" />
+              <p className="text-[10px] text-red-500">Failed to load</p>
+              <button onClick={() => refetchContracts()} className="text-[10px] text-primary-600 hover:underline mt-1">Retry</button>
             </div>
           ) : contracts.length === 0 ? (
-            <div className="py-6 text-center">
-              <Briefcase className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-              <p className="text-xs text-gray-500">No contracts yet</p>
-            </div>
+            <div className="px-3 py-4 text-center text-[10px] text-gray-500">No contracts</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Contract #</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Type</th>
-                    <th className="px-3 py-2 text-right text-[10px] font-semibold text-gray-600 uppercase">Amount</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Duration</th>
-                    <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-600 uppercase">Status</th>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Contract #</th>
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 w-24">Type</th>
+                  <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-28">Amount</th>
+                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 w-36">Duration</th>
+                  <th className="px-3 py-1 text-center text-[10px] font-semibold text-gray-600 w-20">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {contracts.map((contract, idx) => (
+                  <tr
+                    key={contract.id}
+                    className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                    onClick={() => router.push(`/dashboard/vendors/${vendorId}/contracts/${contract.id}`)}
+                  >
+                    <td className="px-3 py-1.5">
+                      <span className="text-xs font-medium text-gray-900">{contract.contractNumber}</span>
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <span className="text-[10px] text-gray-600">{getContractTypeLabel(contract.type)}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right">
+                      <span className="text-xs font-medium text-gray-900">{formatCurrency(contract.totalSum)}</span>
+                      {contract.retentionPercent && contract.retentionPercent > 0 && (
+                        <span className="text-[10px] text-gray-500 ml-1">({contract.retentionPercent}%)</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5 text-[10px] text-gray-500">
+                      {new Date(contract.startDate).toLocaleDateString()}
+                      {contract.endDate ? ` - ${new Date(contract.endDate).toLocaleDateString()}` : ' - Ongoing'}
+                    </td>
+                    <td className="px-3 py-1.5 text-center">
+                      {getContractStatusBadge(contract.status)}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {contracts.map((contract, idx) => (
-                    <tr
-                      key={contract.id}
-                      className={`hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                      onClick={() => router.push(`/dashboard/vendors/${vendorId}/contracts/${contract.id}`)}
-                    >
-                      <td className="px-3 py-1.5">
-                        <span className="text-xs font-medium text-gray-900">{contract.contractNumber}</span>
-                      </td>
-                      <td className="px-3 py-1.5">
-                        <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-purple-100 text-purple-700">
-                          {getContractTypeLabel(contract.type)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-1.5 text-right">
-                        <span className="text-xs font-medium text-gray-900">{formatCurrency(contract.totalSum)}</span>
-                        {contract.retentionPercent && contract.retentionPercent > 0 && (
-                          <span className="text-[10px] text-gray-500 ml-1">({contract.retentionPercent}% ret)</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-1.5 text-xs text-gray-500">
-                        {new Date(contract.startDate).toLocaleDateString()}
-                        {contract.endDate ? ` - ${new Date(contract.endDate).toLocaleDateString()}` : ' - Ongoing'}
-                      </td>
-                      <td className="px-3 py-1.5">
-                        {getContractStatusBadge(contract.status)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
-      )}
-
-      {activeTab === 'purchase-orders' && (
-        <VendorPurchaseOrdersTab vendorId={vendorId} />
       )}
 
       {activeTab === 'files' && (

@@ -109,6 +109,7 @@ export interface ChangeOrderData {
   }
   company: {
     name: string
+    logo: string | null
     address: string | null
     cityStateZip: string
     phone: string | null

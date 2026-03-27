@@ -148,6 +148,13 @@ const VENDOR_VARIABLES: TemplateVariable[] = [
 
 const COMPANY_VARIABLES: TemplateVariable[] = [
   {
+    key: '{{company.logo}}',
+    label: 'Company Logo',
+    description: 'Your company logo image (renders as an image tag)',
+    example: '[Company Logo Image]',
+    category: 'Company',
+  },
+  {
     key: '{{company.name}}',
     label: 'Company Name',
     description: 'Your company name',
