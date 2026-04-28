@@ -189,8 +189,14 @@ export function GenerateDocumentButton({
       // Create a temporary container for the HTML
       const container = document.createElement('div')
       container.innerHTML = finalHtml
-      container.style.width = '8.5in'
-      container.style.padding = '0.5in'
+      // Match the printable content area for letter paper with 0.5in margins.
+      container.style.width = '7.5in'
+      container.style.maxWidth = '7.5in'
+      container.style.padding = '0'
+      container.style.margin = '0 auto'
+      container.style.boxSizing = 'border-box'
+      container.style.backgroundColor = '#ffffff'
+      container.style.overflowWrap = 'anywhere'
       container.style.fontFamily = 'Arial, sans-serif'
       container.style.fontSize = '12px'
       container.style.lineHeight = '1.5'
