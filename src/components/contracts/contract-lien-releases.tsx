@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, Clock3, FileText, Plus, Upload, XCircle } from 'lucide-react'
+import { CheckCircle2, CircleDashed, Clock3, FileText, Plus, Upload, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { GenerateDocumentButton } from '@/components/documents/generate-document-button'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -26,6 +26,21 @@ interface LienReleaseUser {
   id: string
   firstName: string
   lastName: string
+}
+
+interface LienReleaseEventActorVendor {
+  id: string
+  name: string
+  companyName: string
+}
+
+interface LienReleaseEvent {
+  id: string
+  eventType: string
+  message?: string | null
+  createdAt: string
+  actorUser?: LienReleaseUser | null
+  actorVendor?: LienReleaseEventActorVendor | null
 }
 
 interface ContractLienRelease {
@@ -53,6 +68,7 @@ interface ContractLienRelease {
   reviewedBy?: LienReleaseUser | null
   approvedBy?: LienReleaseUser | null
   documents: LienReleaseDocument[]
+  events: LienReleaseEvent[]
 }
 
 interface ContractLienReleasesProps {
@@ -75,6 +91,26 @@ const STATUS_STYLES: Record<ContractLienRelease['status'], string> = {
   APPROVED: 'bg-green-100 text-green-700',
   REJECTED: 'bg-red-100 text-red-700',
   VOID: 'bg-slate-200 text-slate-700',
+}
+
+const EVENT_STYLES: Record<string, { icon: typeof CheckCircle2; dot: string; label: string }> = {
+  CREATED: { icon: CircleDashed, dot: 'bg-slate-400', label: 'Draft created' },
+  REQUESTED: { icon: Clock3, dot: 'bg-amber-500', label: 'Requested from vendor' },
+  SUBMITTED: { icon: Upload, dot: 'bg-blue-500', label: 'Submitted' },
+  UNDER_REVIEW: { icon: FileText, dot: 'bg-indigo-500', label: 'Under review' },
+  APPROVED: { icon: CheckCircle2, dot: 'bg-green-500', label: 'Approved' },
+  REJECTED: { icon: XCircle, dot: 'bg-red-500', label: 'Rejected' },
+  DOCUMENT_UPLOADED: { icon: Upload, dot: 'bg-cyan-500', label: 'Document uploaded' },
+}
+
+function formatActorName(user?: LienReleaseUser | null, vendor?: LienReleaseEventActorVendor | null) {
+  if (user) return `${user.firstName} ${user.lastName}`
+  if (vendor) return vendor.companyName || vendor.name
+  return 'System'
+}
+
+function getTimelineDate(release: ContractLienRelease) {
+  return release.approvedAt || release.submittedAt || release.requestedAt || release.throughDate || release.effectiveDate || release.documents[0]?.createdAt || ''
 }
 
 const getToken = () =>
@@ -275,6 +311,44 @@ export function ContractLienReleases({
     updateStatusMutation.mutate({ id: release.id, status })
   }
 
+  const timelineEntries = lienReleases
+    .flatMap((release) => {
+      if (release.events.length > 0) {
+        return release.events.map((event) => ({
+          id: event.id,
+          createdAt: event.createdAt,
+          eventType: event.eventType,
+          message: event.message,
+          actorLabel: formatActorName(event.actorUser, event.actorVendor),
+          releaseId: release.id,
+          releaseTitle: release.title || TYPE_OPTIONS.find((option) => option.value === release.type)?.label || release.type,
+          releaseStatus: release.status,
+          amount: release.amount,
+          projectTitle: release.project?.title || null,
+        }))
+      }
+
+      return [{
+        id: `${release.id}-fallback`,
+        createdAt: getTimelineDate(release),
+        eventType: release.status,
+        message: 'Lien release entered this state',
+        actorLabel: formatActorName(release.approvedBy || release.reviewedBy || release.requestedBy, null),
+        releaseId: release.id,
+        releaseTitle: release.title || TYPE_OPTIONS.find((option) => option.value === release.type)?.label || release.type,
+        releaseStatus: release.status,
+        amount: release.amount,
+        projectTitle: release.project?.title || null,
+      }]
+    })
+    .filter((entry) => entry.createdAt)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+
+  const approvedCount = lienReleases.filter((release) => release.status === 'APPROVED').length
+  const pendingCount = lienReleases.filter((release) => ['REQUESTED', 'SUBMITTED', 'UNDER_REVIEW'].includes(release.status)).length
+  const rejectedCount = lienReleases.filter((release) => release.status === 'REJECTED').length
+  const totalTrackedAmount = lienReleases.reduce((sum, release) => sum + (release.amount || 0), 0)
+
   return (
     <div className="bg-white rounded border overflow-hidden">
       <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between">
@@ -305,124 +379,210 @@ export function ContractLienReleases({
       ) : lienReleases.length === 0 ? (
         <div className="px-3 py-6 text-center text-[10px] text-gray-500">No lien releases yet</div>
       ) : (
-        <div className="divide-y divide-gray-100">
-          {lienReleases.map((release) => (
-            <div key={release.id} className="px-3 py-3 space-y-2">
-              <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-900">
-                      {TYPE_OPTIONS.find((option) => option.value === release.type)?.label || release.type}
-                    </span>
-                    <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[release.status]}`}>
-                      {release.status.replace(/_/g, ' ')}
-                    </span>
-                    {release.amount !== null && release.amount !== undefined && (
-                      <span className="text-xs text-gray-600">{formatCurrency(release.amount)}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
-                    {release.title && <span>{release.title}</span>}
-                    {release.project?.title && <span>Project: {release.project.title}</span>}
-                    {release.throughDate && (
-                      <span>Through: {new Date(release.throughDate).toLocaleDateString()}</span>
-                    )}
-                    {release.externalPaymentRef && <span>Ref: {release.externalPaymentRef}</span>}
-                  </div>
-                  {release.rejectionReason && (
-                    <p className="text-[10px] text-red-600">Rejected: {release.rejectionReason}</p>
-                  )}
-                </div>
+        <div className="space-y-4 p-3">
+          <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+            <div className="rounded border border-gray-200 bg-gray-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-gray-500">Tracked Releases</p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">{lienReleases.length}</p>
+            </div>
+            <div className="rounded border border-green-200 bg-green-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-green-700">Approved</p>
+              <p className="mt-1 text-sm font-semibold text-green-800">{approvedCount}</p>
+            </div>
+            <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-amber-700">In Flight</p>
+              <p className="mt-1 text-sm font-semibold text-amber-800">{pendingCount}</p>
+            </div>
+            <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wide text-blue-700">Amount Tracked</p>
+              <p className="mt-1 text-sm font-semibold text-blue-800">{formatCurrency(totalTrackedAmount)}</p>
+            </div>
+          </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <GenerateDocumentButton
-                    recordType="lien-release"
-                    recordId={release.id}
-                    templateType="LIEN_RELEASE"
-                    variant="dropdown"
-                    className="!px-2.5 !py-1 !text-xs"
-                    autoSaveMode="lien-release-document"
-                    autoSaveTargetId={release.id}
-                    autoSaveDocumentKind="DRAFT_RELEASE"
-                    onAutoSaveSuccess={refresh}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleUploadClick(release.id)}
-                    className="inline-flex items-center gap-1 rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    <Upload className="h-3 w-3" />
-                    Upload Signed
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 text-[10px]">
-                {release.status === 'DRAFT' && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusAction(release, 'REQUESTED')}
-                    className="rounded bg-amber-100 px-2 py-1 font-medium text-amber-700 hover:bg-amber-200"
-                  >
-                    Request From Vendor
-                  </button>
-                )}
-                {(release.status === 'REQUESTED' || release.status === 'REJECTED') && (
-                  <button
-                    type="button"
-                    onClick={() => handleStatusAction(release, 'UNDER_REVIEW')}
-                    className="rounded bg-indigo-100 px-2 py-1 font-medium text-indigo-700 hover:bg-indigo-200"
-                  >
-                    Move To Review
-                  </button>
-                )}
-                {(release.status === 'SUBMITTED' || release.status === 'UNDER_REVIEW') && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => handleStatusAction(release, 'APPROVED')}
-                      className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 font-medium text-green-700 hover:bg-green-200"
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleStatusAction(release, 'REJECTED')}
-                      className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 font-medium text-red-700 hover:bg-red-200"
-                    >
-                      <XCircle className="h-3 w-3" />
-                      Reject
-                    </button>
-                  </>
-                )}
-                {release.status === 'APPROVED' && (
-                  <span className="inline-flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-green-700">
-                    <Clock3 className="h-3 w-3" />
-                    Approved {release.approvedAt ? new Date(release.approvedAt).toLocaleDateString() : ''}
-                  </span>
-                )}
-              </div>
-
-              {release.documents.length > 0 && (
-                <div className="rounded border border-gray-100 bg-gray-50 px-2 py-2">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Documents</p>
-                  <div className="flex flex-wrap gap-2">
-                    {release.documents.map((document) => (
-                      <button
-                        key={document.id}
-                        type="button"
-                        onClick={() => window.open(document.url, '_blank')}
-                        className="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-100"
-                      >
-                        {document.kind.replace(/_/g, ' ')}: {document.originalName}
-                      </button>
-                    ))}
-                  </div>
+          <div className="rounded border border-gray-200">
+            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
+              <h3 className="text-xs font-semibold text-gray-700">Contract Journey Timeline</h3>
+              <p className="mt-0.5 text-[10px] text-gray-500">A chronological view of every lien release step on this contract.</p>
+            </div>
+            <div className="px-3 py-3">
+              {timelineEntries.length === 0 ? (
+                <p className="text-xs text-gray-500">No timeline activity yet.</p>
+              ) : (
+                <div className="space-y-0">
+                  {timelineEntries.map((entry, index) => {
+                    const eventStyle = EVENT_STYLES[entry.eventType] || { icon: FileText, dot: 'bg-gray-400', label: entry.eventType.replace(/_/g, ' ') }
+                    const EventIcon = eventStyle.icon
+                    return (
+                      <div key={entry.id} className="relative flex gap-3 pb-5 last:pb-0">
+                        <div className="relative flex w-6 flex-col items-center">
+                          <span className={`mt-1 h-2.5 w-2.5 rounded-full ${eventStyle.dot}`} />
+                          {index < timelineEntries.length - 1 && (
+                            <span className="absolute top-4 h-full w-px bg-gray-200" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1 rounded border border-gray-100 bg-white px-3 py-2">
+                          <div className="flex flex-col gap-1 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-900">
+                                  <EventIcon className="h-3.5 w-3.5 text-gray-500" />
+                                  {eventStyle.label}
+                                </span>
+                                <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[entry.releaseStatus]}`}>
+                                  {entry.releaseStatus.replace(/_/g, ' ')}
+                                </span>
+                              </div>
+                              <p className="mt-1 text-xs text-gray-700">{entry.releaseTitle}</p>
+                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
+                                <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                                <span>By {entry.actorLabel}</span>
+                                {entry.projectTitle && <span>Project: {entry.projectTitle}</span>}
+                                {entry.amount !== null && entry.amount !== undefined && <span>{formatCurrency(entry.amount)}</span>}
+                              </div>
+                              {entry.message && (
+                                <p className="mt-1 text-[10px] text-gray-600">{entry.message}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>
-          ))}
+          </div>
+
+          <div className="rounded border border-gray-200">
+            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
+              <h3 className="text-xs font-semibold text-gray-700">Release Records</h3>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {lienReleases.map((release) => (
+                <div key={release.id} className="px-3 py-3 space-y-2">
+                  <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs font-semibold text-gray-900">
+                          {TYPE_OPTIONS.find((option) => option.value === release.type)?.label || release.type}
+                        </span>
+                        <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[release.status]}`}>
+                          {release.status.replace(/_/g, ' ')}
+                        </span>
+                        {release.amount !== null && release.amount !== undefined && (
+                          <span className="text-xs text-gray-600">{formatCurrency(release.amount)}</span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
+                        {release.title && <span>{release.title}</span>}
+                        {release.project?.title && <span>Project: {release.project.title}</span>}
+                        {release.throughDate && (
+                          <span>Through: {new Date(release.throughDate).toLocaleDateString()}</span>
+                        )}
+                        {release.externalPaymentRef && <span>Ref: {release.externalPaymentRef}</span>}
+                      </div>
+                      {release.rejectionReason && (
+                        <p className="text-[10px] text-red-600">Rejected: {release.rejectionReason}</p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <GenerateDocumentButton
+                        recordType="lien-release"
+                        recordId={release.id}
+                        templateType="LIEN_RELEASE"
+                        variant="dropdown"
+                        className="!px-2.5 !py-1 !text-xs"
+                        autoSaveMode="lien-release-document"
+                        autoSaveTargetId={release.id}
+                        autoSaveDocumentKind="DRAFT_RELEASE"
+                        onAutoSaveSuccess={refresh}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleUploadClick(release.id)}
+                        className="inline-flex items-center gap-1 rounded border border-gray-300 px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                      >
+                        <Upload className="h-3 w-3" />
+                        Upload Signed
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 text-[10px]">
+                    {release.status === 'DRAFT' && (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusAction(release, 'REQUESTED')}
+                        className="rounded bg-amber-100 px-2 py-1 font-medium text-amber-700 hover:bg-amber-200"
+                      >
+                        Request From Vendor
+                      </button>
+                    )}
+                    {(release.status === 'REQUESTED' || release.status === 'REJECTED') && (
+                      <button
+                        type="button"
+                        onClick={() => handleStatusAction(release, 'UNDER_REVIEW')}
+                        className="rounded bg-indigo-100 px-2 py-1 font-medium text-indigo-700 hover:bg-indigo-200"
+                      >
+                        Move To Review
+                      </button>
+                    )}
+                    {(release.status === 'SUBMITTED' || release.status === 'UNDER_REVIEW') && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleStatusAction(release, 'APPROVED')}
+                          className="inline-flex items-center gap-1 rounded bg-green-100 px-2 py-1 font-medium text-green-700 hover:bg-green-200"
+                        >
+                          <CheckCircle2 className="h-3 w-3" />
+                          Approve
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleStatusAction(release, 'REJECTED')}
+                          className="inline-flex items-center gap-1 rounded bg-red-100 px-2 py-1 font-medium text-red-700 hover:bg-red-200"
+                        >
+                          <XCircle className="h-3 w-3" />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    {release.status === 'APPROVED' && (
+                      <span className="inline-flex items-center gap-1 rounded bg-green-50 px-2 py-1 text-green-700">
+                        <Clock3 className="h-3 w-3" />
+                        Approved {release.approvedAt ? new Date(release.approvedAt).toLocaleDateString() : ''}
+                      </span>
+                    )}
+                    {release.status === 'REJECTED' && rejectedCount > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded bg-red-50 px-2 py-1 text-red-700">
+                        <XCircle className="h-3 w-3" />
+                        Needs correction
+                      </span>
+                    )}
+                  </div>
+
+                  {release.documents.length > 0 && (
+                    <div className="rounded border border-gray-100 bg-gray-50 px-2 py-2">
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Documents</p>
+                      <div className="flex flex-wrap gap-2">
+                        {release.documents.map((document) => (
+                          <button
+                            key={document.id}
+                            type="button"
+                            onClick={() => window.open(document.url, '_blank')}
+                            className="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-100"
+                          >
+                            {document.kind.replace(/_/g, ' ')}: {document.originalName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

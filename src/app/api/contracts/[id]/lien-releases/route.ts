@@ -82,6 +82,27 @@ export async function GET(
           orderBy: {
             createdAt: 'desc'
           }
+        },
+        events: {
+          orderBy: {
+            createdAt: 'asc'
+          },
+          include: {
+            actorUser: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            actorVendor: {
+              select: {
+                id: true,
+                name: true,
+                companyName: true
+              }
+            }
+          }
         }
       },
       orderBy: [
