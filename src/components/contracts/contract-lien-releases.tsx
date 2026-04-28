@@ -144,6 +144,7 @@ export function ContractLienReleases({
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
   const [form, setForm] = useState({
     type: 'CONDITIONAL_PROGRESS',
     title: '',
@@ -348,6 +349,7 @@ export function ContractLienReleases({
   const pendingCount = lienReleases.filter((release) => ['REQUESTED', 'SUBMITTED', 'UNDER_REVIEW'].includes(release.status)).length
   const rejectedCount = lienReleases.filter((release) => release.status === 'REJECTED').length
   const totalTrackedAmount = lienReleases.reduce((sum, release) => sum + (release.amount || 0), 0)
+  const selectedRelease = lienReleases.find((release) => release.id === selectedReleaseId) || null
 
   return (
     <div className="bg-white rounded border overflow-hidden">
@@ -420,7 +422,11 @@ export function ContractLienReleases({
                             <span className="absolute top-4 h-full w-px bg-gray-200" />
                           )}
                         </div>
-                        <div className="min-w-0 flex-1 rounded border border-gray-100 bg-white px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedReleaseId(entry.releaseId)}
+                          className="min-w-0 flex-1 rounded border border-gray-100 bg-white px-3 py-2 text-left transition hover:border-primary-300 hover:bg-blue-50/40"
+                        >
                           <div className="flex flex-col gap-1 lg:flex-row lg:items-start lg:justify-between">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
@@ -442,9 +448,10 @@ export function ContractLienReleases({
                               {entry.message && (
                                 <p className="mt-1 text-[10px] text-gray-600">{entry.message}</p>
                               )}
+                              <p className="mt-2 text-[10px] font-medium text-primary-600">Click to view full lien release details</p>
                             </div>
                           </div>
-                        </div>
+                        </button>
                       </div>
                     )
                   })}
@@ -461,7 +468,11 @@ export function ContractLienReleases({
               {lienReleases.map((release) => (
                 <div key={release.id} className="px-3 py-3 space-y-2">
                   <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedReleaseId(release.id)}
+                      className="space-y-1 text-left"
+                    >
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs font-semibold text-gray-900">
                           {TYPE_OPTIONS.find((option) => option.value === release.type)?.label || release.type}
@@ -484,7 +495,8 @@ export function ContractLienReleases({
                       {release.rejectionReason && (
                         <p className="text-[10px] text-red-600">Rejected: {release.rejectionReason}</p>
                       )}
-                    </div>
+                      <p className="text-[10px] font-medium text-primary-600">Open full release details</p>
+                    </button>
 
                     <div className="flex flex-wrap items-center gap-2">
                       <GenerateDocumentButton
@@ -742,6 +754,183 @@ export function ContractLienReleases({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedRelease && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">
+                  {selectedRelease.title || TYPE_OPTIONS.find((option) => option.value === selectedRelease.type)?.label || selectedRelease.type}
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">Lien release details and contract journey</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedReleaseId(null)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <span className="text-xl">&times;</span>
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-64px)] space-y-4 overflow-y-auto p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-semibold text-gray-900">
+                  {TYPE_OPTIONS.find((option) => option.value === selectedRelease.type)?.label || selectedRelease.type}
+                </span>
+                <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[selectedRelease.status]}`}>
+                  {selectedRelease.status.replace(/_/g, ' ')}
+                </span>
+                {selectedRelease.amount !== null && selectedRelease.amount !== undefined && (
+                  <span className="text-sm text-gray-700">{formatCurrency(selectedRelease.amount)}</span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="rounded border border-gray-200">
+                  <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                    Release Snapshot
+                  </div>
+                  <div className="space-y-2 px-3 py-3 text-xs">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Title</span>
+                      <span className="text-right text-gray-900">{selectedRelease.title || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Project</span>
+                      <span className="text-right text-gray-900">{selectedRelease.project?.title || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Through Date</span>
+                      <span className="text-right text-gray-900">{selectedRelease.throughDate ? new Date(selectedRelease.throughDate).toLocaleDateString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Effective Date</span>
+                      <span className="text-right text-gray-900">{selectedRelease.effectiveDate ? new Date(selectedRelease.effectiveDate).toLocaleDateString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">External Payment Ref</span>
+                      <span className="text-right text-gray-900">{selectedRelease.externalPaymentRef || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">External Source</span>
+                      <span className="text-right text-gray-900">{selectedRelease.externalSource || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Requested By</span>
+                      <span className="text-right text-gray-900">{selectedRelease.requestedBy ? `${selectedRelease.requestedBy.firstName} ${selectedRelease.requestedBy.lastName}` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Reviewed By</span>
+                      <span className="text-right text-gray-900">{selectedRelease.reviewedBy ? `${selectedRelease.reviewedBy.firstName} ${selectedRelease.reviewedBy.lastName}` : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Approved By</span>
+                      <span className="text-right text-gray-900">{selectedRelease.approvedBy ? `${selectedRelease.approvedBy.firstName} ${selectedRelease.approvedBy.lastName}` : '-'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded border border-gray-200">
+                  <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                    Timeline Dates
+                  </div>
+                  <div className="space-y-2 px-3 py-3 text-xs">
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Requested</span>
+                      <span className="text-right text-gray-900">{selectedRelease.requestedAt ? new Date(selectedRelease.requestedAt).toLocaleString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Submitted</span>
+                      <span className="text-right text-gray-900">{selectedRelease.submittedAt ? new Date(selectedRelease.submittedAt).toLocaleString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Approved</span>
+                      <span className="text-right text-gray-900">{selectedRelease.approvedAt ? new Date(selectedRelease.approvedAt).toLocaleString() : '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Rejected</span>
+                      <span className="text-right text-gray-900">{selectedRelease.rejectedAt ? new Date(selectedRelease.rejectedAt).toLocaleString() : '-'}</span>
+                    </div>
+                    <div className="pt-2">
+                      <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Notes</p>
+                      <p className="rounded bg-gray-50 px-2 py-2 text-gray-700">{selectedRelease.notes || 'No notes added.'}</p>
+                    </div>
+                    {selectedRelease.rejectionReason && (
+                      <div>
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-red-500">Rejection Reason</p>
+                        <p className="rounded bg-red-50 px-2 py-2 text-red-700">{selectedRelease.rejectionReason}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded border border-gray-200">
+                <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                  Event History
+                </div>
+                <div className="space-y-0 px-3 py-3">
+                  {selectedRelease.events.length === 0 ? (
+                    <p className="text-xs text-gray-500">No event history recorded.</p>
+                  ) : (
+                    selectedRelease.events.map((event, index) => {
+                      const eventStyle = EVENT_STYLES[event.eventType] || { icon: FileText, dot: 'bg-gray-400', label: event.eventType.replace(/_/g, ' ') }
+                      const EventIcon = eventStyle.icon
+                      return (
+                        <div key={event.id} className="relative flex gap-3 pb-4 last:pb-0">
+                          <div className="relative flex w-6 flex-col items-center">
+                            <span className={`mt-1 h-2.5 w-2.5 rounded-full ${eventStyle.dot}`} />
+                            {index < selectedRelease.events.length - 1 && (
+                              <span className="absolute top-4 h-full w-px bg-gray-200" />
+                            )}
+                          </div>
+                          <div className="flex-1 rounded border border-gray-100 bg-white px-3 py-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-900">
+                                <EventIcon className="h-3.5 w-3.5 text-gray-500" />
+                                {eventStyle.label}
+                              </span>
+                              <span className="text-[10px] text-gray-500">{new Date(event.createdAt).toLocaleString()}</span>
+                            </div>
+                            <p className="mt-1 text-[10px] text-gray-600">
+                              By {formatActorName(event.actorUser, event.actorVendor)}
+                            </p>
+                            {event.message && (
+                              <p className="mt-1 text-xs text-gray-700">{event.message}</p>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </div>
+
+              {selectedRelease.documents.length > 0 && (
+                <div className="rounded border border-gray-200">
+                  <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 text-xs font-semibold text-gray-700">
+                    Documents
+                  </div>
+                  <div className="flex flex-wrap gap-2 px-3 py-3">
+                    {selectedRelease.documents.map((document) => (
+                      <button
+                        key={document.id}
+                        type="button"
+                        onClick={() => window.open(document.url, '_blank')}
+                        className="rounded border border-gray-200 bg-white px-2 py-1 text-[10px] text-gray-700 hover:bg-gray-100"
+                      >
+                        {document.kind.replace(/_/g, ' ')}: {document.originalName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
