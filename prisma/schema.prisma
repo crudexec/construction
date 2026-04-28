@@ -58,6 +58,9 @@ model Company {
 
   // File Tags
   fileTags FileTag[]
+
+  // Lien Releases
+  lienReleases LienRelease[]
 }
 
 model User {
@@ -142,6 +145,11 @@ model User {
 
   // Vendor Documents
   vendorDocuments VendorDocument[] @relation("VendorDocumentUploader")
+  requestedLienReleases LienRelease[] @relation("LienReleaseRequestedBy")
+  reviewedLienReleases  LienRelease[] @relation("LienReleaseReviewedBy")
+  approvedLienReleases  LienRelease[] @relation("LienReleaseApprovedBy")
+  lienReleaseDocuments  LienReleaseDocument[]
+  lienReleaseEvents     LienReleaseEvent[] @relation("LienReleaseEventActorUser")
 
   // Inventory Management
   inventoryTransactions InventoryTransaction[]
@@ -230,6 +238,7 @@ model Card {
   boqItems             BOQItem[]
   boqRevisions         BOQRevision[]
   inventoryAllocations InventoryTransaction[] @relation("InventoryProjectAllocation")
+  lienReleases         LienRelease[]
 
   // Property Management - if this project becomes a property
   convertedProperty Property? @relation("PropertySourceProject")
@@ -1241,6 +1250,8 @@ model Vendor {
   serviceTags            VendorServiceTagAssignment[]
   folders                VendorFolder[]
   documents              VendorDocument[]
+  lienReleases           LienRelease[]
+  lienReleaseEvents      LienReleaseEvent[]            @relation("LienReleaseEventActorVendor")
 
   @@index([companyId])
   @@index([type])
@@ -1401,6 +1412,23 @@ enum ContractStatus {
   COMPLETED
   TERMINATED
   EXPIRED
+}
+
+enum LienReleaseType {
+  CONDITIONAL_PROGRESS
+  UNCONDITIONAL_PROGRESS
+  CONDITIONAL_FINAL
+  UNCONDITIONAL_FINAL
+}
+
+enum LienReleaseStatus {
+  DRAFT
+  REQUESTED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  VOID
 }
 
 model VendorContact {
@@ -1618,6 +1646,7 @@ model VendorContract {
   payments     ContractPayment[]
   lineItems    ContractLineItem[] // Original contract line items
   changeOrders ChangeOrder[] // Change orders for this contract
+  lienReleases LienRelease[]
 
   @@index([vendorId])
   @@index([status])
@@ -1676,6 +1705,87 @@ model ContractPayment {
   @@index([contractId])
   @@index([createdById])
   @@index([paymentDate])
+}
+
+model LienRelease {
+  id                 String            @id @default(cuid())
+  companyId          String
+  vendorId           String
+  contractId         String?
+  projectId          String?
+  type               LienReleaseType
+  status             LienReleaseStatus @default(DRAFT)
+  title              String?
+  amount             Float?
+  throughDate        DateTime?
+  effectiveDate      DateTime?
+  externalPaymentRef String?
+  externalSource     String?
+  requestedAt        DateTime?
+  submittedAt        DateTime?
+  reviewedAt         DateTime?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  requestedById      String?
+  submittedByVendor  Boolean           @default(false)
+  reviewedById       String?
+  approvedById       String?
+  rejectionReason    String?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor      Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  contract    VendorContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  project     Card?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  requestedBy User?           @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy  User?           @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  approvedBy  User?           @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  documents   LienReleaseDocument[]
+  events      LienReleaseEvent[]
+
+  @@index([companyId, status])
+  @@index([vendorId, status])
+  @@index([contractId])
+  @@index([projectId])
+  @@index([throughDate])
+}
+
+model LienReleaseDocument {
+  id               String   @id @default(cuid())
+  lienReleaseId    String
+  fileName         String
+  originalName     String
+  fileSize         Int
+  mimeType         String
+  url              String
+  kind             String
+  uploadedById     String?
+  uploadedByVendor Boolean  @default(false)
+  createdAt        DateTime @default(now())
+
+  lienRelease LienRelease @relation(fields: [lienReleaseId], references: [id], onDelete: Cascade)
+  uploadedBy  User?       @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([lienReleaseId])
+}
+
+model LienReleaseEvent {
+  id            String   @id @default(cuid())
+  lienReleaseId String
+  actorUserId   String?
+  actorVendorId String?
+  eventType     String
+  message       String?
+  metadata      String?  @db.Text
+  createdAt     DateTime @default(now())
+
+  lienRelease LienRelease @relation(fields: [lienReleaseId], references: [id], onDelete: Cascade)
+  actorUser   User?       @relation("LienReleaseEventActorUser", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorVendor Vendor?     @relation("LienReleaseEventActorVendor", fields: [actorVendorId], references: [id], onDelete: SetNull)
+
+  @@index([lienReleaseId, createdAt])
 }
 
 // Contract Line Items - itemized breakdown of original contract
@@ -2987,6 +3097,7 @@ model ScheduleActivityComment {
 
 enum DocumentTemplateType {
   CHANGE_ORDER
+  LIEN_RELEASE
   PURCHASE_ORDER
   VENDOR_CONTRACT
   ESTIMATE

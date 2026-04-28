@@ -11,12 +11,16 @@ interface Template {
 }
 
 interface GenerateDocumentButtonProps {
-  recordType: 'change-order' | 'purchase-order' | 'vendor-contract' | 'estimate' | 'bid'
+  recordType: 'change-order' | 'lien-release' | 'purchase-order' | 'vendor-contract' | 'estimate' | 'bid'
   recordId: string
   templateType: string
   variant?: 'button' | 'icon' | 'dropdown'
   size?: 'sm' | 'md'
   className?: string
+  autoSaveMode?: 'default' | 'vendor-files' | 'lien-release-document' | 'none'
+  autoSaveTargetId?: string
+  autoSaveDocumentKind?: string
+  onAutoSaveSuccess?: () => void
 }
 
 interface PreviewData {
@@ -33,6 +37,10 @@ export function GenerateDocumentButton({
   variant = 'button',
   size = 'md',
   className = '',
+  autoSaveMode = 'default',
+  autoSaveTargetId,
+  autoSaveDocumentKind = 'DRAFT_RELEASE',
+  onAutoSaveSuccess,
 }: GenerateDocumentButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -213,8 +221,28 @@ export function GenerateDocumentButton({
       // Clean up
       document.body.removeChild(container)
 
-      // Auto-save to vendor files if vendorId is available
-      if (previewData.vendorId) {
+      if (autoSaveMode === 'lien-release-document' && autoSaveTargetId) {
+        try {
+          const formData = new FormData()
+          formData.append('file', pdfBlob, previewData.filename)
+          formData.append('kind', autoSaveDocumentKind)
+
+          const saveResponse = await fetch(`/api/lien-releases/${autoSaveTargetId}/documents`, {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (saveResponse.ok) {
+            toast.success('Document generated and saved to lien release')
+            onAutoSaveSuccess?.()
+          } else {
+            toast.success('Document generated (auto-save failed)')
+          }
+        } catch (saveError) {
+          console.error('Error auto-saving lien release document:', saveError)
+          toast.success('Document generated (auto-save failed)')
+        }
+      } else if ((autoSaveMode === 'vendor-files' || autoSaveMode === 'default') && previewData.vendorId) {
         try {
           const formData = new FormData()
           formData.append('file', pdfBlob, previewData.filename)
@@ -228,6 +256,7 @@ export function GenerateDocumentButton({
 
           if (saveResponse.ok) {
             toast.success('Document generated and saved to vendor files')
+            onAutoSaveSuccess?.()
           } else {
             toast.success('Document generated (auto-save to vendor failed)')
           }

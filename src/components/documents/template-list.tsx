@@ -41,6 +41,7 @@ interface TemplateListProps {
 
 const TYPE_LABELS: Record<DocumentTemplateType, string> = {
   CHANGE_ORDER: 'Change Order',
+  LIEN_RELEASE: 'Lien Release',
   PURCHASE_ORDER: 'Purchase Order',
   VENDOR_CONTRACT: 'Vendor Contract',
   ESTIMATE: 'Estimate',
@@ -52,6 +53,7 @@ const TYPE_LABELS: Record<DocumentTemplateType, string> = {
 
 const TYPE_COLORS: Record<DocumentTemplateType, string> = {
   CHANGE_ORDER: 'bg-blue-100 text-blue-700',
+  LIEN_RELEASE: 'bg-cyan-100 text-cyan-700',
   PURCHASE_ORDER: 'bg-green-100 text-green-700',
   VENDOR_CONTRACT: 'bg-purple-100 text-purple-700',
   ESTIMATE: 'bg-orange-100 text-orange-700',

@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate record type
-    const validRecordTypes = ['change-order', 'purchase-order', 'vendor-contract', 'estimate', 'bid']
+    const validRecordTypes = ['change-order', 'lien-release', 'purchase-order', 'vendor-contract', 'estimate', 'bid']
     if (!validRecordTypes.includes(recordType)) {
       return NextResponse.json(
         { error: `Invalid record type. Must be one of: ${validRecordTypes.join(', ')}` },

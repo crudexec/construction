@@ -60,7 +60,7 @@ export interface VariableCategory {
 
 export interface GenerateDocumentInput {
   templateId: string
-  recordType: 'change-order' | 'purchase-order' | 'vendor-contract' | 'estimate' | 'bid'
+  recordType: 'change-order' | 'lien-release' | 'purchase-order' | 'vendor-contract' | 'estimate' | 'bid'
   recordId: string
   options?: GenerateDocumentOptions
 }
@@ -129,6 +129,58 @@ export interface ChangeOrderData {
     totalPrice: number
     notes: string | null
   }>
+  today: string
+  currentYear: string
+}
+
+export interface LienReleaseData {
+  vendorId: string
+  lienRelease: {
+    id: string
+    type: string
+    typeLabel: string
+    status: string
+    title: string | null
+    amount: number | null
+    throughDate: string | null
+    effectiveDate: string | null
+    externalPaymentRef: string | null
+    externalSource: string | null
+    notes: string | null
+    requestedDate: string | null
+    approvedDate: string | null
+  }
+  contract: {
+    number: string | null
+    totalSum: number | null
+    type: string | null
+  }
+  project: {
+    title: string | null
+  }
+  vendor: {
+    name: string
+    companyName: string
+    email: string | null
+    phone: string | null
+    address: string | null
+    cityStateZip: string
+    licenseNumber: string | null
+  }
+  company: {
+    name: string
+    logo: string | null
+    address: string | null
+    cityStateZip: string
+    phone: string | null
+    email: string | null
+  }
+  requestedBy: {
+    name: string
+  } | null
+  approvedBy: {
+    name: string
+  } | null
   today: string
   currentYear: string
 }

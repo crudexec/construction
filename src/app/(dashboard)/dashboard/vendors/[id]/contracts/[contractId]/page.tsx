@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -9,7 +9,6 @@ import {
   FileText,
   DollarSign,
   Calendar,
-  Clock,
   Paperclip,
   Upload,
   Download,
@@ -17,15 +16,14 @@ import {
   Plus,
   AlertCircle,
   Building2,
-  Shield,
-  Edit,
-  ExternalLink
+  Shield
 } from 'lucide-react'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
 import { ContractLineItems } from '@/components/contracts/contract-line-items'
 import { ContractChangeOrders } from '@/components/contracts/contract-change-orders'
 import { ContractSummaryCard } from '@/components/contracts/contract-summary-card'
+import { ContractLienReleases } from '@/components/contracts/contract-lien-releases'
 
 interface ContractDocument {
   id: string
@@ -132,7 +130,6 @@ const formatFileSize = (bytes: number) => {
 export default function ContractDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const queryClient = useQueryClient()
   const contractId = params.contractId as string
   const vendorId = params.id as string
   const { symbol: currencySymbol, format: formatCurrency } = useCurrency()
@@ -584,6 +581,15 @@ export default function ContractDetailPage() {
           )}
         </div>
       </div>
+
+      <ContractLienReleases
+        contractId={contract.id}
+        projects={contract.projects.map(({ project }) => ({
+          id: project.id,
+          title: project.title,
+          status: project.status
+        }))}
+      />
 
       {/* Footer */}
       <div className="text-[10px] text-gray-400 mt-1">

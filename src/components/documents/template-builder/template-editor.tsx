@@ -23,6 +23,7 @@ interface TemplateEditorProps {
 
 const DOCUMENT_TYPES: { value: DocumentTemplateType; label: string }[] = [
   { value: 'CHANGE_ORDER', label: 'Change Order' },
+  { value: 'LIEN_RELEASE', label: 'Lien Release' },
   { value: 'PURCHASE_ORDER', label: 'Purchase Order' },
   { value: 'VENDOR_CONTRACT', label: 'Vendor Contract' },
   { value: 'ESTIMATE', label: 'Estimate' },

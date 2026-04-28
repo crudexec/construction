@@ -65,6 +65,44 @@ export async function GET(
               }
             }
           }
+        },
+        lienReleases: {
+          orderBy: { updatedAt: 'desc' },
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true,
+                status: true
+              }
+            },
+            requestedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            reviewedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            approvedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            },
+            documents: {
+              orderBy: {
+                createdAt: 'desc'
+              }
+            }
+          }
         }
       }
     })

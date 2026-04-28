@@ -9,6 +9,10 @@ import {
   fetchChangeOrderData,
   changeOrderToVariables,
 } from './data-fetchers/change-order'
+import {
+  fetchLienReleaseData,
+  lienReleaseToVariables,
+} from './data-fetchers/lien-release'
 
 /**
  * Document Generator Service
@@ -105,6 +109,17 @@ export class DocumentGenerator {
         }
       }
 
+      case 'lien-release': {
+        const data = await fetchLienReleaseData(recordId, this.companyId)
+        if (!data) {
+          throw new Error('Lien release not found')
+        }
+        return {
+          variables: lienReleaseToVariables(data, this.currency),
+          vendorId: data.vendorId,
+        }
+      }
+
       // Future: Add other record types
       case 'purchase-order':
       case 'vendor-contract':
@@ -154,6 +169,11 @@ export class DocumentGenerator {
       case 'change-order':
         const coNumber = variables['{{changeOrder.number}}'] || 'CO'
         return `Change_Order_${coNumber.replace(/[^a-zA-Z0-9-]/g, '_')}_${timestamp}.pdf`
+
+      case 'lien-release':
+        const releaseType = variables['{{lienRelease.type}}'] || 'LIEN_RELEASE'
+        const releaseRef = variables['{{contract.number}}'] || variables['{{lienRelease.id}}'] || 'Release'
+        return `Lien_Release_${releaseType}_${releaseRef}`.replace(/[^a-zA-Z0-9-_]/g, '_') + `_${timestamp}.pdf`
 
       case 'purchase-order':
         const poNumber = variables['{{purchaseOrder.number}}'] || 'PO'

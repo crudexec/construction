@@ -70,6 +70,100 @@ const CHANGE_ORDER_VARIABLES: TemplateVariable[] = [
   },
 ]
 
+const LIEN_RELEASE_VARIABLES: TemplateVariable[] = [
+  {
+    key: '{{lienRelease.id}}',
+    label: 'Lien Release ID',
+    description: 'Internal record ID for the lien release',
+    example: 'cmabc123',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.type}}',
+    label: 'Lien Release Type Code',
+    description: 'The internal release type enum value',
+    example: 'CONDITIONAL_PROGRESS',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.typeLabel}}',
+    label: 'Lien Release Type',
+    description: 'Human-readable lien release type',
+    example: 'Conditional Progress Release',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.status}}',
+    label: 'Status',
+    description: 'Current lien release status',
+    example: 'REQUESTED',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.title}}',
+    label: 'Title',
+    description: 'Optional title or subject for the release',
+    example: 'April Progress Release',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.amount}}',
+    label: 'Amount',
+    description: 'Amount covered by the release',
+    example: '$10,000.00',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.throughDate}}',
+    label: 'Through Date',
+    description: 'Date through which the release applies',
+    example: 'April 20, 2026',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.effectiveDate}}',
+    label: 'Effective Date',
+    description: 'Date the release becomes effective',
+    example: 'April 25, 2026',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.externalPaymentRef}}',
+    label: 'External Payment Reference',
+    description: 'Reference from the external payments system',
+    example: 'PAY-10492',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.externalSource}}',
+    label: 'External Source',
+    description: 'Name of the external system tied to this release',
+    example: 'Buidflo Payments',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.notes}}',
+    label: 'Notes',
+    description: 'Internal notes stored on the release record',
+    example: 'Release tied to owner draw 04',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.requestedDate}}',
+    label: 'Requested Date',
+    description: 'Date the release was requested from the vendor',
+    example: 'April 21, 2026',
+    category: 'Lien Release',
+  },
+  {
+    key: '{{lienRelease.approvedDate}}',
+    label: 'Approved Date',
+    description: 'Date the release was approved internally',
+    example: 'April 24, 2026',
+    category: 'Lien Release',
+  },
+]
+
 const CONTRACT_VARIABLES: TemplateVariable[] = [
   {
     key: '{{contract.number}}',
@@ -208,6 +302,33 @@ const PEOPLE_VARIABLES: TemplateVariable[] = [
   },
 ]
 
+const LIEN_RELEASE_PEOPLE_VARIABLES: TemplateVariable[] = [
+  {
+    key: '{{requestedBy.name}}',
+    label: 'Requested By',
+    description: 'Name of the user who requested the lien release',
+    example: 'Jane Doe',
+    category: 'People',
+  },
+  {
+    key: '{{approvedBy.name}}',
+    label: 'Approved By',
+    description: 'Name of the user who approved the lien release',
+    example: 'Mike Johnson',
+    category: 'People',
+  },
+]
+
+const PROJECT_VARIABLES: TemplateVariable[] = [
+  {
+    key: '{{project.title}}',
+    label: 'Project Title',
+    description: 'Project linked to the lien release',
+    example: 'Lakeside Retail Buildout',
+    category: 'Project',
+  },
+]
+
 const TABLE_VARIABLES: TemplateVariable[] = [
   {
     key: '{{lineItems.table}}',
@@ -249,6 +370,16 @@ export const CHANGE_ORDER_VARIABLE_CATEGORIES: VariableCategory[] = [
   { name: 'Dates', variables: DATE_VARIABLES },
 ]
 
+export const LIEN_RELEASE_VARIABLE_CATEGORIES: VariableCategory[] = [
+  { name: 'Lien Release', variables: LIEN_RELEASE_VARIABLES },
+  { name: 'Contract', variables: CONTRACT_VARIABLES },
+  { name: 'Project', variables: PROJECT_VARIABLES },
+  { name: 'Vendor', variables: VENDOR_VARIABLES },
+  { name: 'Company', variables: COMPANY_VARIABLES },
+  { name: 'People', variables: LIEN_RELEASE_PEOPLE_VARIABLES },
+  { name: 'Dates', variables: DATE_VARIABLES },
+]
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -260,6 +391,8 @@ export function getVariablesForType(type: DocumentTemplateType): VariableCategor
   switch (type) {
     case 'CHANGE_ORDER':
       return CHANGE_ORDER_VARIABLE_CATEGORIES
+    case 'LIEN_RELEASE':
+      return LIEN_RELEASE_VARIABLE_CATEGORIES
     // Future: Add other document types here
     default:
       return CHANGE_ORDER_VARIABLE_CATEGORIES
