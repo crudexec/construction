@@ -108,6 +108,7 @@ model User {
   taskAttachments          TaskAttachment[]
   taskPayments             TaskPayment[]
   contractPayments         ContractPayment[]
+  contractPaymentAttachments ContractPaymentAttachment[]
 
   // Change Order relations
   createdChangeOrders  ChangeOrder[] @relation("ChangeOrderCreator")
@@ -1414,6 +1415,24 @@ enum ContractStatus {
   EXPIRED
 }
 
+enum ContractPaymentPMStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContractPaymentAPStatus {
+  PROCESSING
+  WAITING_ON_LIEN_RELEASES
+  PAID
+}
+
+enum ContractPaymentAttachmentKind {
+  CONDITIONAL_LIEN_RELEASE
+  UNCONDITIONAL_LIEN_RELEASE
+  GENERAL_ATTACHMENT
+}
+
 enum LienReleaseType {
   CONDITIONAL_PROGRESS
   UNCONDITIONAL_PROGRESS
@@ -1690,21 +1709,61 @@ model ContractDocument {
 
 // Contract payments tracking
 model ContractPayment {
-  id          String   @id @default(cuid())
-  contractId  String
-  amount      Float
-  paymentDate DateTime
-  reference   String? // Invoice/Check number
-  notes       String?
-  createdById String
-  createdAt   DateTime @default(now())
+  id                       String                   @id @default(cuid())
+  contractId               String
+  amount                   Float
+  paymentDate              DateTime
+  reference                String? // Invoice/Check number
+  notes                    String?
+  submittedBy              String?
+  billingPeriodDate        DateTime?
+  clientName               String?
+  amountComplete           Float?
+  lessRetention            Float?
+  subtotal                 Float?
+  currentBilling           Float?
+  earlyPayDiscount         Float?
+  amountRequesting         Float?
+  currentRetention         Float?
+  paidToDateOverride       Float?
+  paidToDateAdjustment     Float?
+  maxPayment               Float?
+  amountApproved           Float?
+  pmStatus                 ContractPaymentPMStatus @default(PENDING)
+  apStatus                 ContractPaymentAPStatus @default(PROCESSING)
+  conditionalAmount        Float?
+  unconditionalAmount      Float?
+  expectedLienReleaseCount Int                      @default(0)
+  createdById              String
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
 
-  contract  VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  createdBy User           @relation(fields: [createdById], references: [id])
+  contract    VendorContract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy   User                        @relation(fields: [createdById], references: [id])
+  attachments ContractPaymentAttachment[]
 
   @@index([contractId])
   @@index([createdById])
   @@index([paymentDate])
+}
+
+model ContractPaymentAttachment {
+  id           String                        @id @default(cuid())
+  paymentId    String
+  fileName     String
+  originalName String
+  fileSize     Int
+  mimeType     String
+  url          String
+  kind         ContractPaymentAttachmentKind
+  uploadedById String?
+  createdAt    DateTime                      @default(now())
+
+  payment    ContractPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  uploadedBy User?           @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@index([kind])
 }
 
 model LienRelease {

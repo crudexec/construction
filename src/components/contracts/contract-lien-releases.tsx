@@ -83,6 +83,13 @@ const TYPE_OPTIONS = [
   { value: 'UNCONDITIONAL_FINAL', label: 'Unconditional Final' },
 ] as const
 
+const EXTERNAL_SOURCE_OPTIONS = [
+  'Buidflo Payments',
+  'Owner Draw Schedule',
+  'Accounting Sync',
+  'Manual Tracking',
+] as const
+
 const STATUS_STYLES: Record<ContractLienRelease['status'], string> = {
   DRAFT: 'bg-gray-100 text-gray-700',
   REQUESTED: 'bg-amber-100 text-amber-700',
@@ -145,6 +152,7 @@ export function ContractLienReleases({
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
+  const [customExternalSource, setCustomExternalSource] = useState('')
   const [form, setForm] = useState({
     type: 'CONDITIONAL_PROGRESS',
     title: '',
@@ -185,7 +193,7 @@ export function ContractLienReleases({
           effectiveDate: form.effectiveDate || undefined,
           projectId: form.projectId || undefined,
           externalPaymentRef: form.externalPaymentRef || undefined,
-          externalSource: form.externalSource || undefined,
+          externalSource: (form.externalSource === 'Custom' ? customExternalSource : form.externalSource) || undefined,
           notes: form.notes || undefined,
           requestVendorNow: form.requestVendorNow,
         }),
@@ -213,6 +221,7 @@ export function ContractLienReleases({
         notes: '',
         requestVendorNow: true,
       })
+      setCustomExternalSource('')
       refresh()
     },
     onError: (error: Error) => {
@@ -619,21 +628,33 @@ export function ContractLienReleases({
               }}
               className="space-y-3 p-4"
             >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-700">Type</label>
-                  <select
-                    value={form.type}
-                    onChange={(event) => setForm({ ...form, type: event.target.value })}
-                    className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm"
-                  >
-                    {TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+              <div>
+                <label className="mb-2 block text-xs font-medium text-gray-700">Release Type</label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {TYPE_OPTIONS.map((option) => {
+                    const isSelected = form.type === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setForm({ ...form, type: option.value })}
+                        className={`rounded border px-3 py-2 text-left text-xs transition ${
+                          isSelected
+                            ? 'border-primary-500 bg-primary-50 text-primary-700'
+                            : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="font-semibold">{option.label}</div>
+                        <div className="mt-1 text-[10px] text-gray-500">
+                          {option.value.includes('FINAL') ? 'Use for closeout or retention release.' : 'Use for progress billing periods.'}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700">Amount</label>
                   <input
@@ -708,13 +729,27 @@ export function ContractLienReleases({
 
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700">External Source</label>
-                <input
-                  type="text"
+                <select
                   value={form.externalSource}
                   onChange={(event) => setForm({ ...form, externalSource: event.target.value })}
                   className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm"
-                  placeholder="Buidflo Payments"
-                />
+                >
+                  {EXTERNAL_SOURCE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                  <option value="Custom">Custom</option>
+                </select>
+                {form.externalSource === 'Custom' && (
+                  <input
+                    type="text"
+                    value={customExternalSource}
+                    onChange={(event) => setCustomExternalSource(event.target.value)}
+                    className="mt-2 w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm"
+                    placeholder="Enter custom source"
+                  />
+                )}
               </div>
 
               <div>
@@ -728,14 +763,35 @@ export function ContractLienReleases({
                 />
               </div>
 
-              <label className="flex items-center gap-2 text-xs text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={form.requestVendorNow}
-                  onChange={(event) => setForm({ ...form, requestVendorNow: event.target.checked })}
-                />
-                Mark as requested immediately
-              </label>
+              <div>
+                <label className="mb-2 block text-xs font-medium text-gray-700">Vendor Workflow</label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, requestVendorNow: true })}
+                    className={`rounded border px-3 py-2 text-left text-xs transition ${
+                      form.requestVendorNow
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-semibold">Request Now</div>
+                    <div className="mt-1 text-[10px] text-gray-500">Immediately moves the release into requested status for vendor follow-up.</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, requestVendorNow: false })}
+                    className={`rounded border px-3 py-2 text-left text-xs transition ${
+                      !form.requestVendorNow
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="font-semibold">Save As Draft</div>
+                    <div className="mt-1 text-[10px] text-gray-500">Keep it internal until the release details are ready to send.</div>
+                  </button>
+                </div>
+              </div>
 
               <div className="flex justify-end gap-2 pt-2">
                 <button

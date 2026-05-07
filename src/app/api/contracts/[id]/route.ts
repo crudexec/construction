@@ -57,6 +57,9 @@ export async function GET(
         payments: {
           orderBy: { paymentDate: 'desc' },
           include: {
+            attachments: {
+              orderBy: { createdAt: 'desc' }
+            },
             createdBy: {
               select: {
                 id: true,
@@ -64,6 +67,13 @@ export async function GET(
                 lastName: true
               }
             }
+          }
+        },
+        changeOrders: {
+          select: {
+            id: true,
+            totalAmount: true,
+            status: true
           }
         },
         lienReleases: {

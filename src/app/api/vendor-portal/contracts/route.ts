@@ -46,6 +46,10 @@ export async function GET(request: NextRequest) {
           }
         },
         payments: {
+          where: {
+            pmStatus: 'APPROVED',
+            apStatus: 'PAID'
+          },
           select: {
             id: true,
             amount: true,
