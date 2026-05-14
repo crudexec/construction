@@ -12,6 +12,7 @@ import {
   type ContractPaymentLike,
 } from '@/lib/contracts/payment-calculations'
 import { useCurrency } from '@/hooks/useCurrency'
+import { useAuth } from '@/hooks/use-auth'
 import { DatePicker } from '@/components/ui/date-picker'
 
 type AttachmentKind = 'CONDITIONAL_LIEN_RELEASE' | 'UNCONDITIONAL_LIEN_RELEASE' | 'GENERAL_ATTACHMENT'
@@ -69,7 +70,7 @@ const DEFAULT_PM_STATUS: ContractPaymentPMStatus = 'PENDING'
 const DEFAULT_AP_STATUS: ContractPaymentAPStatus = 'PROCESSING'
 
 const PM_STATUS_OPTIONS: ContractPaymentPMStatus[] = ['PENDING', 'APPROVED', 'REJECTED']
-const AP_STATUS_OPTIONS: ContractPaymentAPStatus[] = ['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID']
+const AP_STATUS_OPTIONS: ContractPaymentAPStatus[] = ['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID', 'VOID']
 
 const LIEN_ATTACHMENT_LABELS: Record<AttachmentKind, string> = {
   CONDITIONAL_LIEN_RELEASE: 'Conditional Lien Release',
@@ -110,8 +111,114 @@ function parseCurrencyInput(value: string) {
   return Number.isFinite(parsed) ? parsed : undefined
 }
 
+function evaluateArithmeticExpression(value: string) {
+  const expression = value.replaceAll(',', '').trim()
+  if (!expression) return null
+
+  if (!/[+\-*/()]/.test(expression)) {
+    return parseCurrencyInput(expression) ?? null
+  }
+
+  if (!/^[\d\s.+\-*/()]+$/.test(expression)) {
+    return null
+  }
+
+  const tokens = expression.match(/\d*\.\d+|\d+|[()+\-*/]/g)
+  if (!tokens) return null
+
+  let index = 0
+
+  const parseExpression = (): number | null => {
+    let value = parseTerm()
+    if (value === null) return null
+
+    while (tokens[index] === '+' || tokens[index] === '-') {
+      const operator = tokens[index++]
+      const nextValue = parseTerm()
+      if (nextValue === null) return null
+      value = operator === '+' ? value + nextValue : value - nextValue
+    }
+
+    return value
+  }
+
+  const parseTerm = (): number | null => {
+    let value = parseFactor()
+    if (value === null) return null
+
+    while (tokens[index] === '*' || tokens[index] === '/') {
+      const operator = tokens[index++]
+      const nextValue = parseFactor()
+      if (nextValue === null) return null
+      if (operator === '/' && nextValue === 0) return null
+      value = operator === '*' ? value * nextValue : value / nextValue
+    }
+
+    return value
+  }
+
+  const parseFactor = (): number | null => {
+    const token = tokens[index]
+
+    if (!token) return null
+
+    if (token === '+' || token === '-') {
+      index += 1
+      const value = parseFactor()
+      if (value === null) return null
+      return token === '-' ? -value : value
+    }
+
+    if (token === '(') {
+      index += 1
+      const value = parseExpression()
+      if (value === null || tokens[index] !== ')') return null
+      index += 1
+      return value
+    }
+
+    index += 1
+    const parsed = Number(token)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+
+  const result = parseExpression()
+  if (result === null || index !== tokens.length || !Number.isFinite(result)) {
+    return null
+  }
+
+  return roundCurrency(result)
+}
+
 function currencyToInput(value?: number | null) {
   return value === null || value === undefined ? '' : String(value)
+}
+
+function buildFormFromPayment(payment: ComputedContractPayment): PaymentFormValues {
+  return {
+    submittedBy: payment.submittedBy || '',
+    paymentDate: toInputDate(payment.paymentDate),
+    billingPeriodDate: toInputDate(payment.billingPeriodDate) || toInputDate(payment.paymentDate),
+    clientName: payment.clientName || '',
+    amountComplete: currencyToInput(payment.amountComplete),
+    lessRetention: currencyToInput(payment.lessRetention),
+    subtotal: currencyToInput(payment.subtotal),
+    currentBilling: currencyToInput(payment.currentBilling),
+    earlyPayDiscount: currencyToInput(payment.earlyPayDiscount),
+    amountRequesting: currencyToInput(payment.amountRequesting),
+    currentRetention: currencyToInput(payment.currentRetention),
+    paidToDateOverride: currencyToInput(payment.paidToDateOverride),
+    paidToDateAdjustment: currencyToInput(payment.paidToDateAdjustment),
+    maxPayment: currencyToInput(payment.maxPayment),
+    amountApproved: currencyToInput(payment.amountApproved),
+    pmStatus: payment.pmStatus,
+    apStatus: payment.apStatus,
+    conditionalAmount: currencyToInput(payment.conditionalAmount),
+    unconditionalAmount: currencyToInput(payment.unconditionalAmount),
+    expectedLienReleaseCount: String(payment.expectedLienReleaseCount ?? 0),
+    reference: payment.reference || '',
+    notes: payment.notes || '',
+  }
 }
 
 export function ContractPayments({
@@ -124,6 +231,8 @@ export function ContractPayments({
 }: ContractPaymentsProps) {
   const queryClient = useQueryClient()
   const { format: formatCurrency } = useCurrency()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'ADMIN'
   const approvedChangeOrderTotal = useMemo(
     () => changeOrders
       .filter((changeOrder) => changeOrder.status === 'APPROVED')
@@ -137,12 +246,16 @@ export function ContractPayments({
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+  const [locallyUnlockedPaymentId, setLocallyUnlockedPaymentId] = useState<string | null>(null)
   const [paymentForm, setPaymentForm] = useState<PaymentFormValues>(() => buildEmptyForm())
   const [manualFormulaFields, setManualFormulaFields] = useState<Set<string>>(new Set())
   const [attachmentTarget, setAttachmentTarget] = useState<{ paymentId: string; kind: AttachmentKind } | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
 
   const selectedPayment = computedPayments.find((payment) => payment.id === selectedPaymentId) || null
+  const isSelectedPaymentLocked = Boolean(
+    selectedPayment?.isLocked && selectedPayment.id !== locallyUnlockedPaymentId
+  )
 
   const refreshAll = async () => {
     await onRefresh()
@@ -319,6 +432,76 @@ export function ContractPayments({
     },
   })
 
+  const unlockMutation = useMutation({
+    mutationFn: async ({ paymentId, payload }: { paymentId: string; payload: Record<string, unknown> }) => {
+      const token = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/contracts/${contractId}/payments/${paymentId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to unlock payment row')
+      }
+
+      return response.json()
+    },
+    onSuccess: async () => {
+      toast.success('Payment row unlocked')
+      setLocallyUnlockedPaymentId(selectedPaymentId)
+      setPaymentForm((current) => ({ ...current, apStatus: 'PROCESSING' }))
+      await refreshAll()
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+
+  const voidMutation = useMutation({
+    mutationFn: async ({ paymentId, payload }: { paymentId: string; payload: Record<string, unknown> }) => {
+      const token = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/contracts/${contractId}/payments/${paymentId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update void status')
+      }
+
+      return response.json()
+    },
+    onSuccess: async (payment: PaymentRow) => {
+      const isVoid = payment.apStatus === 'VOID'
+      toast.success(isVoid ? 'Payment request voided' : 'Payment request restored')
+      if (selectedPaymentId === payment.id) {
+        setPaymentForm((current) => ({ ...current, apStatus: payment.apStatus }))
+      }
+      await refreshAll()
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+
   const totalPaid = computedPayments
     .filter((payment) => payment.apStatus === 'PAID')
     .reduce((sum, payment) => sum + (payment.amountApproved ?? payment.amount ?? 0), 0)
@@ -371,6 +554,7 @@ export function ContractPayments({
 
   const openCreateModal = () => {
     setSelectedPaymentId(null)
+    setLocallyUnlockedPaymentId(null)
     setManualFormulaFields(new Set())
     setPaymentForm(buildEmptyForm())
     setIsModalOpen(true)
@@ -378,37 +562,16 @@ export function ContractPayments({
 
   const openEditModal = (payment: ComputedContractPayment) => {
     setSelectedPaymentId(payment.id)
+    setLocallyUnlockedPaymentId(null)
     setManualFormulaFields(new Set(['lessRetention', 'subtotal', 'currentBilling', 'amountRequesting', 'currentRetention', 'maxPayment', 'amountApproved']))
-    setPaymentForm({
-      submittedBy: payment.submittedBy || '',
-      paymentDate: toInputDate(payment.paymentDate),
-      billingPeriodDate: toInputDate(payment.billingPeriodDate) || toInputDate(payment.paymentDate),
-      clientName: payment.clientName || '',
-      amountComplete: currencyToInput(payment.amountComplete),
-      lessRetention: currencyToInput(payment.lessRetention),
-      subtotal: currencyToInput(payment.subtotal),
-      currentBilling: currencyToInput(payment.currentBilling),
-      earlyPayDiscount: currencyToInput(payment.earlyPayDiscount),
-      amountRequesting: currencyToInput(payment.amountRequesting),
-      currentRetention: currencyToInput(payment.currentRetention),
-      paidToDateOverride: currencyToInput(payment.paidToDateOverride),
-      paidToDateAdjustment: currencyToInput(payment.paidToDateAdjustment),
-      maxPayment: currencyToInput(payment.maxPayment),
-      amountApproved: currencyToInput(payment.amountApproved),
-      pmStatus: payment.pmStatus,
-      apStatus: payment.apStatus,
-      conditionalAmount: currencyToInput(payment.conditionalAmount),
-      unconditionalAmount: currencyToInput(payment.unconditionalAmount),
-      expectedLienReleaseCount: String(payment.expectedLienReleaseCount ?? 0),
-      reference: payment.reference || '',
-      notes: payment.notes || '',
-    })
+    setPaymentForm(buildFormFromPayment(payment))
     setIsModalOpen(true)
   }
 
   const closeModal = () => {
     setIsModalOpen(false)
     setSelectedPaymentId(null)
+    setLocallyUnlockedPaymentId(null)
     setPaymentForm(buildEmptyForm())
     setManualFormulaFields(new Set())
   }
@@ -440,6 +603,47 @@ export function ContractPayments({
     }
 
     createMutation.mutate(payload)
+  }
+
+  const handleUnlock = () => {
+    if (!selectedPaymentId || !selectedPayment || !isAdmin) return
+
+    unlockMutation.mutate({
+      paymentId: selectedPaymentId,
+      payload: buildPayload({
+        ...paymentForm,
+        pmStatus: selectedPayment.pmStatus,
+        apStatus: 'PROCESSING',
+      }),
+    })
+  }
+
+  const handleVoidToggle = ({ paymentId, payload }: { paymentId: string; payload: Record<string, unknown> }) => {
+    voidMutation.mutate({ paymentId, payload })
+  }
+
+  const handleVoidToggleForPayment = (payment: ComputedContractPayment) => {
+    const nextApStatus: ContractPaymentAPStatus = payment.apStatus === 'VOID' ? 'PROCESSING' : 'VOID'
+    handleVoidToggle({
+      paymentId: payment.id,
+      payload: buildPayload({
+        ...buildFormFromPayment(payment),
+        apStatus: nextApStatus,
+      }),
+    })
+  }
+
+  const handleVoidToggleForSelectedPayment = () => {
+    if (!selectedPaymentId || !selectedPayment) return
+    const nextApStatus: ContractPaymentAPStatus = paymentForm.apStatus === 'VOID' ? 'PROCESSING' : 'VOID'
+    handleVoidToggle({
+      paymentId: selectedPaymentId,
+      payload: buildPayload({
+        ...paymentForm,
+        pmStatus: selectedPayment.pmStatus,
+        apStatus: nextApStatus,
+      }),
+    })
   }
 
   const previewPayment = getPreviewPayment(paymentForm, manualFormulaFields, {
@@ -568,6 +772,21 @@ export function ContractPayments({
                         {!payment.isLocked && (
                           <button
                             type="button"
+                            onClick={() => handleVoidToggleForPayment(payment)}
+                            disabled={voidMutation.isPending}
+                            className={`rounded px-2 py-1 text-[10px] font-medium ${
+                              payment.apStatus === 'VOID'
+                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                            } disabled:opacity-50`}
+                            title={payment.apStatus === 'VOID' ? 'Restore payment request' : 'Void payment request'}
+                          >
+                            {payment.apStatus === 'VOID' ? 'Restore' : 'Void'}
+                          </button>
+                        )}
+                        {!payment.isLocked && (
+                          <button
+                            type="button"
                             onClick={() => {
                               if (confirm('Delete this payment row?')) {
                                 deleteMutation.mutate(payment.id)
@@ -603,10 +822,20 @@ export function ContractPayments({
             </div>
 
             <div className="overflow-y-auto max-h-[calc(92vh-132px)] p-4 space-y-4">
-              {selectedPayment && selectedPayment.isLocked && (
+              {selectedPayment && isSelectedPaymentLocked && (
                 <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                   <ShieldCheck className="h-4 w-4" />
-                  This row is read-only because PM status is Approved and AP status is Paid.
+                  <span>This row is read-only because PM status is Approved and AP status is Paid.</span>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={handleUnlock}
+                      disabled={unlockMutation.isPending}
+                      className="ml-auto rounded border border-emerald-300 bg-white px-2 py-1 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {unlockMutation.isPending ? 'Unlocking...' : 'Unlock'}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -616,7 +845,7 @@ export function ContractPayments({
                     type="text"
                     value={paymentForm.submittedBy}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, submittedBy: event.target.value }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   />
                 </FormField>
@@ -625,7 +854,7 @@ export function ContractPayments({
                     value={paymentForm.paymentDate}
                     onChange={(value) => setPaymentForm((current) => ({ ...current, paymentDate: value }))}
                     placeholder="Select submit date"
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                   />
                 </FormField>
                 <FormField label="Month">
@@ -633,7 +862,7 @@ export function ContractPayments({
                     value={paymentForm.billingPeriodDate}
                     onChange={(value) => setPaymentForm((current) => ({ ...current, billingPeriodDate: value }))}
                     placeholder="Select month date"
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                   />
                 </FormField>
                 <FormField label="Client">
@@ -641,7 +870,7 @@ export function ContractPayments({
                     type="text"
                     value={paymentForm.clientName}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, clientName: event.target.value }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   />
                 </FormField>
@@ -658,19 +887,21 @@ export function ContractPayments({
                   label="Amount Complete"
                   value={paymentForm.amountComplete}
                   onChange={(value) => handleCurrencyChange('amountComplete', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
+                  allowArithmetic
                 />
                 <CurrencyInputField
                   label="Less Retention"
                   value={paymentForm.lessRetention}
                   onChange={(value) => handleCurrencyChange('lessRetention', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
+                  allowArithmetic
                 />
                 <CurrencyInputField
                   label="Subtotal"
                   value={paymentForm.subtotal}
                   onChange={(value) => handleCurrencyChange('subtotal', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <SummaryCard label="Previously Billed Approved" value={formatCurrency(previewPayment.previouslyBilledApproved)} />
               </div>
@@ -680,25 +911,25 @@ export function ContractPayments({
                   label="Current Billing"
                   value={paymentForm.currentBilling}
                   onChange={(value) => handleCurrencyChange('currentBilling', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Early Pay Discount"
                   value={paymentForm.earlyPayDiscount}
                   onChange={(value) => handleCurrencyChange('earlyPayDiscount', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Amount Requesting"
                   value={paymentForm.amountRequesting}
                   onChange={(value) => handleCurrencyChange('amountRequesting', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Current Retention"
                   value={paymentForm.currentRetention}
                   onChange={(value) => handleCurrencyChange('currentRetention', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
               </div>
 
@@ -708,19 +939,19 @@ export function ContractPayments({
                   label="Paid to Date Override"
                   value={paymentForm.paidToDateOverride}
                   onChange={(value) => handleCurrencyChange('paidToDateOverride', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Paid to Date Adjustment"
                   value={paymentForm.paidToDateAdjustment}
                   onChange={(value) => handleCurrencyChange('paidToDateAdjustment', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Max Payment"
                   value={paymentForm.maxPayment}
                   onChange={(value) => handleCurrencyChange('maxPayment', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
               </div>
 
@@ -729,19 +960,19 @@ export function ContractPayments({
                   label="Amount Approved"
                   value={paymentForm.amountApproved}
                   onChange={(value) => handleCurrencyChange('amountApproved', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Conditional"
                   value={paymentForm.conditionalAmount}
                   onChange={(value) => handleCurrencyChange('conditionalAmount', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <CurrencyInputField
                   label="Unconditional"
                   value={paymentForm.unconditionalAmount}
                   onChange={(value) => handleCurrencyChange('unconditionalAmount', value)}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                 />
                 <FormField label="Expected Lien Releases">
                   <input
@@ -749,7 +980,7 @@ export function ContractPayments({
                     min="0"
                     value={paymentForm.expectedLienReleaseCount}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, expectedLienReleaseCount: event.target.value }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   />
                 </FormField>
@@ -760,7 +991,7 @@ export function ContractPayments({
                   <select
                     value={paymentForm.pmStatus}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, pmStatus: event.target.value as ContractPaymentPMStatus }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   >
                     {PM_STATUS_OPTIONS.map((status) => (
@@ -772,7 +1003,7 @@ export function ContractPayments({
                   <select
                     value={paymentForm.apStatus}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, apStatus: event.target.value as ContractPaymentAPStatus }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   >
                     {AP_STATUS_OPTIONS.map((status) => (
@@ -785,7 +1016,7 @@ export function ContractPayments({
                     type="text"
                     value={paymentForm.reference}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))}
-                    disabled={selectedPayment?.isLocked}
+                    disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                     placeholder="Invoice or check reference"
                   />
@@ -797,7 +1028,7 @@ export function ContractPayments({
                 <textarea
                   value={paymentForm.notes}
                   onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))}
-                  disabled={selectedPayment?.isLocked}
+                  disabled={isSelectedPaymentLocked}
                   rows={3}
                   className={inputClassName}
                 />
@@ -812,7 +1043,7 @@ export function ContractPayments({
                           <Paperclip className="h-3.5 w-3.5 text-gray-500" />
                           <p className="text-xs font-medium text-gray-700">{LIEN_ATTACHMENT_LABELS[kind]}</p>
                         </div>
-                        {!selectedPayment.isLocked && (
+                        {!isSelectedPaymentLocked && (
                           <button
                             type="button"
                             onClick={() => setAttachmentTarget({ paymentId: selectedPayment.id, kind })}
@@ -837,7 +1068,7 @@ export function ContractPayments({
                                 >
                                   {attachment.originalName}
                                 </button>
-                                {!selectedPayment.isLocked && (
+                                {!isSelectedPaymentLocked && (
                                   <button
                                     type="button"
                                     onClick={() => deleteAttachmentMutation.mutate({ paymentId: selectedPayment.id, attachmentId: attachment.id })}
@@ -869,11 +1100,25 @@ export function ContractPayments({
                 >
                   Cancel
                 </button>
-                {!selectedPayment?.isLocked && (
+                {selectedPaymentId && !isSelectedPaymentLocked && (
+                  <button
+                    type="button"
+                    onClick={handleVoidToggleForSelectedPayment}
+                    disabled={voidMutation.isPending || updateMutation.isPending}
+                    className={`px-3 py-1.5 text-xs rounded disabled:opacity-50 ${
+                      paymentForm.apStatus === 'VOID'
+                        ? 'border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        : 'border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
+                  >
+                    {voidMutation.isPending ? 'Updating...' : paymentForm.apStatus === 'VOID' ? 'Restore Request' : 'Void Request'}
+                  </button>
+                )}
+                {!isSelectedPaymentLocked && (
                   <button
                     type="button"
                     onClick={handleSave}
-                    disabled={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending || unlockMutation.isPending || voidMutation.isPending}
                     className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
                   >
                     {selectedPaymentId ? (updateMutation.isPending ? 'Saving...' : 'Save Changes') : (createMutation.isPending ? 'Creating...' : 'Create Row')}
@@ -983,19 +1228,34 @@ function CurrencyInputField({
   value,
   onChange,
   disabled,
+  allowArithmetic = false,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   disabled?: boolean
+  allowArithmetic?: boolean
 }) {
   return (
     <FormField label={label}>
       <input
-        type="number"
-        step="0.01"
+        type={allowArithmetic ? 'text' : 'number'}
+        step={allowArithmetic ? undefined : '0.01'}
+        inputMode="decimal"
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (!allowArithmetic || event.key !== 'Enter') return
+          event.preventDefault()
+
+          const computed = evaluateArithmeticExpression(value)
+          if (computed === null) {
+            toast.error('Enter a valid arithmetic expression')
+            return
+          }
+
+          onChange(currencyToInput(computed))
+        }}
         disabled={disabled}
         className={inputClassName}
       />

@@ -1425,6 +1425,7 @@ enum ContractPaymentAPStatus {
   PROCESSING
   WAITING_ON_LIEN_RELEASES
   PAID
+  VOID
 }
 
 enum ContractPaymentAttachmentKind {

@@ -1,0 +1,1 @@
+ALTER TYPE "ContractPaymentAPStatus" ADD VALUE IF NOT EXISTS 'VOID';

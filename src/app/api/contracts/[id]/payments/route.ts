@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 const PM_STATUSES = new Set<ContractPaymentPMStatus>(['PENDING', 'APPROVED', 'REJECTED'])
-const AP_STATUSES = new Set<ContractPaymentAPStatus>(['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID'])
+const AP_STATUSES = new Set<ContractPaymentAPStatus>(['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID', 'VOID'])
 type ContractPaymentCreateData = Omit<Prisma.ContractPaymentUncheckedCreateInput, 'contractId' | 'createdById'>
 
 async function validateContractAccess(contractId: string, companyId: string) {

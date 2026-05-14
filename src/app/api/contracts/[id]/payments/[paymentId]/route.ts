@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 const PM_STATUSES = new Set<ContractPaymentPMStatus>(['PENDING', 'APPROVED', 'REJECTED'])
-const AP_STATUSES = new Set<ContractPaymentAPStatus>(['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID'])
+const AP_STATUSES = new Set<ContractPaymentAPStatus>(['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID', 'VOID'])
 
 function parseOptionalNumber(value: unknown) {
   if (value === null || value === undefined || value === '') return undefined
@@ -122,6 +122,14 @@ export async function PATCH(
 
     if ('error' in result) {
       return NextResponse.json({ error: result.error }, { status: 400 })
+    }
+
+    const isLocked = existingPayment.pmStatus === 'APPROVED' && existingPayment.apStatus === 'PAID'
+    if (isLocked && user.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Only admins can unlock or modify paid and approved payment rows' },
+        { status: 403 }
+      )
     }
 
     const payment = await prisma.contractPayment.update({
