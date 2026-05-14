@@ -36,6 +36,11 @@ interface ContractPaymentsProps {
   contractId: string
   contractTotal: number
   retentionPercent?: number | null
+  vendor: {
+    name: string
+    companyName: string
+  }
+  contractNumber?: string | null
   payments: PaymentRow[]
   changeOrders: ChangeOrderSummary[]
   onRefresh: () => Promise<unknown>
@@ -206,7 +211,7 @@ function buildFormFromPayment(payment: ComputedContractPayment): PaymentFormValu
     currentBilling: currencyToInput(payment.currentBilling),
     earlyPayDiscount: currencyToInput(payment.earlyPayDiscount),
     amountRequesting: currencyToInput(payment.amountRequesting),
-    currentRetention: currencyToInput(payment.currentRetention),
+    currentRetention: currencyToInput(payment.currentRetention ?? payment.previouslyWithheldRetention),
     paidToDateOverride: currencyToInput(payment.paidToDateOverride),
     paidToDateAdjustment: currencyToInput(payment.paidToDateAdjustment),
     maxPayment: currencyToInput(payment.maxPayment),
@@ -225,6 +230,8 @@ export function ContractPayments({
   contractId,
   contractTotal,
   retentionPercent,
+  vendor,
+  contractNumber,
   payments,
   changeOrders,
   onRefresh,
@@ -536,7 +543,7 @@ export function ContractPayments({
       if (!manualFormulaFields.has('currentBilling')) assignIfNeeded('currentBilling', currencyToInput(preview.currentBilling))
       if (!manualFormulaFields.has('amountRequesting')) assignIfNeeded('amountRequesting', currencyToInput(preview.amountRequesting))
       if (!manualFormulaFields.has('currentRetention')) assignIfNeeded('currentRetention', currencyToInput(preview.currentRetention))
-      if (!manualFormulaFields.has('maxPayment') && !current.maxPayment) assignIfNeeded('maxPayment', currencyToInput(preview.currentBilling))
+      if (!manualFormulaFields.has('maxPayment') && !current.maxPayment) assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
       if (!manualFormulaFields.has('amountApproved') && !current.amountApproved) assignIfNeeded('amountApproved', currencyToInput(preview.amountRequesting))
 
       return changed ? next : current
@@ -822,6 +829,23 @@ export function ContractPayments({
             </div>
 
             <div className="overflow-y-auto max-h-[calc(92vh-132px)] p-4 space-y-4">
+              <div className="rounded border border-blue-200 bg-blue-50 px-3 py-2">
+                <div className="grid grid-cols-1 gap-2 text-center text-xs text-blue-950 md:grid-cols-3">
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-[10px] uppercase tracking-wide text-blue-700">Vendor</p>
+                    <p className="font-semibold">{vendor.name}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-[10px] uppercase tracking-wide text-blue-700">Company</p>
+                    <p className="font-semibold">{vendor.companyName}</p>
+                  </div>
+                  <div className="flex flex-col items-center justify-center">
+                    <p className="text-[10px] uppercase tracking-wide text-blue-700">Contract</p>
+                    <p className="font-semibold">{contractNumber || '-'}</p>
+                  </div>
+                </div>
+              </div>
+
               {selectedPayment && isSelectedPaymentLocked && (
                 <div className="flex items-center gap-2 rounded border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                   <ShieldCheck className="h-4 w-4" />
@@ -839,8 +863,12 @@ export function ContractPayments({
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <FormField label="Submitted By">
+              <SectionHeader
+                title="Submission"
+                description="Basic pay application details and reporting period."
+              />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <FormField label="Submitted By" helperText="Name of the person or team submitting this payment request.">
                   <input
                     type="text"
                     value={paymentForm.submittedBy}
@@ -849,7 +877,7 @@ export function ContractPayments({
                     className={inputClassName}
                   />
                 </FormField>
-                <FormField label="Submitted Date">
+                <FormField label="Submitted Date" helperText="Date the payment request was submitted for review.">
                   <DatePicker
                     value={paymentForm.paymentDate}
                     onChange={(value) => setPaymentForm((current) => ({ ...current, paymentDate: value }))}
@@ -857,7 +885,7 @@ export function ContractPayments({
                     disabled={isSelectedPaymentLocked}
                   />
                 </FormField>
-                <FormField label="Month">
+                <FormField label="Month" helperText="Billing period this payment request applies to.">
                   <DatePicker
                     value={paymentForm.billingPeriodDate}
                     onChange={(value) => setPaymentForm((current) => ({ ...current, billingPeriodDate: value }))}
@@ -865,23 +893,25 @@ export function ContractPayments({
                     disabled={isSelectedPaymentLocked}
                   />
                 </FormField>
-                <FormField label="Client">
-                  <input
-                    type="text"
-                    value={paymentForm.clientName}
-                    onChange={(event) => setPaymentForm((current) => ({ ...current, clientName: event.target.value }))}
-                    disabled={isSelectedPaymentLocked}
-                    className={inputClassName}
-                  />
-                </FormField>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <SummaryCard label="Original Contract" value={formatCurrency(previewPayment.originalContractAmount)} />
                 <SummaryCard label="Modifications" value={formatCurrency(previewPayment.modifications)} />
                 <SummaryCard label="Revised Contract" value={formatCurrency(previewPayment.revisedContract)} />
+                <SummaryCard label="Retention %" value={`${retentionPercent ?? 0}%`} />
               </div>
 
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <SummaryCard label="Lien Releases Uploaded" value={previewPayment.lienReleaseDisplay} />
+                <SummaryCard label="Previously Billed Approved" value={formatCurrency(previewPayment.previouslyBilledApproved)} />
+                <div />
+              </div>
+
+              <SectionHeader
+                title="Progress Billing"
+                description="Enter work completed, retention withheld, and the amount being requested."
+              />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <CurrencyInputField
                   label="Amount Complete"
@@ -889,6 +919,7 @@ export function ContractPayments({
                   onChange={(value) => handleCurrencyChange('amountComplete', value)}
                   disabled={isSelectedPaymentLocked}
                   allowArithmetic
+                  helperText="Gross value of work completed this period. Press Enter to evaluate arithmetic."
                 />
                 <CurrencyInputField
                   label="Less Retention"
@@ -896,14 +927,16 @@ export function ContractPayments({
                   onChange={(value) => handleCurrencyChange('lessRetention', value)}
                   disabled={isSelectedPaymentLocked}
                   allowArithmetic
+                  helperText="Retention withheld from this payment request. Press Enter to evaluate arithmetic."
                 />
                 <CurrencyInputField
                   label="Subtotal"
                   value={paymentForm.subtotal}
                   onChange={(value) => handleCurrencyChange('subtotal', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Net earned amount after retention is deducted."
                 />
-                <SummaryCard label="Previously Billed Approved" value={formatCurrency(previewPayment.previouslyBilledApproved)} />
+                <div />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -912,82 +945,79 @@ export function ContractPayments({
                   value={paymentForm.currentBilling}
                   onChange={(value) => handleCurrencyChange('currentBilling', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Billing amount for this draw after prior approved billings."
                 />
                 <CurrencyInputField
                   label="Early Pay Discount"
                   value={paymentForm.earlyPayDiscount}
                   onChange={(value) => handleCurrencyChange('earlyPayDiscount', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Optional discount for accelerated payment terms."
                 />
                 <CurrencyInputField
                   label="Amount Requesting"
                   value={paymentForm.amountRequesting}
                   onChange={(value) => handleCurrencyChange('amountRequesting', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Amount formally requested for payment this period."
                 />
                 <CurrencyInputField
                   label="Current Retention"
                   value={paymentForm.currentRetention}
                   onChange={(value) => handleCurrencyChange('currentRetention', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Cumulative retention withheld from prior paid requests."
                 />
               </div>
 
+              <SectionHeader
+                title="Payment Limits"
+                description="Review what has been paid to date and the maximum payable amount on this request."
+              />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <SummaryCard label="Paid to Date Preview" value={formatCurrency(previewPayment.paidToDate)} />
-                <CurrencyInputField
-                  label="Paid to Date Override"
-                  value={paymentForm.paidToDateOverride}
-                  onChange={(value) => handleCurrencyChange('paidToDateOverride', value)}
-                  disabled={isSelectedPaymentLocked}
-                />
-                <CurrencyInputField
-                  label="Paid to Date Adjustment"
-                  value={paymentForm.paidToDateAdjustment}
-                  onChange={(value) => handleCurrencyChange('paidToDateAdjustment', value)}
-                  disabled={isSelectedPaymentLocked}
-                />
                 <CurrencyInputField
                   label="Max Payment"
                   value={paymentForm.maxPayment}
                   onChange={(value) => handleCurrencyChange('maxPayment', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Contract cap for this request after retention is considered."
                 />
+                <div />
+                <div />
               </div>
 
+              <SectionHeader
+                title="Approval & Releases"
+                description="Record approved amounts, lien release values, and workflow statuses."
+              />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <CurrencyInputField
                   label="Amount Approved"
                   value={paymentForm.amountApproved}
                   onChange={(value) => handleCurrencyChange('amountApproved', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Amount approved internally for payment processing."
                 />
                 <CurrencyInputField
                   label="Conditional"
                   value={paymentForm.conditionalAmount}
                   onChange={(value) => handleCurrencyChange('conditionalAmount', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Conditional lien release amount tied to this request."
                 />
                 <CurrencyInputField
                   label="Unconditional"
                   value={paymentForm.unconditionalAmount}
                   onChange={(value) => handleCurrencyChange('unconditionalAmount', value)}
                   disabled={isSelectedPaymentLocked}
+                  helperText="Unconditional lien release amount after payment clears."
                 />
-                <FormField label="Expected Lien Releases">
-                  <input
-                    type="number"
-                    min="0"
-                    value={paymentForm.expectedLienReleaseCount}
-                    onChange={(event) => setPaymentForm((current) => ({ ...current, expectedLienReleaseCount: event.target.value }))}
-                    disabled={isSelectedPaymentLocked}
-                    className={inputClassName}
-                  />
-                </FormField>
+                <div />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <FormField label="PM Status">
+                <FormField label="PM Status" helperText="Project manager review outcome for this request.">
                   <select
                     value={paymentForm.pmStatus}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, pmStatus: event.target.value as ContractPaymentPMStatus }))}
@@ -999,7 +1029,7 @@ export function ContractPayments({
                     ))}
                   </select>
                 </FormField>
-                <FormField label="AP Status">
+                <FormField label="AP Status" helperText="Accounts payable processing state for this request.">
                   <select
                     value={paymentForm.apStatus}
                     onChange={(event) => setPaymentForm((current) => ({ ...current, apStatus: event.target.value as ContractPaymentAPStatus }))}
@@ -1011,7 +1041,7 @@ export function ContractPayments({
                     ))}
                   </select>
                 </FormField>
-                <FormField label="Reference">
+                <FormField label="Reference" helperText="Invoice number, check number, or internal payment reference.">
                   <input
                     type="text"
                     value={paymentForm.reference}
@@ -1021,10 +1051,10 @@ export function ContractPayments({
                     placeholder="Invoice or check reference"
                   />
                 </FormField>
-                <SummaryCard label="Lien Releases Uploaded" value={previewPayment.lienReleaseDisplay} />
+                <div />
               </div>
 
-              <FormField label="Notes">
+              <FormField label="Notes" helperText="Internal notes, exceptions, or context for reviewers and AP.">
                 <textarea
                   value={paymentForm.notes}
                   onChange={(event) => setPaymentForm((current) => ({ ...current, notes: event.target.value }))}
@@ -1202,14 +1232,26 @@ function StatusBadge({ value }: { value: string }) {
 function FormField({
   label,
   children,
+  helperText,
 }: {
   label: string
   children: ReactNode
+  helperText?: string
 }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-700 mb-1">{label}</label>
       {children}
+      {helperText ? <p className="mt-1 text-[10px] text-gray-500">{helperText}</p> : null}
+    </div>
+  )
+}
+
+function SectionHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="border-t border-gray-100 pt-1">
+      <h4 className="text-xs font-semibold text-gray-800">{title}</h4>
+      <p className="text-[11px] text-gray-500">{description}</p>
     </div>
   )
 }
@@ -1229,15 +1271,17 @@ function CurrencyInputField({
   onChange,
   disabled,
   allowArithmetic = false,
+  helperText,
 }: {
   label: string
   value: string
   onChange: (value: string) => void
   disabled?: boolean
   allowArithmetic?: boolean
+  helperText?: string
 }) {
   return (
-    <FormField label={label}>
+    <FormField label={label} helperText={helperText}>
       <input
         type={allowArithmetic ? 'text' : 'number'}
         step={allowArithmetic ? undefined : '0.01'}
@@ -1340,9 +1384,11 @@ function getPreviewPayment(
   const temporaryCurrentBilling = manualFormulaFields.has('currentBilling')
     ? parseCurrencyInput(form.currentBilling)
     : undefined
+  const paymentRowsWithoutDraft = context.payments.filter((payment) => payment.id !== context.selectedPaymentId)
+  const draftCurrentRetention = parseCurrencyInput(form.currentRetention) ?? 0
   const currentRetention = manualFormulaFields.has('currentRetention')
-    ? parseCurrencyInput(form.currentRetention) ?? retentionValue
-    : retentionValue
+    ? draftCurrentRetention
+    : draftCurrentRetention
 
   const draftPayment: PaymentRow = {
     id: context.selectedPaymentId || 'draft-payment-row',
@@ -1378,13 +1424,15 @@ function getPreviewPayment(
     },
   }
 
-  const paymentRows = context.payments
-    .filter((payment) => payment.id !== context.selectedPaymentId)
-    .concat(draftPayment)
+  const paymentRows = paymentRowsWithoutDraft.concat(draftPayment)
 
   const computed = computeContractPayments(paymentRows, context.contractTotal, context.approvedChangeOrderTotal)
   const preview = computed.find((payment) => payment.id === draftPayment.id)!
   const requestedDefault = roundCurrency(preview.currentBilling - (parseCurrencyInput(form.earlyPayDiscount) ?? 0))
+  const populatedCurrentRetention = manualFormulaFields.has('currentRetention')
+    ? draftCurrentRetention
+    : preview.previouslyWithheldRetention
+  const maxPaymentDefault = roundCurrency(preview.revisedContract - lessRetention)
 
   return {
     ...preview,
@@ -1393,7 +1441,10 @@ function getPreviewPayment(
     amountRequesting: manualFormulaFields.has('amountRequesting')
       ? parseCurrencyInput(form.amountRequesting) ?? requestedDefault
       : requestedDefault,
-    currentRetention,
+    currentRetention: populatedCurrentRetention,
+    maxPayment: manualFormulaFields.has('maxPayment')
+      ? parseCurrencyInput(form.maxPayment) ?? maxPaymentDefault
+      : maxPaymentDefault,
   }
 }
 

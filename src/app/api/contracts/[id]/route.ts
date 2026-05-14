@@ -176,6 +176,7 @@ export async function PATCH(
       warrantyYears,
       startDate,
       endDate,
+      retentionBond,
       status,
       terms,
       notes
@@ -230,6 +231,7 @@ export async function PATCH(
         ...(warrantyYears && { warrantyYears }),
         ...(startDate && { startDate: new Date(startDate) }),
         ...(endDate && { endDate: new Date(endDate) }),
+        ...(retentionBond !== undefined && { retentionBond }),
         ...(status && { status }),
         ...(terms !== undefined && { terms }),
         ...(notes !== undefined && { notes })

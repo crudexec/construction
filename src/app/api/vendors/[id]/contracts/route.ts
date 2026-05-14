@@ -139,6 +139,7 @@ export async function POST(
       warrantyYears,
       startDate,
       endDate,
+      retentionBond,
       terms,
       notes,
       projectIds // Array of project IDs to link
@@ -209,6 +210,7 @@ export async function POST(
         warrantyYears: warrantyYears || 1,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        retentionBond,
         terms,
         notes,
         status: 'DRAFT',

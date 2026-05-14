@@ -1,9 +1,10 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
 import {
   ArrowLeft,
   FileText,
@@ -83,6 +84,7 @@ interface VendorContract {
   totalSum: number
   retentionPercent?: number
   retentionAmount?: number
+  retentionBond?: string | null
   warrantyYears: number
   startDate: string
   endDate?: string | null
@@ -166,6 +168,7 @@ export default function ContractDetailPage() {
   const contractId = params.contractId as string
   const vendorId = params.id as string
   const [isUploadingDocument, setIsUploadingDocument] = useState(false)
+  const [retentionPercentInput, setRetentionPercentInput] = useState('0')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: contract, isLoading, error, refetch } = useQuery({
@@ -230,6 +233,53 @@ export default function ContractDetailPage() {
       refetch()
     }
   })
+
+  const updateRetentionMutation = useMutation({
+    mutationFn: async (retentionPercent: number) => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/contracts/${contractId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ retentionPercent })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to update retention percentage')
+      }
+
+      return response.json()
+    },
+    onSuccess: async () => {
+      toast.success('Retention percentage updated')
+      await refetch()
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    }
+  })
+
+  useEffect(() => {
+    if (!contract) return
+    setRetentionPercentInput(String(contract.retentionPercent ?? 0))
+  }, [contract])
+
+  const handleRetentionSave = () => {
+    const parsed = Number(retentionPercentInput)
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+      toast.error('Retention percentage must be between 0 and 100')
+      return
+    }
+
+    updateRetentionMutation.mutate(parsed)
+  }
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -299,6 +349,26 @@ export default function ContractDetailPage() {
               {contract.retentionPercent}% retention
             </span>
           )}
+          <div className="flex items-center gap-2 rounded border border-gray-200 bg-white px-2 py-1">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Retention %</span>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={retentionPercentInput}
+              onChange={(e) => setRetentionPercentInput(e.target.value)}
+              className="w-20 rounded border border-gray-300 px-2 py-1 text-right text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              type="button"
+              onClick={handleRetentionSave}
+              disabled={updateRetentionMutation.isPending}
+              className="rounded bg-primary-600 px-2 py-1 text-[10px] font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+            >
+              {updateRetentionMutation.isPending ? 'Saving...' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -394,10 +464,16 @@ export default function ContractDetailPage() {
           <div className="px-3 py-1.5 border-b bg-gray-50">
             <h3 className="text-xs font-semibold text-gray-700">Terms & Notes</h3>
           </div>
-          {!contract.terms && !contract.notes ? (
+          {!contract.terms && !contract.notes && !contract.retentionBond ? (
             <div className="px-3 py-3 text-center text-[10px] text-gray-500">No terms or notes</div>
           ) : (
             <div className="px-3 py-2 space-y-2 text-xs">
+              {contract.retentionBond && (
+                <div>
+                  <p className="text-[10px] text-gray-500 uppercase">Retention Bond</p>
+                  <p className="text-gray-700 line-clamp-2">{contract.retentionBond}</p>
+                </div>
+              )}
               {contract.terms && (
                 <div>
                   <p className="text-[10px] text-gray-500 uppercase">Terms</p>
@@ -498,6 +574,8 @@ export default function ContractDetailPage() {
         contractId={contract.id}
         contractTotal={contract.totalSum}
         retentionPercent={contract.retentionPercent}
+        vendor={contract.vendor}
+        contractNumber={contract.contractNumber}
         payments={contract.payments || []}
         changeOrders={contract.changeOrders || []}
         onRefresh={refetch}

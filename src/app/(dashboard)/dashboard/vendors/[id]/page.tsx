@@ -138,6 +138,7 @@ interface VendorContract {
   totalSum: number
   retentionPercent?: number
   retentionAmount?: number
+  retentionBond?: string
   warrantyYears: number
   startDate: string
   endDate?: string | null
@@ -508,6 +509,7 @@ export default function VendorDetailPage() {
     type: 'LUMP_SUM' as 'LUMP_SUM' | 'REMEASURABLE' | 'ADDENDUM',
     totalSum: '',
     retentionPercent: '0',
+    retentionBond: '',
     warrantyYears: '1',
     startDate: '',
     endDate: '',
@@ -843,6 +845,7 @@ export default function VendorDetailPage() {
           type: data.type,
           totalSum: parseFloat(data.totalSum),
           retentionPercent: parseFloat(data.retentionPercent),
+          retentionBond: data.retentionBond || undefined,
           warrantyYears: parseInt(data.warrantyYears),
           startDate: data.startDate,
           endDate: data.endDate,
@@ -866,6 +869,7 @@ export default function VendorDetailPage() {
         type: 'LUMP_SUM',
         totalSum: '',
         retentionPercent: '0',
+        retentionBond: '',
         warrantyYears: '1',
         startDate: '',
         endDate: '',
@@ -1971,6 +1975,19 @@ export default function VendorDetailPage() {
                     className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Retention Bond
+                </label>
+                <input
+                  type="text"
+                  value={contractForm.retentionBond}
+                  onChange={(e) => setContractForm({ ...contractForm, retentionBond: e.target.value })}
+                  placeholder="e.g., Bond number, provider, or summary"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-4">

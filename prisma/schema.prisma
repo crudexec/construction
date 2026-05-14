@@ -1657,6 +1657,7 @@ model VendorContract {
   status           ContractStatus @default(DRAFT)
   terms            String? // Rich text / contract terms
   notes            String?
+  retentionBond    String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

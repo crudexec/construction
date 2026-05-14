@@ -45,6 +45,7 @@ export interface ComputedContractPayment extends ContractPaymentLike {
   modifications: number
   revisedContract: number
   previouslyBilledApproved: number
+  previouslyWithheldRetention: number
   currentBilling: number
   paidToDate: number
   lienReleaseUploadedCount: number
@@ -82,12 +83,17 @@ export function computeContractPayments(
   })
 
   let runningApprovedPaid = 0
+  let runningRetentionWithheld = 0
 
   const computed = sortedPayments.map<ComputedContractPayment>((payment) => {
     const previouslyBilledApproved = roundCurrency(runningApprovedPaid)
-    const subtotal = payment.subtotal ?? payment.amountComplete ?? 0
+    const previouslyWithheldRetention = roundCurrency(runningRetentionWithheld)
+    const computedSubtotal = roundCurrency(
+      (payment.amountComplete ?? 0) - (payment.lessRetention ?? payment.currentRetention ?? 0)
+    )
+    const subtotal = payment.subtotal ?? computedSubtotal
     const currentBilling = roundCurrency(payment.currentBilling ?? (subtotal - previouslyBilledApproved))
-    const basePaidToDate = previouslyBilledApproved
+    const basePaidToDate = roundCurrency(previouslyBilledApproved + subtotal)
     const paidToDate = roundCurrency(
       payment.paidToDateOverride ?? (basePaidToDate + (payment.paidToDateAdjustment ?? 0))
     )
@@ -100,6 +106,7 @@ export function computeContractPayments(
       modifications,
       revisedContract,
       previouslyBilledApproved,
+      previouslyWithheldRetention,
       currentBilling,
       paidToDate,
       lienReleaseUploadedCount,
@@ -111,6 +118,7 @@ export function computeContractPayments(
 
     if (payment.apStatus === 'PAID') {
       runningApprovedPaid += payment.amountApproved ?? payment.amount ?? 0
+      runningRetentionWithheld += payment.currentRetention ?? 0
     }
 
     return computedPayment
