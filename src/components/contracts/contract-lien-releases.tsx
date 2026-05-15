@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, CircleDashed, Clock3, FileText, Plus, Upload, XCircle } from 'lucide-react'
+import { CheckCircle2, ChevronDown, ChevronRight, CircleDashed, Clock3, FileText, Plus, Upload, XCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { GenerateDocumentButton } from '@/components/documents/generate-document-button'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -151,6 +151,7 @@ export function ContractLienReleases({
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isTimelineVisible, setIsTimelineVisible] = useState(false)
   const [selectedReleaseId, setSelectedReleaseId] = useState<string | null>(null)
   const [customExternalSource, setCustomExternalSource] = useState('')
   const [form, setForm] = useState({
@@ -411,62 +412,74 @@ export function ContractLienReleases({
           </div>
 
           <div className="rounded border border-gray-200">
-            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2">
-              <h3 className="text-xs font-semibold text-gray-700">Contract Journey Timeline</h3>
-              <p className="mt-0.5 text-[10px] text-gray-500">A chronological view of every lien release step on this contract.</p>
+            <div className="border-b border-gray-100 bg-gray-50 px-3 py-2 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-semibold text-gray-700">Contract Journey Timeline</h3>
+                <p className="mt-0.5 text-[10px] text-gray-500">A chronological view of every lien release step on this contract.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsTimelineVisible((current) => !current)}
+                className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-[10px] font-medium text-gray-700 hover:bg-gray-100"
+              >
+                {isTimelineVisible ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                {isTimelineVisible ? 'Hide Timeline' : 'Show Timeline'}
+              </button>
             </div>
-            <div className="px-3 py-3">
-              {timelineEntries.length === 0 ? (
-                <p className="text-xs text-gray-500">No timeline activity yet.</p>
-              ) : (
-                <div className="space-y-0">
-                  {timelineEntries.map((entry, index) => {
-                    const eventStyle = EVENT_STYLES[entry.eventType] || { icon: FileText, dot: 'bg-gray-400', label: entry.eventType.replace(/_/g, ' ') }
-                    const EventIcon = eventStyle.icon
-                    return (
-                      <div key={entry.id} className="relative flex gap-3 pb-5 last:pb-0">
-                        <div className="relative flex w-6 flex-col items-center">
-                          <span className={`mt-1 h-2.5 w-2.5 rounded-full ${eventStyle.dot}`} />
-                          {index < timelineEntries.length - 1 && (
-                            <span className="absolute top-4 h-full w-px bg-gray-200" />
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedReleaseId(entry.releaseId)}
-                          className="min-w-0 flex-1 rounded border border-gray-100 bg-white px-3 py-2 text-left transition hover:border-primary-300 hover:bg-blue-50/40"
-                        >
-                          <div className="flex flex-col gap-1 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-900">
-                                  <EventIcon className="h-3.5 w-3.5 text-gray-500" />
-                                  {eventStyle.label}
-                                </span>
-                                <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[entry.releaseStatus]}`}>
-                                  {entry.releaseStatus.replace(/_/g, ' ')}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-xs text-gray-700">{entry.releaseTitle}</p>
-                              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
-                                <span>{new Date(entry.createdAt).toLocaleString()}</span>
-                                <span>By {entry.actorLabel}</span>
-                                {entry.projectTitle && <span>Project: {entry.projectTitle}</span>}
-                                {entry.amount !== null && entry.amount !== undefined && <span>{formatCurrency(entry.amount)}</span>}
-                              </div>
-                              {entry.message && (
-                                <p className="mt-1 text-[10px] text-gray-600">{entry.message}</p>
-                              )}
-                              <p className="mt-2 text-[10px] font-medium text-primary-600">Click to view full lien release details</p>
-                            </div>
+            {isTimelineVisible && (
+              <div className="px-3 py-3">
+                {timelineEntries.length === 0 ? (
+                  <p className="text-xs text-gray-500">No timeline activity yet.</p>
+                ) : (
+                  <div className="space-y-0">
+                    {timelineEntries.map((entry, index) => {
+                      const eventStyle = EVENT_STYLES[entry.eventType] || { icon: FileText, dot: 'bg-gray-400', label: entry.eventType.replace(/_/g, ' ') }
+                      const EventIcon = eventStyle.icon
+                      return (
+                        <div key={entry.id} className="relative flex gap-3 pb-5 last:pb-0">
+                          <div className="relative flex w-6 flex-col items-center">
+                            <span className={`mt-1 h-2.5 w-2.5 rounded-full ${eventStyle.dot}`} />
+                            {index < timelineEntries.length - 1 && (
+                              <span className="absolute top-4 h-full w-px bg-gray-200" />
+                            )}
                           </div>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedReleaseId(entry.releaseId)}
+                            className="min-w-0 flex-1 rounded border border-gray-100 bg-white px-3 py-2 text-left transition hover:border-primary-300 hover:bg-blue-50/40"
+                          >
+                            <div className="flex flex-col gap-1 lg:flex-row lg:items-start lg:justify-between">
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-900">
+                                    <EventIcon className="h-3.5 w-3.5 text-gray-500" />
+                                    {eventStyle.label}
+                                  </span>
+                                  <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${STATUS_STYLES[entry.releaseStatus]}`}>
+                                    {entry.releaseStatus.replace(/_/g, ' ')}
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-xs text-gray-700">{entry.releaseTitle}</p>
+                                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
+                                  <span>{new Date(entry.createdAt).toLocaleString()}</span>
+                                  <span>By {entry.actorLabel}</span>
+                                  {entry.projectTitle && <span>Project: {entry.projectTitle}</span>}
+                                  {entry.amount !== null && entry.amount !== undefined && <span>{formatCurrency(entry.amount)}</span>}
+                                </div>
+                                {entry.message && (
+                                  <p className="mt-1 text-[10px] text-gray-600">{entry.message}</p>
+                                )}
+                                <p className="mt-2 text-[10px] font-medium text-primary-600">Click to view full lien release details</p>
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="rounded border border-gray-200">
