@@ -17,7 +17,8 @@ import {
   Package,
   Warehouse,
   HelpCircle,
-  FileText
+  FileText,
+  Contact
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
@@ -38,6 +39,7 @@ const navigation = [
   { name: 'Leads', href: '/dashboard/leads', icon: Users },
   { name: 'Projects', href: '/dashboard/projects', icon: FolderOpen },
   { name: 'Vendors', href: '/dashboard/vendors', icon: Truck },
+  { name: 'Contacts', href: '/dashboard/contacts', icon: Contact },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
   { name: 'Assets', href: '/dashboard/assets', icon: Package },
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },

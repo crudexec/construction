@@ -82,6 +82,15 @@ interface VendorReview {
   projectName?: string
 }
 
+interface VendorSupplier {
+  id: string
+  name: string
+  phone?: string | null
+  notes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
 interface ProjectVendor {
   id: string
   project: {
@@ -197,6 +206,7 @@ interface Vendor {
   isActive: boolean
   createdAt: string
   contacts: VendorContact[]
+  suppliers?: VendorSupplier[]
   reviews: VendorReview[]
   projectVendors: ProjectVendor[]
   milestones: VendorMilestone[]

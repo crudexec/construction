@@ -32,6 +32,7 @@ model Company {
   teamInvites         TeamInvite[]
   projectTemplates    ProjectTemplate[]
   vendors             Vendor[]
+  contacts            Contact[]
   assets              Asset[]
   procurementItems    ProcurementItem[]
   stockAlertConfigs   StockAlertConfig[]
@@ -80,34 +81,35 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  company                  Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  cards                    Card[]                    @relation("CardOwner")
-  assignedCards            Card[]                    @relation("AssignedUsers")
-  tasks                    Task[]                    @relation("TaskAssignee")
-  createdTasks             Task[]                    @relation("TaskCreator")
-  approvedTasks            Task[]                    @relation("TaskCompletionApprover")
-  activities               Activity[]
-  documents                Document[]
-  messages                 Message[]
-  dailyLogs                DailyLog[]
-  notifications            Notification[]
-  bidRequests              BidRequest[]
-  bidDocuments             BidDocument[]
-  notificationPreference   NotificationPreference?
-  teamInvites              TeamInvite[]
-  walkarounds              Walkaround[]
-  taskComments             TaskComment[]
-  taskMentions             TaskCommentMention[]
-  vendorComments           VendorComment[]           @relation("VendorCommentAuthor")
-  vendorCommentMentions    VendorCommentMention[]    @relation("VendorCommentMentions")
-  pinnedVendorComments     VendorComment[]           @relation("VendorCommentPinner")
-  vendorContactComments     VendorContactComment[]    @relation("VendorContactCommentAuthor")
-  vendorCommentAttachments  VendorCommentAttachment[] @relation("VendorCommentAttachmentUploader")
-  scheduleActivityComments  ScheduleActivityComment[]
-  vendorReviews            VendorReview[]
-  taskAttachments          TaskAttachment[]
-  taskPayments             TaskPayment[]
-  contractPayments         ContractPayment[]
+  company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  cards                      Card[]                      @relation("CardOwner")
+  assignedCards              Card[]                      @relation("AssignedUsers")
+  tasks                      Task[]                      @relation("TaskAssignee")
+  createdTasks               Task[]                      @relation("TaskCreator")
+  approvedTasks              Task[]                      @relation("TaskCompletionApprover")
+  activities                 Activity[]
+  documents                  Document[]
+  messages                   Message[]
+  dailyLogs                  DailyLog[]
+  notifications              Notification[]
+  bidRequests                BidRequest[]
+  bidDocuments               BidDocument[]
+  notificationPreference     NotificationPreference?
+  teamInvites                TeamInvite[]
+  walkarounds                Walkaround[]
+  taskComments               TaskComment[]
+  taskMentions               TaskCommentMention[]
+  vendorComments             VendorComment[]             @relation("VendorCommentAuthor")
+  vendorCommentMentions      VendorCommentMention[]      @relation("VendorCommentMentions")
+  pinnedVendorComments       VendorComment[]             @relation("VendorCommentPinner")
+  vendorContactComments      VendorContactComment[]      @relation("VendorContactCommentAuthor")
+  contactComments            ContactComment[]            @relation("ContactCommentAuthor")
+  vendorCommentAttachments   VendorCommentAttachment[]   @relation("VendorCommentAttachmentUploader")
+  scheduleActivityComments   ScheduleActivityComment[]
+  vendorReviews              VendorReview[]
+  taskAttachments            TaskAttachment[]
+  taskPayments               TaskPayment[]
+  contractPayments           ContractPayment[]
   contractPaymentAttachments ContractPaymentAttachment[]
 
   // Change Order relations
@@ -145,12 +147,12 @@ model User {
   documentTemplates DocumentTemplate[] @relation("DocumentTemplateCreator")
 
   // Vendor Documents
-  vendorDocuments VendorDocument[] @relation("VendorDocumentUploader")
-  requestedLienReleases LienRelease[] @relation("LienReleaseRequestedBy")
-  reviewedLienReleases  LienRelease[] @relation("LienReleaseReviewedBy")
-  approvedLienReleases  LienRelease[] @relation("LienReleaseApprovedBy")
+  vendorDocuments       VendorDocument[]      @relation("VendorDocumentUploader")
+  requestedLienReleases LienRelease[]         @relation("LienReleaseRequestedBy")
+  reviewedLienReleases  LienRelease[]         @relation("LienReleaseReviewedBy")
+  approvedLienReleases  LienRelease[]         @relation("LienReleaseApprovedBy")
   lienReleaseDocuments  LienReleaseDocument[]
-  lienReleaseEvents     LienReleaseEvent[] @relation("LienReleaseEventActorUser")
+  lienReleaseEvents     LienReleaseEvent[]    @relation("LienReleaseEventActorUser")
 
   // Inventory Management
   inventoryTransactions InventoryTransaction[]
@@ -245,10 +247,10 @@ model Card {
   convertedProperty Property? @relation("PropertySourceProject")
 
   // Schedule Management (XER Import / Gantt)
-  scheduleWBS          ScheduleWBS[]
-  scheduleActivities   ScheduleActivity[]
+  scheduleWBS           ScheduleWBS[]
+  scheduleActivities    ScheduleActivity[]
   scheduleRelationships ScheduleRelationship[]
-  scheduleImports      ScheduleImport[]
+  scheduleImports       ScheduleImport[]
 
   @@index([stageId])
   @@index([companyId])
@@ -411,9 +413,9 @@ model Document {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  card     Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  folder   Folder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  uploader User    @relation(fields: [uploaderId], references: [id])
+  card     Card                    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  folder   Folder?                 @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader User                    @relation(fields: [uploaderId], references: [id])
   tags     DocumentTagAssignment[]
 
   @@index([cardId])
@@ -882,8 +884,8 @@ model BidDocument {
   uploadedById String
   createdAt    DateTime @default(now())
 
-  bidRequest BidRequest @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
-  uploadedBy User       @relation(fields: [uploadedById], references: [id])
+  bidRequest BidRequest                 @relation(fields: [bidRequestId], references: [id], onDelete: Cascade)
+  uploadedBy User                       @relation(fields: [uploadedById], references: [id])
   tags       BidDocumentTagAssignment[]
 
   @@index([bidRequestId])
@@ -1233,6 +1235,7 @@ model Vendor {
   company                Company                       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category               VendorCategory?               @relation("VendorToCategory", fields: [categoryId], references: [id], onDelete: SetNull)
   contacts               VendorContact[]
+  suppliers              VendorSupplier[]
   projectVendors         ProjectVendor[]
   milestones             VendorMilestone[]
   reviews                VendorReview[]
@@ -1253,12 +1256,27 @@ model Vendor {
   documents              VendorDocument[]
   lienReleases           LienRelease[]
   lienReleaseEvents      LienReleaseEvent[]            @relation("LienReleaseEventActorVendor")
+  linkedContacts         Contact[]
 
   @@index([companyId])
   @@index([type])
   @@index([categoryId])
   @@index([status])
   @@index([portalEmail])
+}
+
+model VendorSupplier {
+  id        String   @id @default(cuid())
+  vendorId  String
+  name      String
+  phone     String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
 }
 
 enum VendorType {
@@ -1491,6 +1509,48 @@ model VendorContactComment {
   @@index([createdAt])
 }
 
+// General-purpose contacts, independent of Vendors — optionally linked to a Vendor
+model Contact {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String?
+  phone       String?
+  position    String?
+  companyName String?
+  companyId   String
+  vendorId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor   Vendor?          @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  comments ContactComment[]
+
+  @@index([companyId])
+  @@index([vendorId])
+}
+
+// Comments/notes on general Contacts
+model ContactComment {
+  id        String    @id @default(cuid())
+  content   String
+  contactId String
+  authorId  String
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  author  User    @relation("ContactCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([contactId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
 model ProjectVendor {
   id            String              @id @default(cuid())
   projectId     String
@@ -1703,7 +1763,7 @@ model ContractDocument {
   uploadedById String? // Optional - can be null if uploaded by vendor
   createdAt    DateTime @default(now())
 
-  contract VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract VendorContract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
   tags     ContractDocumentTagAssignment[]
 
   @@index([contractId])
@@ -1711,7 +1771,7 @@ model ContractDocument {
 
 // Contract payments tracking
 model ContractPayment {
-  id                       String                   @id @default(cuid())
+  id                       String                  @id @default(cuid())
   contractId               String
   amount                   Float
   paymentDate              DateTime
@@ -1735,10 +1795,10 @@ model ContractPayment {
   apStatus                 ContractPaymentAPStatus @default(PROCESSING)
   conditionalAmount        Float?
   unconditionalAmount      Float?
-  expectedLienReleaseCount Int                      @default(0)
+  expectedLienReleaseCount Int                     @default(0)
   createdById              String
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
 
   contract    VendorContract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
   createdBy   User                        @relation(fields: [createdById], references: [id])
@@ -1796,13 +1856,13 @@ model LienRelease {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  vendor      Vendor          @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  contract    VendorContract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  project     Card?           @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  requestedBy User?           @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
-  reviewedBy  User?           @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  approvedBy  User?           @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor      Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  contract    VendorContract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  project     Card?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  requestedBy User?                 @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy  User?                 @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  approvedBy  User?                 @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
   documents   LienReleaseDocument[]
   events      LienReleaseEvent[]
 
@@ -2973,18 +3033,18 @@ model LeaseCharge {
 
 // Work Breakdown Structure - hierarchical organization of schedule activities
 model ScheduleWBS {
-  id          String  @id @default(cuid())
-  projectId   String
-  xerWbsId    String? // Original WBS ID from XER file
-  code        String // WBS short code (e.g., "1", "1.1", "2")
-  name        String
-  parentId    String? // For hierarchy
-  sortOrder   Int     @default(0)
-  isExpanded  Boolean @default(true) // UI state for expand/collapse
+  id         String  @id @default(cuid())
+  projectId  String
+  xerWbsId   String? // Original WBS ID from XER file
+  code       String // WBS short code (e.g., "1", "1.1", "2")
+  name       String
+  parentId   String? // For hierarchy
+  sortOrder  Int     @default(0)
+  isExpanded Boolean @default(true) // UI state for expand/collapse
 
-  project    Card                 @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  parent     ScheduleWBS?         @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children   ScheduleWBS[]        @relation("WBSHierarchy")
+  project    Card               @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent     ScheduleWBS?       @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children   ScheduleWBS[]      @relation("WBSHierarchy")
   activities ScheduleActivity[]
 
   createdAt DateTime @default(now())
@@ -3004,12 +3064,12 @@ enum ScheduleActivityStatus {
 
 // Schedule activities imported from XER files
 model ScheduleActivity {
-  id        String @id @default(cuid())
+  id        String  @id @default(cuid())
   projectId String
   wbsId     String? // Link to WBS for hierarchy
 
   // XER identifiers
-  xerTaskId String? // Original task_id from XER
+  xerTaskId  String? // Original task_id from XER
   activityId String // Activity code (e.g., "G-ELE-100")
   name       String
 
@@ -3048,7 +3108,7 @@ model ScheduleActivity {
   activityType String? // TT_Task, TT_Milestone, TT_LOE, etc.
 
   // Constraints
-  constraintType String?   // CS_MSOA, CS_SNET, etc.
+  constraintType String? // CS_MSOA, CS_SNET, etc.
   constraintDate DateTime?
 
   // Sort order for display
@@ -3058,12 +3118,12 @@ model ScheduleActivity {
   linkedTaskId      String? // Link to Task model
   linkedMilestoneId String? // Link to ProjectMilestone model
 
-  project         Card                       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  wbs             ScheduleWBS?               @relation(fields: [wbsId], references: [id], onDelete: SetNull)
-  linkedTask      Task?                      @relation("ScheduleActivityTask", fields: [linkedTaskId], references: [id], onDelete: SetNull)
-  linkedMilestone ProjectMilestone?          @relation("ScheduleActivityMilestone", fields: [linkedMilestoneId], references: [id], onDelete: SetNull)
-  predecessors    ScheduleRelationship[]     @relation("SuccessorActivity")
-  successors      ScheduleRelationship[]     @relation("PredecessorActivity")
+  project         Card                      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  wbs             ScheduleWBS?              @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  linkedTask      Task?                     @relation("ScheduleActivityTask", fields: [linkedTaskId], references: [id], onDelete: SetNull)
+  linkedMilestone ProjectMilestone?         @relation("ScheduleActivityMilestone", fields: [linkedMilestoneId], references: [id], onDelete: SetNull)
+  predecessors    ScheduleRelationship[]    @relation("SuccessorActivity")
+  successors      ScheduleRelationship[]    @relation("PredecessorActivity")
   comments        ScheduleActivityComment[]
 
   createdAt DateTime @default(now())
@@ -3113,11 +3173,11 @@ model ScheduleRelationship {
 
 // Store import metadata for XER files
 model ScheduleImport {
-  id        String   @id @default(cuid())
-  projectId String
-  fileName  String
-  fileSize  Int
-  importedAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  projectId    String
+  fileName     String
+  fileSize     Int
+  importedAt   DateTime @default(now())
   importedById String
 
   // Stats
@@ -3204,9 +3264,9 @@ model VendorFolder {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  vendor    Vendor         @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  parent    VendorFolder?  @relation("VendorFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children  VendorFolder[] @relation("VendorFolderHierarchy")
+  vendor    Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  parent    VendorFolder?    @relation("VendorFolderHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children  VendorFolder[]   @relation("VendorFolderHierarchy")
   documents VendorDocument[]
 
   @@unique([vendorId, name, parentId])
@@ -3231,9 +3291,9 @@ model VendorDocument {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  vendor   Vendor        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  folder   VendorFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
-  uploader User          @relation("VendorDocumentUploader", fields: [uploaderId], references: [id])
+  vendor   Vendor                        @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  folder   VendorFolder?                 @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploader User                          @relation("VendorDocumentUploader", fields: [uploaderId], references: [id])
   tags     VendorDocumentTagAssignment[]
 
   @@index([vendorId])
@@ -3247,17 +3307,17 @@ model FileTag {
   name        String
   description String?
   color       String   @default("#6366f1")
-  category    String?  // e.g., "Document Type", "Status", "Priority"
+  category    String? // e.g., "Document Type", "Status", "Priority"
   companyId   String
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company              Company                        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  vendorDocuments      VendorDocumentTagAssignment[]
-  documents            DocumentTagAssignment[]
-  bidDocuments         BidDocumentTagAssignment[]
-  contractDocuments    ContractDocumentTagAssignment[]
+  company           Company                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendorDocuments   VendorDocumentTagAssignment[]
+  documents         DocumentTagAssignment[]
+  bidDocuments      BidDocumentTagAssignment[]
+  contractDocuments ContractDocumentTagAssignment[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -3266,10 +3326,10 @@ model FileTag {
 
 // Junction table for VendorDocument <-> FileTag
 model VendorDocumentTagAssignment {
-  id          String   @id @default(cuid())
-  documentId  String
-  tagId       String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  documentId String
+  tagId      String
+  createdAt  DateTime @default(now())
 
   document VendorDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   tag      FileTag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
@@ -3281,10 +3341,10 @@ model VendorDocumentTagAssignment {
 
 // Junction table for Document (project files) <-> FileTag
 model DocumentTagAssignment {
-  id          String   @id @default(cuid())
-  documentId  String
-  tagId       String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  documentId String
+  tagId      String
+  createdAt  DateTime @default(now())
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
   tag      FileTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
@@ -3296,10 +3356,10 @@ model DocumentTagAssignment {
 
 // Junction table for BidDocument <-> FileTag
 model BidDocumentTagAssignment {
-  id          String   @id @default(cuid())
-  documentId  String
-  tagId       String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  documentId String
+  tagId      String
+  createdAt  DateTime @default(now())
 
   document BidDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   tag      FileTag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
@@ -3311,10 +3371,10 @@ model BidDocumentTagAssignment {
 
 // Junction table for ContractDocument <-> FileTag
 model ContractDocumentTagAssignment {
-  id          String   @id @default(cuid())
-  documentId  String
-  tagId       String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  documentId String
+  tagId      String
+  createdAt  DateTime @default(now())
 
   document ContractDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
   tag      FileTag          @relation(fields: [tagId], references: [id], onDelete: Cascade)

@@ -1,6 +1,125 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+
+async function fetchVendorWithRelations(id: string, companyId: string) {
+  const baseInclude = {
+    contacts: {
+      orderBy: [
+        { isPrimary: 'desc' as const },
+        { firstName: 'asc' as const }
+      ]
+    },
+    category: {
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        csiDivision: true
+      }
+    },
+    reviews: {
+      include: {
+        reviewer: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        },
+        project: {
+          select: {
+            title: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc' as const
+      }
+    },
+    projectVendors: {
+      include: {
+        project: {
+          select: {
+            id: true,
+            title: true,
+            status: true
+          }
+        }
+      },
+      orderBy: {
+        assignedAt: 'desc' as const
+      }
+    },
+    milestones: {
+      include: {
+        projectVendor: {
+          include: {
+            project: {
+              select: {
+                id: true,
+                title: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc' as const
+      }
+    },
+    serviceTags: {
+      include: {
+        tag: {
+          select: {
+            id: true,
+            name: true,
+            color: true,
+            category: true
+          }
+        }
+      }
+    },
+    _count: {
+      select: {
+        projectVendors: true,
+        reviews: true,
+        milestones: true
+      }
+    }
+  } satisfies Prisma.VendorInclude
+
+  try {
+    return await prisma.vendor.findFirst({
+      where: {
+        id,
+        companyId
+      },
+      include: {
+        ...baseInclude,
+        suppliers: {
+          orderBy: [
+            { name: 'asc' }
+          ]
+        }
+      }
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
+      const vendor = await prisma.vendor.findFirst({
+        where: {
+          id,
+          companyId
+        },
+        include: baseInclude
+      })
+
+      return vendor ? { ...vendor, suppliers: [] } : null
+    }
+
+    throw error
+  }
+}
 
 export async function GET(
   request: NextRequest,
@@ -21,96 +140,7 @@ export async function GET(
 
     const { id } = await params
 
-    const vendor = await prisma.vendor.findFirst({
-      where: {
-        id: id,
-        companyId: user.companyId
-      },
-      include: {
-        contacts: {
-          orderBy: [
-            { isPrimary: 'desc' },
-            { firstName: 'asc' }
-          ]
-        },
-        category: {
-          select: {
-            id: true,
-            name: true,
-            color: true,
-            csiDivision: true
-          }
-        },
-        reviews: {
-          include: {
-            reviewer: {
-              select: {
-                firstName: true,
-                lastName: true
-              }
-            },
-            project: {
-              select: {
-                title: true
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        projectVendors: {
-          include: {
-            project: {
-              select: {
-                id: true,
-                title: true,
-                status: true
-              }
-            }
-          },
-          orderBy: {
-            assignedAt: 'desc'
-          }
-        },
-        milestones: {
-          include: {
-            projectVendor: {
-              include: {
-                project: {
-                  select: {
-                    id: true,
-                    title: true
-                  }
-                }
-              }
-            }
-          },
-          orderBy: {
-            createdAt: 'desc'
-          }
-        },
-        serviceTags: {
-          include: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-                category: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            projectVendors: true,
-            reviews: true,
-            milestones: true
-          }
-        }
-      }
-    })
+    const vendor = await fetchVendorWithRelations(id, user.companyId)
 
     if (!vendor) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 })

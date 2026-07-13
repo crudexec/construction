@@ -24,7 +24,10 @@ import {
   Building2,
   Shield,
   Activity,
-  Upload
+  Upload,
+  Truck,
+  Trash2,
+  Plus
 } from 'lucide-react'
 import { useCurrency } from '@/hooks/useCurrency'
 
@@ -47,6 +50,50 @@ async function uploadFile(vendorId: string, file: File) {
     body: formData
   })
   if (!response.ok) throw new Error('Failed to upload file')
+  return response.json()
+}
+
+async function createSupplier(vendorId: string, payload: { name: string; phone?: string; notes?: string }) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch(`/api/vendors/${vendorId}/suppliers`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to create supplier')
+  }
+
+  return response.json()
+}
+
+async function deleteSupplier(vendorId: string, supplierId: string) {
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+
+  const response = await fetch(`/api/vendors/${vendorId}/suppliers?supplierId=${supplierId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || 'Failed to delete supplier')
+  }
+
   return response.json()
 }
 
@@ -95,6 +142,12 @@ export function VendorOverview({
   const { format: formatCurrency } = useCurrency()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
+  const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false)
+  const [supplierForm, setSupplierForm] = useState({
+    name: '',
+    phone: '',
+    notes: ''
+  })
 
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadFile(vendor.id, file),
@@ -105,6 +158,30 @@ export function VendorOverview({
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to upload file')
+    }
+  })
+
+  const createSupplierMutation = useMutation({
+    mutationFn: (payload: { name: string; phone?: string; notes?: string }) => createSupplier(vendor.id, payload),
+    onSuccess: () => {
+      toast.success('Supplier added')
+      queryClient.invalidateQueries({ queryKey: ['vendor', vendor.id] })
+      setSupplierForm({ name: '', phone: '', notes: '' })
+      setIsAddSupplierModalOpen(false)
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to add supplier')
+    }
+  })
+
+  const deleteSupplierMutation = useMutation({
+    mutationFn: (supplierId: string) => deleteSupplier(vendor.id, supplierId),
+    onSuccess: () => {
+      toast.success('Supplier removed')
+      queryClient.invalidateQueries({ queryKey: ['vendor', vendor.id] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove supplier')
     }
   })
 
@@ -139,6 +216,20 @@ export function VendorOverview({
       'INSTALLATION': 'Installation Only'
     }
     return labels[type] || type
+  }
+
+  const handleSupplierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!supplierForm.name.trim()) {
+      toast.error('Supplier name is required')
+      return
+    }
+
+    createSupplierMutation.mutate({
+      name: supplierForm.name.trim(),
+      phone: supplierForm.phone.trim() || undefined,
+      notes: supplierForm.notes.trim() || undefined,
+    })
   }
 
   return (
@@ -307,6 +398,58 @@ export function VendorOverview({
               </div>
             </div>
           )}
+
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Truck className="h-4 w-4 text-indigo-600" />
+                <span className="text-xs font-semibold text-gray-700">Suppliers</span>
+                <span className="text-[10px] text-gray-500">{vendor.suppliers?.length || 0}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddSupplierModalOpen(true)}
+                className="inline-flex items-center gap-1 text-[10px] text-primary-600 hover:text-primary-800"
+              >
+                <Plus className="h-3 w-3" />
+                Add Supplier
+              </button>
+            </div>
+            {vendor.suppliers?.length ? (
+              <div className="divide-y divide-gray-100">
+                {vendor.suppliers.map((supplier: any, idx: number) => (
+                  <div key={supplier.id} className={`px-3 py-2 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-900">{supplier.name}</p>
+                        {supplier.phone ? (
+                          <p className="mt-0.5 text-[11px] text-gray-600">{supplier.phone}</p>
+                        ) : null}
+                        {supplier.notes ? (
+                          <p className="mt-1 text-[11px] text-gray-500 whitespace-pre-wrap">{supplier.notes}</p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (confirm(`Remove supplier "${supplier.name}"?`)) {
+                            deleteSupplierMutation.mutate(supplier.id)
+                          }
+                        }}
+                        disabled={deleteSupplierMutation.isPending}
+                        className="rounded p-1 text-gray-400 hover:text-red-600 disabled:opacity-50"
+                        title="Remove supplier"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 text-center text-xs text-gray-500">No suppliers added yet</div>
+            )}
+          </div>
         </div>
 
         {/* Right Column */}
@@ -506,6 +649,75 @@ export function VendorOverview({
             <span className="text-xs font-semibold text-gray-700">Notes</span>
           </div>
           <div className="px-3 py-2 text-xs text-gray-600 whitespace-pre-wrap">{vendor.notes}</div>
+        </div>
+      )}
+
+      {isAddSupplierModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+              <div>
+                <h3 className="text-sm font-medium text-gray-900">Add Supplier</h3>
+                <p className="text-[11px] text-gray-500">Capture a supplier contact for this vendor.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddSupplierModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="text-lg leading-none">&times;</span>
+              </button>
+            </div>
+            <form onSubmit={handleSupplierSubmit} className="space-y-3 p-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Name</label>
+                <input
+                  type="text"
+                  value={supplierForm.name}
+                  onChange={(e) => setSupplierForm((current) => ({ ...current, name: e.target.value }))}
+                  placeholder="Supplier name"
+                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Phone Number</label>
+                <input
+                  type="text"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm((current) => ({ ...current, phone: e.target.value }))}
+                  placeholder="Optional"
+                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">Notes</label>
+                <textarea
+                  value={supplierForm.notes}
+                  onChange={(e) => setSupplierForm((current) => ({ ...current, notes: e.target.value }))}
+                  placeholder="Notes"
+                  rows={3}
+                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddSupplierModalOpen(false)}
+                  className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createSupplierMutation.isPending}
+                  className="inline-flex items-center gap-1 rounded bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  <Plus className="h-3 w-3" />
+                  {createSupplierMutation.isPending ? 'Adding...' : 'Add Supplier'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>
