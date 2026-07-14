@@ -20,6 +20,7 @@ import { useAuthStore } from '@/store/auth'
 import { useCurrency } from '@/hooks/useCurrency'
 import toast from 'react-hot-toast'
 import { AddBOQItemModal } from './add-boq-item-modal'
+import { CostCodeImportModal } from '@/components/settings/cost-code-import-modal'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -70,6 +71,7 @@ export function ProjectBOQ({ projectId }: ProjectBOQProps) {
   const isAdmin = user?.role === 'ADMIN'
 
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showImportCostCodesModal, setShowImportCostCodesModal] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
@@ -364,9 +366,13 @@ export function ProjectBOQ({ projectId }: ProjectBOQProps) {
                 <Plus className="h-3 w-3 mr-1" />
                 Add
               </button>
-              <button className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => setShowImportCostCodesModal(true)}
+                className="inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs rounded hover:bg-gray-50 transition-colors"
+                title="Import a cost code directory to tag BOQ items with"
+              >
                 <Upload className="h-3 w-3 mr-1" />
-                Import
+                Import Cost Codes
               </button>
             </>
           )}
@@ -515,6 +521,14 @@ export function ProjectBOQ({ projectId }: ProjectBOQProps) {
                                   C
                                 </span>
                               )}
+                              {item.costCode && (
+                                <span
+                                  className="px-1 py-0.5 bg-indigo-100 text-indigo-700 text-[9px] rounded font-mono"
+                                  title={item.costCode.name}
+                                >
+                                  {item.costCode.code}
+                                </span>
+                              )}
                             </div>
                             {item.description && (
                               <div className="text-[10px] text-gray-500 truncate">{item.description}</div>
@@ -652,6 +666,12 @@ export function ProjectBOQ({ projectId }: ProjectBOQProps) {
           editItem={editingItem}
         />
       )}
+
+      {/* Import Cost Code Directory Modal */}
+      <CostCodeImportModal
+        isOpen={showImportCostCodesModal}
+        onClose={() => setShowImportCostCodesModal(false)}
+      />
     </div>
   )
 }

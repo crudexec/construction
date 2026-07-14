@@ -141,7 +141,9 @@ export async function PATCH(
     if (status !== undefined && status !== existingCO.status) {
       // Validate status transition
       const validTransitions: Record<string, string[]> = {
-        'DRAFT': ['PENDING_APPROVAL'],
+        // DRAFT can go straight to APPROVED for change orders that are never sent
+        // to the subcontractor for review (internal-only mods)
+        'DRAFT': ['PENDING_APPROVAL', 'APPROVED'],
         'PENDING_APPROVAL': ['APPROVED', 'REJECTED', 'DRAFT'],
         'APPROVED': [],
         'REJECTED': ['DRAFT']

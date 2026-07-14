@@ -530,6 +530,7 @@ export async function PUT(
 
     // Only include fields that are provided and valid
     if (body.title !== undefined) updateData.title = body.title
+    if (body.projectNumber !== undefined) updateData.projectNumber = body.projectNumber
     if (body.description !== undefined) updateData.description = body.description
     if (body.contactName !== undefined) updateData.contactName = body.contactName
     if (body.contactEmail !== undefined) updateData.contactEmail = body.contactEmail

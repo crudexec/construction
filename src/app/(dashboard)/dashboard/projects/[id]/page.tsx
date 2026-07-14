@@ -434,6 +434,12 @@ export default function ProjectDetailPage() {
                   {project.title}
                 </motion.h1>
 
+                {project.projectNumber && (
+                  <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded bg-white/5 text-[10px] font-mono text-slate-300 flex-shrink-0" title="Project Number">
+                    #{project.projectNumber}
+                  </span>
+                )}
+
                 {/* Status Badge */}
                 <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusConfig.light} ${statusConfig.text} flex-shrink-0`}>
                   <StatusIcon className="w-2.5 h-2.5" />
@@ -619,7 +625,7 @@ export default function ProjectDetailPage() {
                 {activeTab === 'calendar' && <ProjectCalendar projectId={projectId} />}
                 {activeTab === 'files' && <ProjectFiles projectId={projectId} />}
                 {activeTab === 'messages' && <ProjectMessages projectId={projectId} />}
-                {activeTab === 'vendors' && <ProjectVendors projectId={projectId} />}
+                {activeTab === 'vendors' && <ProjectVendors projectId={projectId} projectNumber={project.projectNumber} />}
                 {activeTab === 'milestones' && <ProjectMilestones projectId={projectId} />}
                 {activeTab === 'boq' && <ProjectBOQ projectId={projectId} />}
                 {activeTab === 'financial' && <ProjectFinancial projectId={projectId} project={project} />}

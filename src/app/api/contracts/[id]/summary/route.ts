@@ -128,6 +128,7 @@ export async function GET(
         totalCount: contract.changeOrders.length
       },
       financials: {
+        estimateAmount: contract.estimateAmount,
         originalContractValue,
         approvedChangeOrdersTotal,
         pendingChangeOrdersTotal,

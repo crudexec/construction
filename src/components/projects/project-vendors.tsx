@@ -16,6 +16,7 @@ import {
   ChevronDown
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { CreateEstimateModal } from './create-estimate-modal'
 
 interface Vendor {
   id: string
@@ -32,10 +33,13 @@ interface ProjectVendor {
   status: string
   assignedAt: string
   vendor: Vendor
+  contractId: string | null
+  contractCount: number
 }
 
 interface ProjectVendorsProps {
   projectId: string
+  projectNumber?: string | null
 }
 
 type SortColumn = 'name' | 'type' | 'status' | 'assignedAt' | null
@@ -167,11 +171,25 @@ const getStatusColor = (status: string) => {
   return option?.color || 'bg-gray-50 text-gray-700 border-gray-200'
 }
 
-export function ProjectVendors({ projectId }: ProjectVendorsProps) {
+// Exactly one contract for this vendor on this project -> go straight to it.
+// Zero -> nothing to show, go to the vendor's profile. Multiple -> ambiguous,
+// let the user pick from the vendor's Contracts tab.
+const getVendorNavUrl = (pv: ProjectVendor) => {
+  if (pv.contractId) {
+    return `/dashboard/vendors/${pv.vendor.id}/contracts/${pv.contractId}`
+  }
+  if (pv.contractCount > 1) {
+    return `/dashboard/vendors/${pv.vendor.id}?tab=contracts`
+  }
+  return `/dashboard/vendors/${pv.vendor.id}`
+}
+
+export function ProjectVendors({ projectId, projectNumber }: ProjectVendorsProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [sortColumn, setSortColumn] = useState<SortColumn>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
+  const [estimateVendor, setEstimateVendor] = useState<Vendor | null>(null)
   const queryClient = useQueryClient()
 
   const { data: projectVendors = [], isLoading } = useQuery({
@@ -201,6 +219,20 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
       toast.success('Vendor assigned')
       setIsAddModalOpen(false)
       setSearchTerm('')
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to assign vendor')
+    }
+  })
+
+  // Assigns the vendor, then opens the trimmed Create Estimate dialog on success
+  const assignAndCreateEstimateMutation = useMutation({
+    mutationFn: (vendor: Vendor) => assignVendorToProject(projectId, vendor.id).then(() => vendor),
+    onSuccess: (vendor) => {
+      queryClient.invalidateQueries({ queryKey: ['project-vendors', projectId] })
+      setIsAddModalOpen(false)
+      setSearchTerm('')
+      setEstimateVendor(vendor)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to assign vendor')
@@ -379,7 +411,7 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
               {sortedVendors.map((pv, index) => (
                 <tr
                   key={pv.id}
-                  onClick={() => window.location.href = `/dashboard/vendors/${pv.vendor.id}`}
+                  onClick={() => window.location.href = getVendorNavUrl(pv)}
                   className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
                   {/* Row Number */}
@@ -527,14 +559,25 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => assignVendorMutation.mutate({ vendorId: vendor.id })}
-                        disabled={assignVendorMutation.isPending}
-                        className="ml-2 px-2 py-1 bg-primary-600 text-white text-[10px] rounded hover:bg-primary-700 disabled:opacity-50 flex items-center gap-0.5"
-                      >
-                        <Check className="h-2.5 w-2.5" />
-                        Assign
-                      </button>
+                      <div className="ml-2 flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => assignVendorMutation.mutate({ vendorId: vendor.id })}
+                          disabled={assignVendorMutation.isPending || assignAndCreateEstimateMutation.isPending}
+                          className="px-2 py-1 bg-white border border-gray-300 text-gray-700 text-[10px] rounded hover:bg-gray-50 disabled:opacity-50 flex items-center gap-0.5"
+                        >
+                          <Check className="h-2.5 w-2.5" />
+                          Assign
+                        </button>
+                        <button
+                          onClick={() => assignAndCreateEstimateMutation.mutate(vendor)}
+                          disabled={assignVendorMutation.isPending || assignAndCreateEstimateMutation.isPending}
+                          title="Assign this vendor and create a trimmed estimate/contract for this project"
+                          className="px-2 py-1 bg-primary-600 text-white text-[10px] rounded hover:bg-primary-700 disabled:opacity-50 flex items-center gap-0.5 whitespace-nowrap"
+                        >
+                          <Check className="h-2.5 w-2.5" />
+                          Create Estimate
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -558,6 +601,17 @@ export function ProjectVendors({ projectId }: ProjectVendorsProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Create Estimate Modal */}
+      {estimateVendor && (
+        <CreateEstimateModal
+          projectId={projectId}
+          projectNumber={projectNumber}
+          vendorId={estimateVendor.id}
+          vendorName={`${estimateVendor.name} (${estimateVendor.companyName})`}
+          onClose={() => setEstimateVendor(null)}
+        />
       )}
     </div>
   )

@@ -56,7 +56,36 @@ export async function GET(
       }
     })
 
-    return NextResponse.json(projectVendors)
+    // Resolve each vendor's contract(s) for this specific project, so the UI
+    // can deep-link straight to the contract when there's exactly one match
+    const vendorIds = Array.from(new Set(projectVendors.map(pv => pv.vendorId)))
+    const contracts = vendorIds.length > 0
+      ? await prisma.vendorContract.findMany({
+          where: {
+            vendorId: { in: vendorIds },
+            projects: { some: { projectId: id } }
+          },
+          select: { id: true, vendorId: true }
+        })
+      : []
+
+    const contractIdsByVendor = new Map<string, string[]>()
+    for (const contract of contracts) {
+      const list = contractIdsByVendor.get(contract.vendorId) || []
+      list.push(contract.id)
+      contractIdsByVendor.set(contract.vendorId, list)
+    }
+
+    const projectVendorsWithContract = projectVendors.map(pv => {
+      const vendorContractIds = contractIdsByVendor.get(pv.vendorId) || []
+      return {
+        ...pv,
+        contractId: vendorContractIds.length === 1 ? vendorContractIds[0] : null,
+        contractCount: vendorContractIds.length
+      }
+    })
+
+    return NextResponse.json(projectVendorsWithContract)
 
   } catch (error) {
     console.error('Error fetching project vendors:', error)

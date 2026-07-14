@@ -54,6 +54,12 @@ model Company {
   // Vendor Categories
   vendorCategories VendorCategory[]
 
+  // Cost Codes
+  costCodes CostCode[]
+
+  // Vendor Contracts
+  vendorContracts VendorContract[]
+
   // Document Templates
   documentTemplates DocumentTemplate[]
 
@@ -191,6 +197,7 @@ model Stage {
 model Card {
   id              String     @id @default(cuid())
   title           String
+  projectNumber   String?
   description     String?
   contactName     String?
   contactEmail    String?
@@ -1274,9 +1281,27 @@ model VendorSupplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  vendor        Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  contractLinks ContractSupplier[]
+  lienReleases  LienRelease[]
 
   @@index([vendorId])
+}
+
+// Links a specific vendor's suppliers/subtiers to a specific contract, so lien
+// releases can be filed against a subtier rather than only the top-level vendor
+model ContractSupplier {
+  id               String   @id @default(cuid())
+  contractId       String
+  vendorSupplierId String
+  createdAt        DateTime @default(now())
+
+  contract VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  supplier VendorSupplier @relation(fields: [vendorSupplierId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, vendorSupplierId])
+  @@index([contractId])
+  @@index([vendorSupplierId])
 }
 
 enum VendorType {
@@ -1312,6 +1337,28 @@ model VendorCategory {
   @@unique([companyId, name])
   @@index([companyId])
   @@index([csiDivision])
+}
+
+// Reusable, company-scoped cost code directory (e.g. CSI MasterFormat codes) for tagging BOQ items
+model CostCode {
+  id          String   @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  csiDivision String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  boqItems             BOQItem[]
+  contractLineItems    ContractLineItem[]
+  changeOrderLineItems ChangeOrderLineItem[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
 }
 
 // Vendor Service Tags - reusable tags for categorizing vendor capabilities
@@ -1705,10 +1752,12 @@ model VendorReview {
 // Vendor Contract Management
 model VendorContract {
   id               String         @id @default(cuid())
-  contractNumber   String         @unique
+  contractNumber   String
   vendorId         String
+  companyId        String
   type             ContractType
   totalSum         Float // Original contract value (sum of line items)
+  estimateAmount   Float? // Original estimate at Create Estimate time — preserved even after totalSum is superseded by line items
   retentionPercent Float?         @default(0)
   retentionAmount  Float?
   warrantyYears    Int            @default(1) // 1-10 years
@@ -1721,15 +1770,19 @@ model VendorContract {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  vendor       Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  projects     ProjectContract[]
-  documents    ContractDocument[]
-  payments     ContractPayment[]
-  lineItems    ContractLineItem[] // Original contract line items
-  changeOrders ChangeOrder[] // Change orders for this contract
-  lienReleases LienRelease[]
+  vendor            Vendor             @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  company           Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects          ProjectContract[]
+  documents         ContractDocument[]
+  payments          ContractPayment[]
+  lineItems         ContractLineItem[] // Original contract line items
+  changeOrders      ChangeOrder[] // Change orders for this contract
+  lienReleases      LienRelease[]
+  contractSuppliers ContractSupplier[]
 
+  @@unique([companyId, contractNumber])
   @@index([vendorId])
+  @@index([companyId])
   @@index([status])
   @@index([contractNumber])
 }
@@ -1834,6 +1887,7 @@ model LienRelease {
   vendorId           String
   contractId         String?
   projectId          String?
+  vendorSupplierId   String?
   type               LienReleaseType
   status             LienReleaseStatus @default(DRAFT)
   title              String?
@@ -1860,6 +1914,7 @@ model LienRelease {
   vendor      Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   contract    VendorContract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
   project     Card?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier    VendorSupplier?       @relation(fields: [vendorSupplierId], references: [id], onDelete: SetNull)
   requestedBy User?                 @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
   reviewedBy  User?                 @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   approvedBy  User?                 @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -1869,6 +1924,7 @@ model LienRelease {
   @@index([companyId, status])
   @@index([vendorId, status])
   @@index([contractId])
+  @@index([vendorSupplierId])
   @@index([projectId])
   @@index([throughDate])
 }
@@ -1920,12 +1976,16 @@ model ContractLineItem {
   totalPrice  Float // quantity * unitPrice
   order       Int      @default(0)
   notes       String?
+  costCodeId  String?
+  specSection String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   contract VendorContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  costCode CostCode?      @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
 
   @@index([contractId])
+  @@index([costCodeId])
 }
 
 // Change Orders - modifications to the original contract
@@ -1971,12 +2031,16 @@ model ChangeOrderLineItem {
   totalPrice    Float // quantity * unitPrice (can be negative for credits)
   order         Int      @default(0)
   notes         String?
+  costCodeId    String?
+  specSection   String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   changeOrder ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  costCode    CostCode?   @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
 
   @@index([changeOrderId])
+  @@index([costCodeId])
 }
 
 enum ChangeOrderStatus {
@@ -2438,6 +2502,10 @@ model BOQItem {
   procurementItemId String?
   procurementItem   ProcurementItem? @relation(fields: [procurementItemId], references: [id], onDelete: SetNull)
 
+  // Cost Code
+  costCodeId String?
+  costCode   CostCode? @relation(fields: [costCodeId], references: [id], onDelete: SetNull)
+
   // Metadata
   notes          String?
   specifications String?
@@ -2456,6 +2524,7 @@ model BOQItem {
   @@unique([projectId, itemNumber])
   @@index([projectId])
   @@index([category])
+  @@index([costCodeId])
   @@index([procurementItemId])
 }
 

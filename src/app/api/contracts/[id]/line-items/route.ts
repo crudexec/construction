@@ -37,6 +37,11 @@ export async function GET(
 
     const lineItems = await prisma.contractLineItem.findMany({
       where: { contractId },
+      include: {
+        costCode: {
+          select: { id: true, code: true, name: true }
+        }
+      },
       orderBy: { order: 'asc' }
     })
 
@@ -92,13 +97,22 @@ export async function POST(
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 })
     }
 
-    const { description, quantity, unit, unitPrice, notes, order } = body
+    const { description, quantity, unit, unitPrice, notes, order, costCodeId, specSection } = body
 
     if (!description || quantity === undefined || !unit || unitPrice === undefined) {
       return NextResponse.json(
         { error: 'Description, quantity, unit, and unit price are required' },
         { status: 400 }
       )
+    }
+
+    if (costCodeId) {
+      const costCode = await prisma.costCode.findFirst({
+        where: { id: costCodeId, companyId: user.companyId }
+      })
+      if (!costCode) {
+        return NextResponse.json({ error: 'Cost code not found' }, { status: 404 })
+      }
     }
 
     const totalPrice = quantity * unitPrice
@@ -122,7 +136,14 @@ export async function POST(
         unitPrice,
         totalPrice,
         order: itemOrder,
-        notes
+        notes,
+        costCodeId: costCodeId || null,
+        specSection: specSection || null
+      },
+      include: {
+        costCode: {
+          select: { id: true, code: true, name: true }
+        }
       }
     })
 

@@ -45,6 +45,13 @@ export async function GET(
             firstName: true,
             lastName: true
           }
+        },
+        costCode: {
+          select: {
+            id: true,
+            code: true,
+            name: true
+          }
         }
       },
       orderBy: [
@@ -205,6 +212,20 @@ export async function POST(
       )
     }
 
+    // Validate cost code belongs to the user's company, if provided
+    if (body.costCodeId) {
+      const costCode = await prisma.costCode.findFirst({
+        where: {
+          id: body.costCodeId,
+          companyId: user.companyId
+        }
+      })
+
+      if (!costCode) {
+        return NextResponse.json({ error: 'Cost code not found' }, { status: 404 })
+      }
+    }
+
     // Calculate totalCost
     const totalCost = body.quantity * body.unitRate
 
@@ -215,6 +236,7 @@ export async function POST(
         description: body.description,
         category: body.category,
         subCategory: body.subCategory,
+        costCodeId: body.costCodeId || null,
         unit: body.unit,
         quantity: parseFloat(body.quantity),
         unitRate: parseFloat(body.unitRate),
@@ -233,6 +255,13 @@ export async function POST(
             id: true,
             firstName: true,
             lastName: true
+          }
+        },
+        costCode: {
+          select: {
+            id: true,
+            code: true,
+            name: true
           }
         }
       }

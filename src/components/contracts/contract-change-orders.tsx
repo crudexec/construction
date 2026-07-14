@@ -9,6 +9,12 @@ import {
 } from 'lucide-react'
 import { GenerateDocumentButton } from '@/components/documents/generate-document-button'
 
+interface CostCodeOption {
+  id: string
+  code: string
+  name: string
+}
+
 interface ChangeOrderLineItem {
   id: string
   description: string
@@ -18,6 +24,9 @@ interface ChangeOrderLineItem {
   totalPrice: number
   notes?: string | null
   order: number
+  costCodeId?: string | null
+  costCode?: CostCodeOption | null
+  specSection?: string | null
 }
 
 interface ChangeOrder {
@@ -72,7 +81,7 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
     title: '',
     description: '',
     reason: '',
-    lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }]
+    lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
   })
 
   const { data, isLoading } = useQuery({
@@ -84,6 +93,16 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
       if (!response.ok) throw new Error('Failed to fetch change orders')
       return response.json()
     }
+  })
+
+  const { data: costCodes = [] } = useQuery<CostCodeOption[]>({
+    queryKey: ['cost-codes'],
+    queryFn: async () => {
+      const response = await fetch('/api/cost-codes', { credentials: 'include' })
+      if (!response.ok) throw new Error('Failed to fetch cost codes')
+      return response.json()
+    },
+    enabled: !readonly
   })
 
   const createMutation = useMutation({
@@ -99,12 +118,16 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
+      // Approved/deleted change orders affect the contract's current value —
+      // keep the contract and summary card fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
       setIsCreating(false)
       setNewCO({
         title: '',
         description: '',
         reason: '',
-        lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }]
+        lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
       })
     }
   })
@@ -125,6 +148,10 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
+      // Approved/deleted change orders affect the contract's current value —
+      // keep the contract and summary card fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
     }
   })
 
@@ -142,6 +169,10 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
+      // Approved/deleted change orders affect the contract's current value —
+      // keep the contract and summary card fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
     }
   })
 
@@ -159,7 +190,7 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
   const addLineItem = () => {
     setNewCO({
       ...newCO,
-      lineItems: [...newCO.lineItems, { description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }]
+      lineItems: [...newCO.lineItems, { description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
     })
   }
 
@@ -256,17 +287,26 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
               </div>
               <div className="space-y-1">
                 {newCO.lineItems.map((item, index) => (
-                  <div key={index} className="flex gap-1 items-center bg-white p-1.5 rounded border text-xs">
-                    <input type="text" value={item.description} onChange={(e) => updateLineItem(index, 'description', e.target.value)} placeholder="Description" className="flex-1 border rounded px-1.5 py-0.5 text-xs" />
-                    <input type="number" value={item.quantity} onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)} className="w-14 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
-                    <select value={item.unit} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} className="border rounded px-1 py-0.5 text-xs">
-                      {UNIT_OPTIONS.map(opt => (<option key={opt.value} value={opt.value}>{opt.value}</option>))}
-                    </select>
-                    <input type="number" value={item.unitPrice} onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-18 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
-                    <span className="w-20 text-right text-xs">{formatCurrency(item.quantity * item.unitPrice)}</span>
-                    {newCO.lineItems.length > 1 && (
-                      <button type="button" onClick={() => removeLineItem(index)} className="p-0.5 text-gray-400 hover:text-red-600"><X className="h-3 w-3" /></button>
-                    )}
+                  <div key={index} className="bg-white p-1.5 rounded border text-xs space-y-1">
+                    <div className="flex gap-1 items-center">
+                      <input type="text" value={item.description} onChange={(e) => updateLineItem(index, 'description', e.target.value)} placeholder="Description" className="flex-1 border rounded px-1.5 py-0.5 text-xs" />
+                      <input type="number" value={item.quantity} onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)} className="w-14 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
+                      <select value={item.unit} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} className="border rounded px-1 py-0.5 text-xs">
+                        {UNIT_OPTIONS.map(opt => (<option key={opt.value} value={opt.value}>{opt.value}</option>))}
+                      </select>
+                      <input type="number" value={item.unitPrice} onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-18 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
+                      <span className="w-20 text-right text-xs">{formatCurrency(item.quantity * item.unitPrice)}</span>
+                      {newCO.lineItems.length > 1 && (
+                        <button type="button" onClick={() => removeLineItem(index)} className="p-0.5 text-gray-400 hover:text-red-600"><X className="h-3 w-3" /></button>
+                      )}
+                    </div>
+                    <div className="flex gap-1 items-center pl-0">
+                      <select value={item.costCodeId} onChange={(e) => updateLineItem(index, 'costCodeId', e.target.value)} className="border rounded px-1 py-0.5 text-[10px] flex-1">
+                        <option value="">No cost code</option>
+                        {costCodes.map(cc => (<option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>))}
+                      </select>
+                      <input type="text" value={item.specSection} onChange={(e) => updateLineItem(index, 'specSection', e.target.value)} placeholder="Spec section" className="w-24 border rounded px-1.5 py-0.5 text-[10px]" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -274,7 +314,7 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => { setIsCreating(false); setNewCO({ title: '', description: '', reason: '', lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }] }) }} className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800">Cancel</button>
+              <button onClick={() => { setIsCreating(false); setNewCO({ title: '', description: '', reason: '', lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }] }) }} className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800">Cancel</button>
               <button onClick={() => createMutation.mutate(newCO)} disabled={createMutation.isPending || !newCO.title} className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50">{createMutation.isPending ? 'Creating...' : 'Create'}</button>
             </div>
           </div>
@@ -395,7 +435,23 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
                     <tbody>
                       {selectedCO.lineItems.map((item, idx) => (
                         <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                          <td className="px-2 py-1">{item.description}</td>
+                          <td className="px-2 py-1">
+                            {item.description}
+                            {(item.costCode || item.specSection) && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                {item.costCode && (
+                                  <span className="px-1 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] rounded font-mono" title={item.costCode.name}>
+                                    {item.costCode.code}
+                                  </span>
+                                )}
+                                {item.specSection && (
+                                  <span className="px-1 py-0.5 bg-gray-100 text-gray-600 text-[9px] rounded" title="Spec Section">
+                                    {item.specSection}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-2 py-1 text-right">{item.quantity}</td>
                           <td className="px-2 py-1">{item.unit}</td>
                           <td className="px-2 py-1 text-right">{formatCurrency(item.unitPrice)}</td>
@@ -432,6 +488,9 @@ export function ContractChangeOrders({ contractId, readonly = false }: ContractC
                     <>
                       <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'PENDING_APPROVAL' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded hover:bg-yellow-200">
                         <Send className="h-3 w-3 mr-1" />Submit
+                      </button>
+                      <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'APPROVED' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} title="Approve without sending to the subcontractor" className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200">
+                        <Check className="h-3 w-3 mr-1" />Approve Directly
                       </button>
                       <button onClick={() => { if (confirm('Delete?')) { deleteMutation.mutate(selectedCO.id); setSelectedCO(null) } }} disabled={deleteMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800">
                         <Trash2 className="h-3 w-3 mr-1" />Delete

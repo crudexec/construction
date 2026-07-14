@@ -39,7 +39,12 @@ export async function GET(
       where: { contractId },
       include: {
         lineItems: {
-          orderBy: { order: 'asc' }
+          orderBy: { order: 'asc' },
+          include: {
+            costCode: {
+              select: { id: true, code: true, name: true }
+            }
+          }
         },
         createdBy: {
           select: {
@@ -147,6 +152,18 @@ export async function POST(
       totalAmount = lineItems.reduce((sum: number, item: any) => {
         return sum + (item.quantity * item.unitPrice)
       }, 0)
+
+      // Validate any provided cost codes belong to this company
+      const costCodeIds = Array.from(new Set(lineItems.map((item: any) => item.costCodeId).filter(Boolean)))
+      if (costCodeIds.length > 0) {
+        const validCostCodes = await prisma.costCode.findMany({
+          where: { id: { in: costCodeIds as string[] }, companyId: user.companyId },
+          select: { id: true }
+        })
+        if (validCostCodes.length !== costCodeIds.length) {
+          return NextResponse.json({ error: 'One or more cost codes not found' }, { status: 404 })
+        }
+      }
     }
 
     const changeOrder = await prisma.changeOrder.create({
@@ -166,13 +183,20 @@ export async function POST(
             unitPrice: item.unitPrice,
             totalPrice: item.quantity * item.unitPrice,
             order: index,
-            notes: item.notes
+            notes: item.notes,
+            costCodeId: item.costCodeId || null,
+            specSection: item.specSection || null
           }))
         } : undefined
       },
       include: {
         lineItems: {
-          orderBy: { order: 'asc' }
+          orderBy: { order: 'asc' },
+          include: {
+            costCode: {
+              select: { id: true, code: true, name: true }
+            }
+          }
         },
         createdBy: {
           select: {

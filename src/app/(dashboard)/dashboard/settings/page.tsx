@@ -26,6 +26,7 @@ import {
   Tag,
   Tags,
   Layers,
+  Hash,
   Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -35,6 +36,7 @@ import { TemplateManager } from '@/components/templates/template-manager'
 import { EmailConfigForm } from '@/components/settings/email-config-form'
 import { SMSConfigForm } from '@/components/settings/sms-config-form'
 import { VendorCategoryManager } from '@/components/settings/vendor-category-manager'
+import { CostCodeManager } from '@/components/settings/cost-code-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
 
@@ -384,6 +386,7 @@ function SettingsContent() {
     { id: 'team', name: 'Team', icon: Users },
     { id: 'templates', name: 'Templates', icon: FileText },
     { id: 'vendor-categories', name: 'Vendor Categories', icon: Layers },
+    { id: 'cost-codes', name: 'Cost Codes', icon: Hash },
     { id: 'service-tags', name: 'Service Tags', icon: Tags },
     { id: 'file-tags', name: 'File Tags', icon: Tag },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -1105,6 +1108,10 @@ function SettingsContent() {
 
         {activeTab === 'vendor-categories' && (
           <VendorCategoryManager />
+        )}
+
+        {activeTab === 'cost-codes' && (
+          <CostCodeManager />
         )}
 
         {activeTab === 'service-tags' && (

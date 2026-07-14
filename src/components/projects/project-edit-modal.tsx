@@ -16,6 +16,7 @@ interface ProjectEditModalProps {
 
 const projectEditSchema = Yup.object().shape({
   title: Yup.string().required('Project title is required'),
+  projectNumber: Yup.string(),
   description: Yup.string(),
   contactName: Yup.string(),
   contactEmail: Yup.string().email('Invalid email format'),
@@ -81,6 +82,7 @@ export function ProjectEditModal({ project, isOpen, onClose, onSave }: ProjectEd
 
   const initialValues = {
     title: project.title || '',
+    projectNumber: project.projectNumber || '',
     description: project.description || '',
     contactName: project.contactName || '',
     contactEmail: project.contactEmail || '',
@@ -143,6 +145,20 @@ export function ProjectEditModal({ project, isOpen, onClose, onSave }: ProjectEd
                         className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                       />
                       <ErrorMessage name="title" component="p" className="mt-1 text-sm text-red-600" />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label htmlFor="projectNumber" className="block text-sm font-medium text-gray-700">
+                        Project Number
+                      </label>
+                      <Field
+                        id="projectNumber"
+                        name="projectNumber"
+                        type="text"
+                        placeholder="Job number"
+                        className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                      />
+                      <ErrorMessage name="projectNumber" component="p" className="mt-1 text-sm text-red-600" />
                     </div>
 
                     <div className="md:col-span-2">

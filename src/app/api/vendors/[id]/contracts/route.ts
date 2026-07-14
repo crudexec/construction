@@ -134,6 +134,7 @@ export async function POST(
       contractNumber,
       type,
       totalSum,
+      estimateAmount,
       retentionPercent,
       retentionAmount,
       warrantyYears,
@@ -142,19 +143,22 @@ export async function POST(
       retentionBond,
       terms,
       notes,
-      projectIds // Array of project IDs to link
+      projectIds, // Array of project IDs to link
+      lineItems // Optional array of line items to create alongside the contract
     } = body
 
-    // Validate required fields
-    if (!contractNumber || !type || !totalSum || !startDate || !endDate) {
+    // Validate required fields. Type/start date are optional and default below —
+    // the fast "Create Estimate" path only sends contractNumber + totalSum (or line items).
+    const hasLineItemsForValidation = Array.isArray(lineItems) && lineItems.length > 0
+    if (!contractNumber || (!totalSum && !hasLineItemsForValidation)) {
       return NextResponse.json(
-        { error: 'Contract number, type, total sum, start date, and end date are required' },
+        { error: 'Contract number and either a total sum or line items are required' },
         { status: 400 }
       )
     }
 
-    // Validate contract type
-    if (!['LUMP_SUM', 'REMEASURABLE', 'ADDENDUM'].includes(type)) {
+    // Validate contract type, if provided
+    if (type && !['LUMP_SUM', 'REMEASURABLE', 'ADDENDUM'].includes(type)) {
       return NextResponse.json(
         { error: 'Invalid contract type. Must be LUMP_SUM, REMEASURABLE, or ADDENDUM' },
         { status: 400 }
@@ -169,9 +173,10 @@ export async function POST(
       )
     }
 
-    // Check for duplicate contract number
-    const existingContract = await prisma.vendorContract.findUnique({
-      where: { contractNumber }
+    // Check for duplicate contract number within the same company (contract
+    // numbers/PO numbers are only meaningful — and only need to be unique — per company)
+    const existingContract = await prisma.vendorContract.findFirst({
+      where: { companyId: user.companyId, contractNumber }
     })
 
     if (existingContract) {
@@ -198,18 +203,51 @@ export async function POST(
       }
     }
 
-    // Create contract with project links
+    // Validate line items, if provided, and any cost codes they reference
+    const hasLineItems = Array.isArray(lineItems) && lineItems.length > 0
+    if (hasLineItems) {
+      for (const item of lineItems) {
+        if (!item.description || item.quantity === undefined || !item.unit || item.unitPrice === undefined) {
+          return NextResponse.json(
+            { error: 'Each line item requires a description, quantity, unit, and unit price' },
+            { status: 400 }
+          )
+        }
+      }
+
+      const costCodeIds = Array.from(new Set(lineItems.map((item: any) => item.costCodeId).filter(Boolean)))
+      if (costCodeIds.length > 0) {
+        const validCostCodes = await prisma.costCode.findMany({
+          where: { id: { in: costCodeIds as string[] }, companyId: user.companyId },
+          select: { id: true }
+        })
+        if (validCostCodes.length !== costCodeIds.length) {
+          return NextResponse.json({ error: 'One or more cost codes not found' }, { status: 404 })
+        }
+      }
+    }
+
+    // Once line items exist, totalSum is superseded by their sum (matching how
+    // adding a line item later already recalculates totalSum) — estimateAmount
+    // preserves what was originally entered, regardless of line items
+    const computedTotalSum = hasLineItems
+      ? lineItems.reduce((sum: number, item: any) => sum + (item.quantity * item.unitPrice), 0)
+      : totalSum
+
+    // Create contract with project links and optional line items
     const contract = await prisma.vendorContract.create({
       data: {
         vendorId: id,
+        companyId: user.companyId,
         contractNumber,
-        type,
-        totalSum,
+        type: type || 'LUMP_SUM',
+        totalSum: computedTotalSum,
+        estimateAmount: estimateAmount !== undefined ? estimateAmount : computedTotalSum,
         retentionPercent: retentionPercent || 0,
         retentionAmount,
         warrantyYears: warrantyYears || 1,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        startDate: startDate ? new Date(startDate) : new Date(),
+        endDate: endDate ? new Date(endDate) : null,
         retentionBond,
         terms,
         notes,
@@ -217,6 +255,19 @@ export async function POST(
         projects: projectIds && projectIds.length > 0 ? {
           create: projectIds.map((projectId: string) => ({
             projectId
+          }))
+        } : undefined,
+        lineItems: hasLineItems ? {
+          create: lineItems.map((item: any, index: number) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            order: index,
+            notes: item.notes || null,
+            costCodeId: item.costCodeId || null,
+            specSection: item.specSection || null
           }))
         } : undefined
       },
@@ -229,6 +280,13 @@ export async function POST(
                 title: true,
                 status: true
               }
+            }
+          }
+        },
+        lineItems: {
+          include: {
+            costCode: {
+              select: { id: true, code: true, name: true }
             }
           }
         }

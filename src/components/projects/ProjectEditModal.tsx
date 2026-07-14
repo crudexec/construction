@@ -18,6 +18,7 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
+    projectNumber: '',
     description: '',
     contactName: '',
     contactEmail: '',
@@ -67,6 +68,7 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
       
       setFormData({
         title: data.title || '',
+        projectNumber: data.projectNumber || '',
         description: data.description || '',
         contactName: data.contactName || '',
         contactEmail: data.contactEmail || '',
@@ -276,6 +278,20 @@ export default function ProjectEditModal({ isOpen, onClose, projectId, onUpdate 
                     {errors.title && (
                       <p className="mt-1 text-sm text-red-500">{errors.title}</p>
                     )}
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Number
+                    </label>
+                    <input
+                      type="text"
+                      name="projectNumber"
+                      value={formData.projectNumber}
+                      onChange={handleInputChange}
+                      placeholder="Job number"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
                   </div>
 
                   <div className="md:col-span-2">

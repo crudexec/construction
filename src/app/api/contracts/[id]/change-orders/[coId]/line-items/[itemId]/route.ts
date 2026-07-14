@@ -67,7 +67,16 @@ export async function PATCH(
       return NextResponse.json({ error: 'Line item not found' }, { status: 404 })
     }
 
-    const { description, quantity, unit, unitPrice, notes, order } = body
+    const { description, quantity, unit, unitPrice, notes, order, costCodeId, specSection } = body
+
+    if (costCodeId) {
+      const costCode = await prisma.costCode.findFirst({
+        where: { id: costCodeId, companyId: user.companyId }
+      })
+      if (!costCode) {
+        return NextResponse.json({ error: 'Cost code not found' }, { status: 404 })
+      }
+    }
 
     // Calculate new total if quantity or unitPrice changed
     const newQuantity = quantity !== undefined ? quantity : existingItem.quantity
@@ -84,7 +93,14 @@ export async function PATCH(
         totalPrice,
         ...(notes !== undefined && { notes }),
         ...(order !== undefined && { order }),
+        ...(costCodeId !== undefined && { costCodeId: costCodeId || null }),
+        ...(specSection !== undefined && { specSection: specSection || null }),
         updatedAt: new Date()
+      },
+      include: {
+        costCode: {
+          select: { id: true, code: true, name: true }
+        }
       }
     })
 

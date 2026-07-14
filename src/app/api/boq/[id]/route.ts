@@ -66,6 +66,20 @@ export async function PATCH(
       }
     }
 
+    // If costCodeId is being set, verify it belongs to the user's company
+    if (body.costCodeId !== undefined && body.costCodeId) {
+      const costCode = await prisma.costCode.findFirst({
+        where: {
+          id: body.costCodeId,
+          companyId: user.companyId
+        }
+      })
+
+      if (!costCode) {
+        return NextResponse.json({ error: 'Cost code not found' }, { status: 404 })
+      }
+    }
+
     // Prepare update data
     const updateData: any = {}
 
@@ -74,6 +88,7 @@ export async function PATCH(
     if (body.description !== undefined) updateData.description = body.description
     if (body.category !== undefined) updateData.category = body.category
     if (body.subCategory !== undefined) updateData.subCategory = body.subCategory
+    if (body.costCodeId !== undefined) updateData.costCodeId = body.costCodeId || null
     if (body.unit !== undefined) updateData.unit = body.unit
     if (body.quantity !== undefined) updateData.quantity = parseFloat(body.quantity)
     if (body.unitRate !== undefined) updateData.unitRate = parseFloat(body.unitRate)
@@ -97,6 +112,13 @@ export async function PATCH(
             id: true,
             firstName: true,
             lastName: true
+          }
+        },
+        costCode: {
+          select: {
+            id: true,
+            code: true,
+            name: true
           }
         }
       }

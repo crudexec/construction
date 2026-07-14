@@ -66,7 +66,15 @@ export function ContractSummaryCard({ contractId }: ContractSummaryCardProps) {
       </h4>
 
       {/* Main Value Display */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${financials.estimateAmount ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        {financials.estimateAmount != null && (
+          <div className="text-center border-r border-gray-200">
+            <p className="text-xs text-gray-500 mb-1">Contract Estimate</p>
+            <p className="text-lg font-semibold text-gray-500">
+              {formatCurrency(financials.estimateAmount)}
+            </p>
+          </div>
+        )}
         <div className="text-center">
           <p className="text-xs text-gray-500 mb-1">Original Contract</p>
           <p className="text-lg font-semibold text-gray-900">

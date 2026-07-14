@@ -57,6 +57,12 @@ export async function GET(
             status: true
           }
         },
+        supplier: {
+          select: {
+            id: true,
+            name: true
+          }
+        },
         requestedBy: {
           select: {
             id: true,
@@ -144,6 +150,7 @@ export async function POST(
     const {
       vendorId,
       projectId,
+      vendorSupplierId,
       type,
       title,
       amount,
@@ -199,6 +206,18 @@ export async function POST(
       }
     }
 
+    if (vendorSupplierId) {
+      const supplierLink = await prisma.contractSupplier.findFirst({
+        where: { contractId, vendorSupplierId }
+      })
+      if (!supplierLink) {
+        return NextResponse.json(
+          { error: 'Supplier is not linked to this contract' },
+          { status: 400 }
+        )
+      }
+    }
+
     const initialStatus = requestVendorNow ? LienReleaseStatus.REQUESTED : LienReleaseStatus.DRAFT
     const now = new Date()
 
@@ -208,6 +227,7 @@ export async function POST(
         vendorId: resolvedVendorId,
         contractId,
         projectId: projectId || null,
+        vendorSupplierId: vendorSupplierId || null,
         type,
         status: initialStatus,
         title: title || null,
@@ -242,6 +262,12 @@ export async function POST(
             id: true,
             title: true,
             status: true
+          }
+        },
+        supplier: {
+          select: {
+            id: true,
+            name: true
           }
         },
         requestedBy: {

@@ -46,10 +46,24 @@ export async function GET(
                 id: true,
                 title: true,
                 status: true,
-                budget: true
+                budget: true,
+                projectNumber: true
               }
             }
           }
+        },
+        contractSuppliers: {
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                notes: true
+              }
+            }
+          },
+          orderBy: { createdAt: 'asc' }
         },
         documents: {
           orderBy: { createdAt: 'desc' }
@@ -206,10 +220,10 @@ export async function PATCH(
       )
     }
 
-    // Check for duplicate contract number if changed
+    // Check for duplicate contract number if changed, scoped to this company
     if (contractNumber && contractNumber !== existingContract.contractNumber) {
-      const duplicateContract = await prisma.vendorContract.findUnique({
-        where: { contractNumber }
+      const duplicateContract = await prisma.vendorContract.findFirst({
+        where: { companyId: user.companyId, contractNumber }
       })
 
       if (duplicateContract) {

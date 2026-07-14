@@ -4,6 +4,12 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Edit, Save, X, Package } from 'lucide-react'
 
+interface CostCodeOption {
+  id: string
+  code: string
+  name: string
+}
+
 interface LineItem {
   id: string
   description: string
@@ -13,6 +19,9 @@ interface LineItem {
   totalPrice: number
   notes?: string | null
   order: number
+  costCodeId?: string | null
+  costCode?: CostCodeOption | null
+  specSection?: string | null
 }
 
 interface ContractLineItemsProps {
@@ -42,7 +51,9 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
     quantity: 1,
     unit: 'EA',
     unitPrice: 0,
-    notes: ''
+    notes: '',
+    costCodeId: '',
+    specSection: ''
   })
   const [editItem, setEditItem] = useState<Partial<LineItem>>({})
 
@@ -55,6 +66,16 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
       if (!response.ok) throw new Error('Failed to fetch line items')
       return response.json()
     }
+  })
+
+  const { data: costCodes = [] } = useQuery<CostCodeOption[]>({
+    queryKey: ['cost-codes'],
+    queryFn: async () => {
+      const response = await fetch('/api/cost-codes', { credentials: 'include' })
+      if (!response.ok) throw new Error('Failed to fetch cost codes')
+      return response.json()
+    },
+    enabled: !readonly
   })
 
   const createMutation = useMutation({
@@ -70,8 +91,12 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-line-items', contractId] })
+      // Line item totals feed into the contract's totalSum and the summary card —
+      // keep both fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
       setIsAdding(false)
-      setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' })
+      setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' })
     }
   })
 
@@ -88,6 +113,10 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-line-items', contractId] })
+      // Line item totals feed into the contract's totalSum and the summary card —
+      // keep both fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
       setEditingId(null)
       setEditItem({})
     }
@@ -104,6 +133,10 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contract-line-items', contractId] })
+      // Line item totals feed into the contract's totalSum and the summary card —
+      // keep both fresh without requiring a manual page refresh
+      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
     }
   })
 
@@ -166,6 +199,25 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
                         onChange={(e) => setEditItem({ ...editItem, description: e.target.value })}
                         className="w-full border rounded px-1.5 py-0.5 text-xs"
                       />
+                      <div className="flex items-center gap-1 mt-1">
+                        <select
+                          value={editItem.costCodeId ?? item.costCodeId ?? ''}
+                          onChange={(e) => setEditItem({ ...editItem, costCodeId: e.target.value })}
+                          className="border rounded px-1 py-0.5 text-[10px] flex-1"
+                        >
+                          <option value="">No cost code</option>
+                          {costCodes.map(cc => (
+                            <option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={editItem.specSection ?? item.specSection ?? ''}
+                          onChange={(e) => setEditItem({ ...editItem, specSection: e.target.value })}
+                          placeholder="Spec section"
+                          className="w-24 border rounded px-1.5 py-0.5 text-[10px]"
+                        />
+                      </div>
                     </td>
                     <td className="px-3 py-1">
                       <input
@@ -222,6 +274,20 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
                     <td className="px-3 py-1.5">
                       <div className="text-xs text-gray-900">{item.description}</div>
                       {item.notes && <div className="text-[10px] text-gray-500">{item.notes}</div>}
+                      {(item.costCode || item.specSection) && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {item.costCode && (
+                            <span className="px-1 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] rounded font-mono" title={item.costCode.name}>
+                              {item.costCode.code}
+                            </span>
+                          )}
+                          {item.specSection && (
+                            <span className="px-1 py-0.5 bg-gray-100 text-gray-600 text-[9px] rounded" title="Spec Section">
+                              {item.specSection}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-1.5 text-right text-gray-900">{item.quantity}</td>
                     <td className="px-3 py-1.5 text-gray-500">{item.unit}</td>
@@ -262,6 +328,25 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
                       className="w-full border rounded px-1.5 py-0.5 text-xs"
                       autoFocus
                     />
+                    <div className="flex items-center gap-1 mt-1">
+                      <select
+                        value={newItem.costCodeId}
+                        onChange={(e) => setNewItem({ ...newItem, costCodeId: e.target.value })}
+                        className="border rounded px-1 py-0.5 text-[10px] flex-1"
+                      >
+                        <option value="">No cost code</option>
+                        {costCodes.map(cc => (
+                          <option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={newItem.specSection}
+                        onChange={(e) => setNewItem({ ...newItem, specSection: e.target.value })}
+                        placeholder="Spec section"
+                        className="w-24 border rounded px-1.5 py-0.5 text-[10px]"
+                      />
+                    </div>
                   </td>
                   <td className="px-3 py-1">
                     <input
@@ -305,7 +390,7 @@ export function ContractLineItems({ contractId, readonly = false }: ContractLine
                         <Save className="h-3 w-3" />
                       </button>
                       <button
-                        onClick={() => { setIsAdding(false); setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '' }) }}
+                        onClick={() => { setIsAdding(false); setNewItem({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }) }}
                         className="p-0.5 text-gray-400 hover:text-gray-600"
                       >
                         <X className="h-3 w-3" />

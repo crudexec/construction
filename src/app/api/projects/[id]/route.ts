@@ -106,6 +106,7 @@ export async function PUT(
     // Prepare update data
     const updateData: any = {
       title: body.title,
+      projectNumber: body.projectNumber,
       description: body.description,
       contactName: body.contactName,
       contactEmail: body.contactEmail,

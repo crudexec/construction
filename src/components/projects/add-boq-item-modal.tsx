@@ -69,6 +69,7 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
     description: '',
     category: '',
     subCategory: '',
+    costCodeId: '',
     unit: '',
     quantity: '',
     unitRate: '',
@@ -79,6 +80,23 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const { data: costCodes = [] } = useQuery({
+    queryKey: ['cost-codes'],
+    queryFn: async () => {
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch('/api/cost-codes', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      if (!response.ok) throw new Error('Failed to fetch cost codes')
+      return response.json()
+    },
+    enabled: isOpen
+  })
 
   // Fetch existing BOQ items for auto-numbering
   const { data: boqData } = useQuery({
@@ -146,6 +164,7 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
         description: editItem.description || '',
         category: editItem.category || '',
         subCategory: editItem.subCategory || '',
+        costCodeId: editItem.costCodeId || '',
         unit: editItem.unit || '',
         quantity: editItem.quantity?.toString() || '',
         unitRate: editItem.unitRate?.toString() || '',
@@ -161,6 +180,7 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
         description: '',
         category: '',
         subCategory: '',
+        costCodeId: '',
         unit: '',
         quantity: '',
         unitRate: '',
@@ -235,7 +255,8 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
       ...formData,
       quantity: parseFloat(formData.quantity),
       unitRate: parseFloat(formData.unitRate),
-      actualCost: formData.actualCost ? parseFloat(formData.actualCost) : null
+      actualCost: formData.actualCost ? parseFloat(formData.actualCost) : null,
+      costCodeId: formData.costCodeId || null
     }
 
     if (editItem) {
@@ -429,17 +450,43 @@ export function AddBOQItemModal({ projectId, isOpen, onClose, editItem }: AddBOQ
                   </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Sub-Category
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.subCategory}
-                    onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Optional sub-category"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Sub-Category
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.subCategory}
+                      onChange={(e) => setFormData({ ...formData, subCategory: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Optional sub-category"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                      Cost Code
+                      <span className="text-xs text-slate-500 font-normal ml-1">(optional)</span>
+                    </label>
+                    <select
+                      value={formData.costCodeId}
+                      onChange={(e) => setFormData({ ...formData, costCodeId: e.target.value })}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">None</option>
+                      {costCodes.map((costCode: any) => (
+                        <option key={costCode.id} value={costCode.id}>
+                          {costCode.code} — {costCode.name}
+                        </option>
+                      ))}
+                    </select>
+                    {costCodes.length === 0 && (
+                      <p className="text-xs text-slate-500 mt-1">
+                        No cost codes yet — import a directory from Settings.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>

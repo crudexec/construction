@@ -14,6 +14,11 @@ interface ContractProjectOption {
   status: string
 }
 
+interface ContractSupplierOption {
+  id: string
+  name: string
+}
+
 interface LienReleaseDocument {
   id: string
   originalName: string
@@ -64,6 +69,10 @@ interface ContractLienRelease {
     title: string
     status: string
   } | null
+  supplier?: {
+    id: string
+    name: string
+  } | null
   requestedBy?: LienReleaseUser | null
   reviewedBy?: LienReleaseUser | null
   approvedBy?: LienReleaseUser | null
@@ -74,6 +83,7 @@ interface ContractLienRelease {
 interface ContractLienReleasesProps {
   contractId: string
   projects: ContractProjectOption[]
+  suppliers?: ContractSupplierOption[]
 }
 
 const TYPE_OPTIONS = [
@@ -145,6 +155,7 @@ async function fetchLienReleases(contractId: string): Promise<ContractLienReleas
 export function ContractLienReleases({
   contractId,
   projects,
+  suppliers = [],
 }: ContractLienReleasesProps) {
   const queryClient = useQueryClient()
   const { format: formatCurrency } = useCurrency()
@@ -161,6 +172,7 @@ export function ContractLienReleases({
     throughDate: '',
     effectiveDate: '',
     projectId: '',
+    supplierId: '',
     externalPaymentRef: '',
     externalSource: 'Buidflo Payments',
     notes: '',
@@ -193,6 +205,7 @@ export function ContractLienReleases({
           throughDate: form.throughDate || undefined,
           effectiveDate: form.effectiveDate || undefined,
           projectId: form.projectId || undefined,
+          vendorSupplierId: form.supplierId || undefined,
           externalPaymentRef: form.externalPaymentRef || undefined,
           externalSource: (form.externalSource === 'Custom' ? customExternalSource : form.externalSource) || undefined,
           notes: form.notes || undefined,
@@ -217,6 +230,7 @@ export function ContractLienReleases({
         throughDate: '',
         effectiveDate: '',
         projectId: '',
+        supplierId: '',
         externalPaymentRef: '',
         externalSource: 'Buidflo Payments',
         notes: '',
@@ -509,6 +523,7 @@ export function ContractLienReleases({
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-gray-500">
                         {release.title && <span>{release.title}</span>}
                         {release.project?.title && <span>Project: {release.project.title}</span>}
+                        {release.supplier?.name && <span>Supplier: {release.supplier.name}</span>}
                         {release.throughDate && (
                           <span>Through: {new Date(release.throughDate).toLocaleDateString()}</span>
                         )}
@@ -729,6 +744,24 @@ export function ContractLienReleases({
                   </select>
                 </div>
                 <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-700">Supplier / Subtier</label>
+                  <select
+                    value={form.supplierId}
+                    onChange={(event) => setForm({ ...form, supplierId: event.target.value })}
+                    className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm"
+                  >
+                    <option value="">Vendor (no specific supplier)</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700">External Payment Ref</label>
                   <input
                     type="text"
@@ -872,6 +905,10 @@ export function ContractLienReleases({
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Project</span>
                       <span className="text-right text-gray-900">{selectedRelease.project?.title || '-'}</span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Supplier / Subtier</span>
+                      <span className="text-right text-gray-900">{selectedRelease.supplier?.name || 'Vendor (none specified)'}</span>
                     </div>
                     <div className="flex justify-between gap-4">
                       <span className="text-gray-500">Through Date</span>
