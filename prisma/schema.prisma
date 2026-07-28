@@ -55,7 +55,15 @@ model Company {
   vendorCategories VendorCategory[]
 
   // Cost Codes
-  costCodes CostCode[]
+  costCodes                     CostCode[]
+  assetStatusDefinitions        AssetStatusDefinition[]
+  assetIssueNotificationSetting AssetIssueNotificationSetting?
+
+  // Asset Custom Fields
+  assetCustomFieldDefinitions AssetCustomFieldDefinition[]
+
+  // Asset Work Orders
+  workOrders WorkOrder[]
 
   // Vendor Contracts
   vendorContracts VendorContract[]
@@ -130,6 +138,18 @@ model User {
   assetRejections        AssetRequest[]        @relation("AssetRejector")
   maintenanceAssignments MaintenanceSchedule[] @relation("MaintenanceAssignee")
   maintenanceRecords     MaintenanceRecord[]   @relation("MaintenancePerformer")
+  assetAttachments       AssetAttachment[]
+  assetRentalRates       AssetRentalRate[]
+  assetMeterReadings     AssetMeterReading[]
+  assetJobAssignments    AssetJobAssignment[]
+  assetInspections       AssetInspection[]
+  reportedAssetIssues    AssetIssue[]          @relation("AssetIssueReporter")
+  resolvedAssetIssues    AssetIssue[]          @relation("AssetIssueResolver")
+  assetIssueComments     AssetIssueComment[]
+  assignedWorkOrders     WorkOrder[]           @relation("WorkOrderAssignee")
+  createdWorkOrders      WorkOrder[]           @relation("WorkOrderCreator")
+  workOrderComments      WorkOrderComment[]
+  workOrderAttachments   WorkOrderAttachment[]
 
   // Procurement & Inventory relations
   inventoryPurchases InventoryPurchase[]
@@ -242,6 +262,7 @@ model Card {
   vendorReviews        VendorReview[]
   projectContracts     ProjectContract[]
   assetRequests        AssetRequest[]
+  assetJobAssignments  AssetJobAssignment[]
   inventoryEntries     InventoryEntry[]
   projectMilestones    ProjectMilestone[]
   purchaseOrders       PurchaseOrder[]
@@ -1264,6 +1285,7 @@ model Vendor {
   lienReleases           LienRelease[]
   lienReleaseEvents      LienReleaseEvent[]            @relation("LienReleaseEventActorVendor")
   linkedContacts         Contact[]
+  assetPurchases         Asset[]                       @relation("AssetPurchasedFrom")
 
   @@index([companyId])
   @@index([type])
@@ -1352,10 +1374,11 @@ model CostCode {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  boqItems             BOQItem[]
-  contractLineItems    ContractLineItem[]
-  changeOrderLineItems ChangeOrderLineItem[]
+  company                    Company                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  boqItems                   BOQItem[]
+  contractLineItems          ContractLineItem[]
+  changeOrderLineItems       ChangeOrderLineItem[]
+  contractPaymentAllocations ContractPaymentCostAllocation[]
 
   @@unique([companyId, code])
   @@index([companyId])
@@ -1838,7 +1861,11 @@ model ContractPayment {
   subtotal                 Float?
   currentBilling           Float?
   earlyPayDiscount         Float?
+  earlyPayDiscountPercent  Float?
   amountRequesting         Float?
+  acaAmountRequesting      Float?
+  hasAcaDiscrepancy        Boolean                 @default(false)
+  acaDiscrepancyNote       String?
   currentRetention         Float?
   paidToDateOverride       Float?
   paidToDateAdjustment     Float?
@@ -1853,13 +1880,45 @@ model ContractPayment {
   createdAt                DateTime                @default(now())
   updatedAt                DateTime                @updatedAt
 
-  contract    VendorContract              @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  createdBy   User                        @relation(fields: [createdById], references: [id])
-  attachments ContractPaymentAttachment[]
+  contract         VendorContract                  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy        User                            @relation(fields: [createdById], references: [id])
+  attachments      ContractPaymentAttachment[]
+  costAllocations  ContractPaymentCostAllocation[]
+  lienReleaseLinks ContractPaymentLienRelease[]
 
   @@index([contractId])
   @@index([createdById])
   @@index([paymentDate])
+}
+
+model ContractPaymentLienRelease {
+  id            String   @id @default(cuid())
+  paymentId     String
+  lienReleaseId String
+  createdAt     DateTime @default(now())
+
+  payment     ContractPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  lienRelease LienRelease     @relation(fields: [lienReleaseId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, lienReleaseId])
+  @@index([paymentId])
+  @@index([lienReleaseId])
+}
+
+model ContractPaymentCostAllocation {
+  id         String   @id @default(cuid())
+  paymentId  String
+  costCodeId String
+  amount     Float
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  payment  ContractPayment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  costCode CostCode        @relation(fields: [costCodeId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([costCodeId])
 }
 
 model ContractPaymentAttachment {
@@ -1910,16 +1969,17 @@ model LienRelease {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  vendor      Vendor                @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  contract    VendorContract?       @relation(fields: [contractId], references: [id], onDelete: SetNull)
-  project     Card?                 @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  supplier    VendorSupplier?       @relation(fields: [vendorSupplierId], references: [id], onDelete: SetNull)
-  requestedBy User?                 @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
-  reviewedBy  User?                 @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  approvedBy  User?                 @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
-  documents   LienReleaseDocument[]
-  events      LienReleaseEvent[]
+  company      Company                      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor       Vendor                       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  contract     VendorContract?              @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  project      Card?                        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier     VendorSupplier?              @relation(fields: [vendorSupplierId], references: [id], onDelete: SetNull)
+  requestedBy  User?                        @relation("LienReleaseRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  reviewedBy   User?                        @relation("LienReleaseReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  approvedBy   User?                        @relation("LienReleaseApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  documents    LienReleaseDocument[]
+  events       LienReleaseEvent[]
+  paymentLinks ContractPaymentLienRelease[]
 
   @@index([companyId, status])
   @@index([vendorId, status])
@@ -2081,34 +2141,411 @@ enum MaintenanceType {
   RECURRING
 }
 
-model Asset {
-  id                String      @id @default(cuid())
-  name              String
-  description       String?
-  type              AssetType
-  serialNumber      String?
-  status            AssetStatus @default(AVAILABLE)
-  currentLocation   String? // Current site/location
-  currentAssigneeId String? // Currently assigned user
-  purchaseCost      Float?
-  purchaseDate      DateTime?
-  warrantyExpiry    DateTime?
-  photos            String? // JSON array of photo URLs
-  notes             String?
-  companyId         String
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+enum FinancingType {
+  CASH
+  FINANCED
+  LEASED
+}
 
-  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  currentAssignee      User?                 @relation("AssetCurrentAssignee", fields: [currentAssigneeId], references: [id])
+enum AssetAttachmentCategory {
+  PHOTO
+  DOCUMENT
+}
+
+enum AssetCustomFieldType {
+  TEXT
+  NUMBER
+  DATE
+  BOOLEAN
+  SELECT
+}
+
+enum AssetMeterReadingType {
+  HOURS
+  MILES
+}
+
+enum AssetInspectionType {
+  DOT
+  OTHER
+}
+
+enum MaintenanceServiceType {
+  OIL_CHANGE
+  FUEL
+  HYDRAULIC_FLUID
+  FILTER_OIL
+  FILTER_FUEL
+  FILTER_HYDRAULIC
+  OTHER
+}
+
+enum AssetIssueStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum WorkOrderStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Asset {
+  id                 String      @id @default(cuid())
+  name               String
+  description        String?
+  type               AssetType
+  serialNumber       String?
+  status             AssetStatus @default(AVAILABLE)
+  customStatusNote   String? // Free-text detail alongside the fixed status enum
+  statusDefinitionId String?
+  currentLocation    String? // Current site/location
+  currentAssigneeId  String? // Currently assigned user
+
+  // Identity
+  make         String?
+  model        String?
+  year         Int?
+  vin          String? // Vehicle Identification Number
+  licensePlate String?
+
+  // Purchase
+  purchaseCost          Float?
+  purchaseDate          DateTime?
+  warrantyExpiry        DateTime?
+  purchasedFromVendorId String?
+  poNumber              String?
+  invoiceNumber         String?
+  financingType         FinancingType?
+  financedAmount        Float?
+  lender                String?
+  loanTermMonths        Int?
+  depreciationMethod    String?
+  usefulLifeYears       Int?
+  salvageValue          Float?
+
+  notes     String?
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Issue log sharing (QR code / public link)
+  shareToken  String?   @unique
+  isShareable Boolean   @default(false)
+  sharedAt    DateTime?
+  sharedById  String?
+
+  company              Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  currentAssignee      User?                   @relation("AssetCurrentAssignee", fields: [currentAssigneeId], references: [id])
+  purchasedFromVendor  Vendor?                 @relation("AssetPurchasedFrom", fields: [purchasedFromVendorId], references: [id], onDelete: SetNull)
+  statusDefinition     AssetStatusDefinition?  @relation(fields: [statusDefinitionId], references: [id], onDelete: SetNull)
   requests             AssetRequest[]
   maintenanceSchedules MaintenanceSchedule[]
   maintenanceRecords   MaintenanceRecord[]
+  attachments          AssetAttachment[]
+  rentalRates          AssetRentalRate[]
+  customFieldValues    AssetCustomFieldValue[]
+  meterReadings        AssetMeterReading[]
+  jobAssignments       AssetJobAssignment[]
+  inspections          AssetInspection[]
+  issues               AssetIssue[]
 
   @@index([companyId])
   @@index([type])
   @@index([status])
+  @@index([statusDefinitionId])
   @@index([currentAssigneeId])
+  @@index([purchasedFromVendorId])
+  @@index([shareToken])
+}
+
+model AssetStatusDefinition {
+  id         String      @id @default(cuid())
+  companyId  String
+  name       String
+  baseStatus AssetStatus @default(AVAILABLE)
+  color      String?
+  isActive   Boolean     @default(true)
+  sortOrder  Int         @default(0)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assets  Asset[]
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+  @@index([baseStatus])
+}
+
+model AssetIssueNotificationSetting {
+  id               String   @id @default(cuid())
+  companyId        String   @unique
+  notifyAdmins     Boolean  @default(true)
+  notifyStaff      Boolean  @default(false)
+  recipientUserIds String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model AssetAttachment {
+  id           String                  @id @default(cuid())
+  assetId      String
+  category     AssetAttachmentCategory
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  url          String
+  uploadedById String?
+  createdAt    DateTime                @default(now())
+
+  asset      Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation(fields: [uploadedById], references: [id])
+
+  @@index([assetId])
+  @@index([category])
+}
+
+model AssetRentalRate {
+  id          String   @id @default(cuid())
+  assetId     String
+  hourlyRate  Float?
+  dailyRate   Float?
+  monthlyRate Float?
+  notes       String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  asset     Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  createdBy User  @relation(fields: [createdById], references: [id])
+
+  @@index([assetId, createdAt])
+}
+
+model AssetCustomFieldDefinition {
+  id            String               @id @default(cuid())
+  companyId     String
+  name          String
+  fieldType     AssetCustomFieldType
+  selectOptions String[]             @default([])
+  isActive      Boolean              @default(true)
+  sortOrder     Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  company Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  values  AssetCustomFieldValue[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+}
+
+model AssetCustomFieldValue {
+  id                String   @id @default(cuid())
+  assetId           String
+  fieldDefinitionId String
+  value             String?
+  updatedAt         DateTime @updatedAt
+
+  asset      Asset                      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  definition AssetCustomFieldDefinition @relation(fields: [fieldDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, fieldDefinitionId])
+}
+
+model AssetMeterReading {
+  id           String                @id @default(cuid())
+  assetId      String
+  readingType  AssetMeterReadingType
+  value        Float
+  recordedAt   DateTime              @default(now())
+  recordedById String
+  notes        String?
+  createdAt    DateTime              @default(now())
+
+  asset      Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  recordedBy User        @relation(fields: [recordedById], references: [id])
+  issue      AssetIssue?
+
+  @@index([assetId, readingType, recordedAt])
+}
+
+model AssetJobAssignment {
+  id          String    @id @default(cuid())
+  assetId     String
+  projectId   String
+  assignedAt  DateTime  @default(now())
+  removedAt   DateTime?
+  notes       String?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  asset     Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  project   Card  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy User  @relation(fields: [createdById], references: [id])
+
+  @@index([assetId])
+  @@index([projectId])
+}
+
+model AssetInspection {
+  id                String              @id @default(cuid())
+  assetId           String
+  inspectionType    AssetInspectionType
+  inspectionDate    DateTime
+  inspectorName     String?
+  certificateNumber String?
+  passed            Boolean
+  expiryDate        DateTime?
+  notes             String?
+  performedById     String
+  createdAt         DateTime            @default(now())
+
+  asset       Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  performedBy User  @relation(fields: [performedById], references: [id])
+
+  @@index([assetId])
+  @@index([expiryDate])
+}
+
+model AssetIssue {
+  id          String           @id @default(cuid())
+  assetId     String
+  title       String
+  description String?
+  status      AssetIssueStatus @default(OPEN)
+  urgency     Priority         @default(MEDIUM)
+
+  // Meter reading captured at the moment the issue was logged
+  meterReadingId String? @unique
+
+  // Either an authenticated user reported it, or it came in through the
+  // public QR/issue-log link (no login) and only a free-text name is known
+  reportedById String?
+  reporterName String?
+
+  resolvedAt   DateTime?
+  resolvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  asset        Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  meterReading AssetMeterReading?  @relation(fields: [meterReadingId], references: [id])
+  reportedBy   User?               @relation("AssetIssueReporter", fields: [reportedById], references: [id])
+  resolvedBy   User?               @relation("AssetIssueResolver", fields: [resolvedById], references: [id])
+  comments     AssetIssueComment[]
+  workOrders   WorkOrderIssue[]
+
+  @@index([assetId])
+  @@index([status])
+  @@index([urgency])
+}
+
+model AssetIssueComment {
+  id        String    @id @default(cuid())
+  content   String
+  issueId   String
+  authorId  String
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  issue  AssetIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  author User       @relation(fields: [authorId], references: [id])
+
+  @@index([issueId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model WorkOrder {
+  id          String          @id @default(cuid())
+  companyId   String
+  title       String
+  description String?
+  status      WorkOrderStatus @default(SCHEDULED)
+
+  scheduledDate     DateTime?
+  estimatedDuration Float? // hours
+  actualDuration    Float? // hours
+  estimatedCost     Float?
+  actualCost        Float?
+
+  assignedToId String?
+  createdById  String
+  completedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo  User?                 @relation("WorkOrderAssignee", fields: [assignedToId], references: [id])
+  createdBy   User                  @relation("WorkOrderCreator", fields: [createdById], references: [id])
+  issues      WorkOrderIssue[]
+  comments    WorkOrderComment[]
+  attachments WorkOrderAttachment[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model WorkOrderIssue {
+  id          String   @id @default(cuid())
+  workOrderId String
+  issueId     String
+  createdAt   DateTime @default(now())
+
+  workOrder WorkOrder  @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  issue     AssetIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([workOrderId, issueId])
+  @@index([workOrderId])
+  @@index([issueId])
+}
+
+model WorkOrderComment {
+  id          String    @id @default(cuid())
+  content     String
+  workOrderId String
+  authorId    String
+  isEdited    Boolean   @default(false)
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  author    User      @relation(fields: [authorId], references: [id])
+
+  @@index([workOrderId])
+  @@index([authorId])
+  @@index([createdAt])
+}
+
+model WorkOrderAttachment {
+  id           String   @id @default(cuid())
+  workOrderId  String
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  url          String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  workOrder  WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  uploadedBy User?     @relation(fields: [uploadedById], references: [id])
+
+  @@index([workOrderId])
 }
 
 model AssetRequest {
@@ -2168,17 +2605,21 @@ model MaintenanceSchedule {
 }
 
 model MaintenanceRecord {
-  id            String   @id @default(cuid())
-  assetId       String
-  scheduleId    String? // Optional - linked to a schedule
-  title         String
-  description   String?
-  performedDate DateTime
-  cost          Float?
-  performedById String
-  notes         String?
-  attachments   String? // JSON array of file URLs
-  createdAt     DateTime @default(now())
+  id                    String                  @id @default(cuid())
+  assetId               String
+  scheduleId            String? // Optional - linked to a schedule
+  title                 String
+  description           String?
+  performedDate         DateTime
+  cost                  Float?
+  performedById         String
+  notes                 String?
+  attachments           String? // JSON array of file URLs
+  serviceType           MaintenanceServiceType?
+  quantity              Float?
+  quantityUnit          String?
+  meterReadingAtService Float?
+  createdAt             DateTime                @default(now())
 
   asset       Asset                @relation(fields: [assetId], references: [id], onDelete: Cascade)
   schedule    MaintenanceSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)

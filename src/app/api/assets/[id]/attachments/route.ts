@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, unlink } from 'fs/promises'
 import path from 'path'
+
+const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const MAX_SIZE = 10 * 1024 * 1024
 
 export async function POST(
   request: NextRequest,
@@ -23,12 +26,8 @@ export async function POST(
 
     const { id } = await params
 
-    // Verify asset exists and belongs to user's company
     const asset = await prisma.asset.findFirst({
-      where: {
-        id,
-        companyId: user.companyId
-      }
+      where: { id, companyId: user.companyId }
     })
 
     if (!asset) {
@@ -37,67 +36,58 @@ export async function POST(
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
+    const categoryRaw = formData.get('category')
+    const category = categoryRaw === 'DOCUMENT' ? 'DOCUMENT' : 'PHOTO'
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (!allowedTypes.includes(file.type)) {
+    if (category === 'PHOTO' && !ALLOWED_PHOTO_TYPES.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.' },
+        { error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed for photos.' },
         { status: 400 }
       )
     }
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024
-    if (file.size > maxSize) {
+    if (file.size > MAX_SIZE) {
       return NextResponse.json(
         { error: 'File too large. Maximum size is 10MB.' },
         { status: 400 }
       )
     }
 
-    // Create uploads directory if it doesn't exist
     const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'assets', id)
     await mkdir(uploadDir, { recursive: true })
 
-    // Generate unique filename
     const ext = path.extname(file.name)
     const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`
     const filePath = path.join(uploadDir, filename)
 
-    // Write file to disk
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
     await writeFile(filePath, buffer)
 
-    // Generate URL path
-    const photoUrl = `/uploads/assets/${id}/${filename}`
+    const url = `/uploads/assets/${id}/${filename}`
 
-    // Update asset photos (stored as JSON string)
-    const currentPhotos: string[] = asset.photos ? JSON.parse(asset.photos) : []
-    const updatedPhotos = [...currentPhotos, photoUrl]
-
-    const updatedAsset = await prisma.asset.update({
-      where: { id },
+    const attachment = await prisma.assetAttachment.create({
       data: {
-        photos: JSON.stringify(updatedPhotos)
+        assetId: id,
+        category,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        url,
+        uploadedById: user.id
       }
     })
 
-    return NextResponse.json({
-      message: 'Photo uploaded successfully',
-      url: photoUrl,
-      photos: updatedPhotos
-    }, { status: 201 })
+    return NextResponse.json(attachment, { status: 201 })
 
   } catch (error) {
-    console.error('Error uploading asset photo:', error)
+    console.error('Error uploading asset attachment:', error)
     return NextResponse.json(
-      { error: 'Failed to upload photo' },
+      { error: 'Failed to upload attachment' },
       { status: 500 }
     )
   }
@@ -122,57 +112,45 @@ export async function DELETE(
 
     const { id } = await params
     const { searchParams } = new URL(request.url)
-    const photoUrl = searchParams.get('url')
+    const attachmentId = searchParams.get('attachmentId')
 
-    if (!photoUrl) {
-      return NextResponse.json({ error: 'Photo URL is required' }, { status: 400 })
+    if (!attachmentId) {
+      return NextResponse.json({ error: 'attachmentId is required' }, { status: 400 })
     }
 
-    // Verify asset exists and belongs to user's company
     const asset = await prisma.asset.findFirst({
-      where: {
-        id,
-        companyId: user.companyId
-      }
+      where: { id, companyId: user.companyId }
     })
 
     if (!asset) {
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
-    // Remove photo from array (stored as JSON string)
-    const currentPhotos: string[] = asset.photos ? JSON.parse(asset.photos) : []
-    const updatedPhotos = currentPhotos.filter(p => p !== photoUrl)
-
-    if (currentPhotos.length === updatedPhotos.length) {
-      return NextResponse.json({ error: 'Photo not found' }, { status: 404 })
-    }
-
-    await prisma.asset.update({
-      where: { id },
-      data: {
-        photos: JSON.stringify(updatedPhotos)
-      }
+    const attachment = await prisma.assetAttachment.findFirst({
+      where: { id: attachmentId, assetId: id }
     })
 
-    // Try to delete file from filesystem
+    if (!attachment) {
+      return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
+    }
+
+    await prisma.assetAttachment.delete({
+      where: { id: attachmentId }
+    })
+
     try {
-      const { unlink } = await import('fs/promises')
-      const filePath = path.join(process.cwd(), 'public', photoUrl)
+      const filePath = path.join(process.cwd(), 'public', attachment.url)
       await unlink(filePath)
     } catch (fileError) {
       console.warn('Could not delete file from filesystem:', fileError)
     }
 
-    return NextResponse.json({
-      message: 'Photo deleted successfully',
-      photos: updatedPhotos
-    })
+    return NextResponse.json({ message: 'Attachment deleted successfully' })
 
   } catch (error) {
-    console.error('Error deleting asset photo:', error)
+    console.error('Error deleting asset attachment:', error)
     return NextResponse.json(
-      { error: 'Failed to delete photo' },
+      { error: 'Failed to delete attachment' },
       { status: 500 }
     )
   }

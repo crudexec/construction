@@ -11,7 +11,16 @@ interface Asset {
   name: string
   type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
   serialNumber?: string
+  make?: string | null
+  model?: string | null
+  year?: number | null
   status: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED'
+  statusDefinition?: {
+    id: string
+    name: string
+    baseStatus: Asset['status']
+    color?: string | null
+  } | null
   currentLocation?: string
   currentAssignee?: {
     id: string
@@ -20,6 +29,7 @@ interface Asset {
   }
   purchaseCost?: number
   createdAt: string
+  attachments?: { id: string; url: string }[]
   _count: {
     requests: number
     maintenanceRecords: number
@@ -65,7 +75,7 @@ const getAssetTypeLabel = (type: string) => {
   }
 }
 
-const getStatusBadge = (status: string) => {
+const getStatusBadge = (status: string, customStatus?: Asset['statusDefinition']) => {
   const statusConfig: Record<string, { bg: string, text: string, label: string }> = {
     'AVAILABLE': { bg: 'bg-green-100', text: 'text-green-700', label: 'Available' },
     'IN_USE': { bg: 'bg-blue-100', text: 'text-blue-700', label: 'In Use' },
@@ -78,7 +88,7 @@ const getStatusBadge = (status: string) => {
 
   return (
     <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${config.bg} ${config.text}`}>
-      {config.label}
+      {customStatus?.name || config.label}
     </span>
   )
 }
@@ -221,6 +231,7 @@ export default function AssetsPage() {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Asset</th>
+              <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Make/Model</th>
               <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Type</th>
               <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Status</th>
               <th className="px-2 py-1.5 text-left text-[10px] font-medium text-gray-500 uppercase">Location</th>
@@ -232,7 +243,7 @@ export default function AssetsPage() {
           <tbody>
             {filteredAssets.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-2 py-8 text-center text-gray-500">
+                <td colSpan={8} className="px-2 py-8 text-center text-gray-500">
                   <Package className="h-8 w-8 mx-auto text-gray-300 mb-2" />
                   <p className="text-xs font-medium">No assets found</p>
                   <p className="text-[10px]">Get started by adding your first asset</p>
@@ -244,9 +255,13 @@ export default function AssetsPage() {
                   <td className="px-2 py-1.5">
                     <Link href={`/dashboard/assets/${asset.id}`} className="block">
                       <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded bg-gray-100 flex items-center justify-center text-gray-600">
-                          {getAssetTypeIcon(asset.type)}
-                        </div>
+                        {asset.attachments && asset.attachments.length > 0 ? (
+                          <img src={asset.attachments[0].url} alt={asset.name} className="h-6 w-6 rounded object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="h-6 w-6 rounded bg-gray-100 flex items-center justify-center text-gray-600 flex-shrink-0">
+                            {getAssetTypeIcon(asset.type)}
+                          </div>
+                        )}
                         <div>
                           <div className="text-xs font-medium text-gray-900 truncate max-w-[150px]">{asset.name}</div>
                           {asset.serialNumber && (
@@ -256,13 +271,16 @@ export default function AssetsPage() {
                       </div>
                     </Link>
                   </td>
+                  <td className="px-2 py-1.5 text-xs text-gray-600 truncate max-w-[120px]">
+                    {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || '-'}
+                  </td>
                   <td className="px-2 py-1.5">
                     <span className="inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded bg-blue-100 text-blue-700">
                       {getAssetTypeLabel(asset.type)}
                     </span>
                   </td>
                   <td className="px-2 py-1.5">
-                    {getStatusBadge(asset.status)}
+                    {getStatusBadge(asset.status, asset.statusDefinition)}
                   </td>
                   <td className="px-2 py-1.5 text-xs text-gray-600 truncate max-w-[100px]">
                     {asset.currentLocation || '-'}

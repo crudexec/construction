@@ -1,0 +1,60 @@
+/* Hallmark tokens · theme: studied-DNA from usehallmark hum-07 · paper-band: light · display-style: rounded-sans · accent-hue: pear/coral */
+:root {
+  --hm-color-paper: oklch(97% 0.022 83);
+  --hm-color-paper-2: oklch(93.5% 0.04 92);
+  --hm-color-paper-3: oklch(88% 0.055 99);
+  --hm-color-ink: oklch(18% 0.027 252);
+  --hm-color-ink-2: oklch(31% 0.024 252);
+  --hm-color-muted: oklch(48% 0.02 252);
+  --hm-color-rule: oklch(82% 0.035 88);
+  --hm-color-rule-strong: oklch(66% 0.06 89);
+  --hm-color-pear: oklch(84% 0.16 106);
+  --hm-color-cyan: oklch(76% 0.12 202);
+  --hm-color-coral: oklch(68% 0.19 35);
+  --hm-color-plum: oklch(56% 0.12 315);
+  --hm-color-focus: oklch(55% 0.16 35);
+  --hm-color-panel: oklch(99% 0.012 83);
+
+  --hm-font-display: var(--font-sans);
+  --hm-font-body: var(--font-sans);
+  --hm-font-outlier: var(--font-mono);
+
+  --hm-space-3xs: 0.125rem;
+  --hm-space-2xs: 0.25rem;
+  --hm-space-xs: 0.5rem;
+  --hm-space-sm: 0.75rem;
+  --hm-space-md: 1rem;
+  --hm-space-lg: 1.5rem;
+  --hm-space-xl: 2.5rem;
+  --hm-space-2xl: 4rem;
+  --hm-space-3xl: 6rem;
+  --hm-space-4xl: 9rem;
+
+  --hm-text-xs: 0.75rem;
+  --hm-text-sm: 0.875rem;
+  --hm-text-base: 1rem;
+  --hm-text-md: 1.25rem;
+  --hm-text-lg: 1.5625rem;
+  --hm-text-xl: 1.953rem;
+  --hm-text-2xl: 2.441rem;
+  --hm-text-3xl: 3.052rem;
+  --hm-text-display-s: clamp(2.3rem, 5vw + 0.6rem, 4.2rem);
+  --hm-text-display: clamp(3rem, 7vw + 0.6rem, 6rem);
+
+  --hm-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --hm-ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --hm-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --hm-dur-micro: 120ms;
+  --hm-dur-short: 220ms;
+  --hm-dur-long: 420ms;
+
+  --hm-rule-hair: 1px;
+  --hm-radius-xs: 0.375rem;
+  --hm-radius-sm: 0.5rem;
+  --hm-radius-md: 0.75rem;
+  --hm-radius-lg: 1rem;
+  --hm-radius-xl: 1.5rem;
+  --hm-radius-round: 999px;
+  --hm-page-max: 76rem;
+  --hm-page-gutter: clamp(1rem, 4vw, 2rem);
+}

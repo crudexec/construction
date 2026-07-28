@@ -105,7 +105,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { title, description, type, intervalDays, nextDueDate, alertUserIds } = body
+    const { title, description, type, intervalDays, nextDueDate, alertUserIds, estimatedCost, assignedToId } = body
 
     if (!title) {
       return NextResponse.json(
@@ -153,6 +153,15 @@ export async function POST(
       }
     }
 
+    if (assignedToId) {
+      const assignee = await prisma.user.findFirst({
+        where: { id: assignedToId, companyId: user.companyId }
+      })
+      if (!assignee) {
+        return NextResponse.json({ error: 'Assigned user not found' }, { status: 404 })
+      }
+    }
+
     const schedule = await prisma.maintenanceSchedule.create({
       data: {
         assetId: id,
@@ -162,6 +171,8 @@ export async function POST(
         intervalDays: type === 'RECURRING' ? intervalDays : null,
         nextDueDate: new Date(nextDueDate),
         alertUserIds: alertUserIds || [],
+        estimatedCost: estimatedCost ?? null,
+        assignedToId: assignedToId || null,
         isActive: true
       }
     })

@@ -35,6 +35,31 @@ export async function GET(
             email: true
           }
         },
+        purchasedFromVendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true
+          }
+        },
+        statusDefinition: {
+          select: {
+            id: true,
+            name: true,
+            baseStatus: true,
+            color: true
+          }
+        },
+        attachments: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        },
+        customFieldValues: {
+          include: {
+            definition: true
+          }
+        },
         requests: {
           include: {
             requester: {
@@ -84,7 +109,29 @@ export async function GET(
           orderBy: {
             performedDate: 'desc'
           },
+          take: 20
+        },
+        inspections: {
+          include: {
+            performedBy: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true
+              }
+            }
+          },
+          orderBy: {
+            inspectionDate: 'desc'
+          },
           take: 10
+        },
+        _count: {
+          select: {
+            issues: {
+              where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }
+            }
+          }
         }
       }
     })
@@ -93,13 +140,7 @@ export async function GET(
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
-    // Parse photos from JSON string to array
-    const assetWithParsedPhotos = {
-      ...asset,
-      photos: asset.photos ? JSON.parse(asset.photos) : []
-    }
-
-    return NextResponse.json(assetWithParsedPhotos)
+    return NextResponse.json(asset)
 
   } catch (error) {
     console.error('Error fetching asset:', error)
@@ -148,12 +189,28 @@ export async function PATCH(
       type,
       serialNumber,
       status,
+      statusDefinitionId,
+      customStatusNote,
       currentLocation,
       currentAssigneeId,
+      make,
+      model,
+      year,
+      vin,
+      licensePlate,
       purchaseCost,
       purchaseDate,
       warrantyExpiry,
-      photos,
+      purchasedFromVendorId,
+      poNumber,
+      invoiceNumber,
+      financingType,
+      financedAmount,
+      lender,
+      loanTermMonths,
+      depreciationMethod,
+      usefulLifeYears,
+      salvageValue,
       notes
     } = body
 
@@ -165,10 +222,40 @@ export async function PATCH(
       )
     }
 
+    let resolvedStatusDefinition: { id: string; baseStatus: typeof existingAsset.status } | null = null
+    if (statusDefinitionId) {
+      resolvedStatusDefinition = await prisma.assetStatusDefinition.findFirst({
+        where: {
+          id: statusDefinitionId,
+          companyId: user.companyId,
+          isActive: true
+        },
+        select: {
+          id: true,
+          baseStatus: true
+        }
+      })
+
+      if (!resolvedStatusDefinition) {
+        return NextResponse.json(
+          { error: 'Asset status option not found' },
+          { status: 404 }
+        )
+      }
+    }
+
     // Validate status if provided
     if (status && !['AVAILABLE', 'IN_USE', 'UNDER_MAINTENANCE', 'RETIRED', 'LOST_DAMAGED'].includes(status)) {
       return NextResponse.json(
         { error: 'Invalid asset status' },
+        { status: 400 }
+      )
+    }
+
+    // Validate financing type if provided
+    if (financingType && !['CASH', 'FINANCED', 'LEASED'].includes(financingType)) {
+      return NextResponse.json(
+        { error: 'Invalid financing type' },
         { status: 400 }
       )
     }
@@ -190,10 +277,22 @@ export async function PATCH(
       }
     }
 
-    // If photos is provided as array, stringify it for storage
-    const photosData = photos !== undefined
-      ? (Array.isArray(photos) ? JSON.stringify(photos) : photos)
-      : undefined
+    // Validate purchasedFromVendor if provided
+    if (purchasedFromVendorId) {
+      const vendor = await prisma.vendor.findFirst({
+        where: {
+          id: purchasedFromVendorId,
+          companyId: user.companyId
+        }
+      })
+
+      if (!vendor) {
+        return NextResponse.json(
+          { error: 'Vendor not found' },
+          { status: 404 }
+        )
+      }
+    }
 
     const asset = await prisma.asset.update({
       where: { id },
@@ -202,13 +301,30 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(type && { type }),
         ...(serialNumber !== undefined && { serialNumber }),
-        ...(status && { status }),
+        ...(status && !resolvedStatusDefinition && { status }),
+        ...(resolvedStatusDefinition && { status: resolvedStatusDefinition.baseStatus }),
+        ...(statusDefinitionId !== undefined && { statusDefinitionId: statusDefinitionId || null }),
+        ...(customStatusNote !== undefined && { customStatusNote }),
         ...(currentLocation !== undefined && { currentLocation }),
-        ...(currentAssigneeId !== undefined && { currentAssigneeId }),
+        ...(currentAssigneeId !== undefined && { currentAssigneeId: currentAssigneeId || null }),
+        ...(make !== undefined && { make }),
+        ...(model !== undefined && { model }),
+        ...(year !== undefined && { year: year ? parseInt(year) : null }),
+        ...(vin !== undefined && { vin }),
+        ...(licensePlate !== undefined && { licensePlate }),
         ...(purchaseCost !== undefined && { purchaseCost }),
         ...(purchaseDate !== undefined && { purchaseDate: purchaseDate ? new Date(purchaseDate) : null }),
         ...(warrantyExpiry !== undefined && { warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : null }),
-        ...(photosData !== undefined && { photos: photosData }),
+        ...(purchasedFromVendorId !== undefined && { purchasedFromVendorId: purchasedFromVendorId || null }),
+        ...(poNumber !== undefined && { poNumber }),
+        ...(invoiceNumber !== undefined && { invoiceNumber }),
+        ...(financingType !== undefined && { financingType: financingType || null }),
+        ...(financedAmount !== undefined && { financedAmount }),
+        ...(lender !== undefined && { lender }),
+        ...(loanTermMonths !== undefined && { loanTermMonths: loanTermMonths ? parseInt(loanTermMonths) : null }),
+        ...(depreciationMethod !== undefined && { depreciationMethod }),
+        ...(usefulLifeYears !== undefined && { usefulLifeYears: usefulLifeYears ? parseInt(usefulLifeYears) : null }),
+        ...(salvageValue !== undefined && { salvageValue }),
         ...(notes !== undefined && { notes })
       },
       include: {
@@ -218,17 +334,26 @@ export async function PATCH(
             firstName: true,
             lastName: true
           }
+        },
+        purchasedFromVendor: {
+          select: {
+            id: true,
+            name: true,
+            companyName: true
+          }
+        },
+        statusDefinition: {
+          select: {
+            id: true,
+            name: true,
+            baseStatus: true,
+            color: true
+          }
         }
       }
     })
 
-    // Parse photos for response
-    const assetWithParsedPhotos = {
-      ...asset,
-      photos: asset.photos ? JSON.parse(asset.photos) : []
-    }
-
-    return NextResponse.json(assetWithParsedPhotos)
+    return NextResponse.json(asset)
 
   } catch (error) {
     console.error('Error updating asset:', error)

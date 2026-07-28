@@ -26,6 +26,7 @@ import { ContractLineItems } from '@/components/contracts/contract-line-items'
 import { ContractChangeOrders } from '@/components/contracts/contract-change-orders'
 import { ContractSummaryCard } from '@/components/contracts/contract-summary-card'
 import { ContractLienReleases } from '@/components/contracts/contract-lien-releases'
+import { ContractLienReleaseCompliance } from '@/components/contracts/contract-lien-release-compliance'
 import { ContractPayments } from '@/components/contracts/contract-payments'
 import { ContractSuppliers } from '@/components/contracts/contract-suppliers'
 
@@ -49,6 +50,24 @@ interface ContractPaymentAttachment {
   createdAt: string
 }
 
+interface ContractPaymentCostAllocation {
+  id?: string
+  costCodeId: string
+  amount: number
+  notes?: string | null
+  costCode?: {
+    id: string
+    code: string
+    name: string
+  } | null
+}
+
+interface ContractPaymentLienReleaseLink {
+  id: string
+  lienReleaseId: string
+  lienRelease: ContractLienRelease
+}
+
 interface ContractPayment {
   id: string
   amount: number
@@ -63,14 +82,18 @@ interface ContractPayment {
   subtotal?: number | null
   currentBilling?: number | null
   earlyPayDiscount?: number | null
+  earlyPayDiscountPercent?: number | null
   amountRequesting?: number | null
+  acaAmountRequesting?: number | null
+  hasAcaDiscrepancy?: boolean | null
+  acaDiscrepancyNote?: string | null
   currentRetention?: number | null
   paidToDateOverride?: number | null
   paidToDateAdjustment?: number | null
   maxPayment?: number | null
   amountApproved?: number | null
   pmStatus: 'PENDING' | 'APPROVED' | 'REJECTED'
-  apStatus: 'PROCESSING' | 'WAITING_ON_LIEN_RELEASES' | 'PAID'
+  apStatus: 'PROCESSING' | 'WAITING_ON_LIEN_RELEASES' | 'PAID' | 'VOID'
   conditionalAmount?: number | null
   unconditionalAmount?: number | null
   expectedLienReleaseCount?: number | null
@@ -81,6 +104,35 @@ interface ContractPayment {
     lastName: string
   }
   attachments: ContractPaymentAttachment[]
+  costAllocations?: ContractPaymentCostAllocation[]
+  lienReleaseLinks?: ContractPaymentLienReleaseLink[]
+}
+
+interface ContractLienRelease {
+  id: string
+  type: 'CONDITIONAL_PROGRESS' | 'UNCONDITIONAL_PROGRESS' | 'CONDITIONAL_FINAL' | 'UNCONDITIONAL_FINAL'
+  status: 'DRAFT' | 'REQUESTED' | 'SUBMITTED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'VOID'
+  title?: string | null
+  amount?: number | null
+  throughDate?: string | null
+  effectiveDate?: string | null
+  externalPaymentRef?: string | null
+  externalSource?: string | null
+  supplier?: {
+    id: string
+    name: string
+  } | null
+  project?: {
+    id: string
+    title: string
+    status: string
+  } | null
+  documents?: {
+    id: string
+    kind: string
+    originalName: string
+    createdAt: string
+  }[]
 }
 
 interface ContractSupplierLink {
@@ -131,6 +183,7 @@ interface VendorContract {
     }
   }[]
   contractSuppliers: ContractSupplierLink[]
+  lienReleases?: ContractLienRelease[]
 }
 
 async function fetchContract(contractId: string): Promise<VendorContract> {
@@ -717,6 +770,20 @@ export default function ContractDetailPage() {
         payments={contract.payments || []}
         changeOrders={contract.changeOrders || []}
         onRefresh={refetch}
+      />
+
+      <ContractLienReleaseCompliance
+        contractNumber={contract.contractNumber}
+        vendorName={contract.vendor.companyName || contract.vendor.name}
+        projects={contract.projects.map(({ project }) => ({
+          id: project.id,
+          title: project.title,
+          status: project.status,
+          projectNumber: project.projectNumber,
+        }))}
+        suppliers={contract.contractSuppliers}
+        payments={contract.payments || []}
+        lienReleases={contract.lienReleases || []}
       />
 
       <ContractLienReleases

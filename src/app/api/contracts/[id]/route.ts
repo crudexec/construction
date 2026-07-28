@@ -74,6 +74,36 @@ export async function GET(
             attachments: {
               orderBy: { createdAt: 'desc' }
             },
+            costAllocations: {
+              include: {
+                costCode: {
+                  select: {
+                    id: true,
+                    code: true,
+                    name: true
+                  }
+                }
+              },
+              orderBy: { createdAt: 'asc' }
+            },
+            lienReleaseLinks: {
+              include: {
+                lienRelease: {
+                  include: {
+                    supplier: {
+                      select: {
+                        id: true,
+                        name: true
+                      }
+                    },
+                    documents: {
+                      orderBy: { createdAt: 'desc' }
+                    }
+                  }
+                }
+              },
+              orderBy: { createdAt: 'asc' }
+            },
             createdBy: {
               select: {
                 id: true,
@@ -98,6 +128,12 @@ export async function GET(
                 id: true,
                 title: true,
                 status: true
+              }
+            },
+            supplier: {
+              select: {
+                id: true,
+                name: true
               }
             },
             requestedBy: {

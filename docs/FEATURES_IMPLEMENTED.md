@@ -186,3 +186,126 @@ A batch of feedback on the vendor contract detail page: the contract value summa
 - A contract's **Lien Releases** → new Supplier/Subtier field when creating a release
 
 ---
+
+## 5. Asset Management Expansion (Phase 1)
+
+**Date:** July 14, 2026
+**Status:** Implemented and verified — Phase 1 of 2 (see "What's next" below)
+
+### What was requested
+A full build-out of Asset Management into a real equipment/vehicle register: make/model/year/picture/attachments, a Purchase tab, a Rental Pricing tab with history, custom fields, meter reads (hours/miles), job assignment with dates, person assignment, equipment statuses, issue logging, work orders, notifications, a printable QR code to the issue log, a dashboard, service logs (oil/fuel/hydraulic fluid/filters), and DOT inspection records.
+
+Given the size of this request, it was split into two phases: **Phase 1** (this entry) covers the core equipment/vehicle record — everything except Issues, Work Orders, notifications, QR codes, and the dashboard, which are scoped as **Phase 2** for a future round.
+
+### What was built (Phase 1)
+
+**Equipment/vehicle identity fields.** Assets now carry Make, Model, Year, VIN, and License Plate, in addition to the existing name/type/serial number.
+
+**Purchase tab.** A dedicated tab capturing everything about how the asset was acquired: purchase cost/date, warranty expiry, which vendor it was purchased from, PO/invoice numbers, financing details (cash/financed/leased, financed amount, lender, loan term), and depreciation info (method, useful life, salvage value).
+
+**Rental Pricing tab, with history.** Set Hourly/Daily/Monthly rates for an asset; every update creates a new entry rather than overwriting the old one, so you can always see what a rate used to be and when it changed.
+
+**Custom fields.** Company admins can define their own fields (text, number, date, yes/no, or dropdown) under Settings → Asset Custom Fields, and set values per asset on the Overview tab — for tracking anything specific to your fleet that isn't a built-in field.
+
+**Meter reads.** Log sequential hours or mileage readings with a date and notes. If a new reading looks lower than the last one, you get a warning (in case of a typo) but it's still saved — no reading is ever silently blocked.
+
+**Job assignment history.** Assign a piece of equipment to a project; the system records when it went on the job and, separately, when it came off — so you get a full history of where an asset has been deployed, not just where it is now.
+
+**Person assignment.** Assigning equipment or a vehicle directly to a person is now a simple dropdown on the asset's Overview tab (previously this only happened as a side effect of approving an equipment request).
+
+**Service log.** Log oil changes, fuel, hydraulic fluid, and filter changes (oil/fuel/hydraulic) with quantity, unit, cost, and the meter reading at time of service — alongside the existing general maintenance history.
+
+**DOT (and other) inspections.** Record that an inspection was performed: inspector name, certificate number, pass/fail, and expiry date.
+
+**Also fixed along the way:**
+- The asset detail page's Edit, Delete, and Photo Upload buttons were previously non-functional stubs — all three now work, and Edit follows the same single Edit/Save pattern used on the Contract Dashboard.
+- There was no way to log a *completed* maintenance/service record without first creating a schedule — you can now log one directly at any time.
+- Rejecting an equipment request was incorrectly recording the rejection under the "approved by" fields instead of "rejected by" — fixed to use the correct fields, matching what's actually shown when a request is rejected.
+- Asset photos moved from a fragile single JSON list on the asset record to a proper Photos & Documents system that also supports uploading general documents (e.g. purchase agreements), not just images.
+
+### Where to find it
+- Sidebar → **Assets** → any asset → **Purchase**, **Rental Pricing**, **Meter Reads**, **Assignments**, and **Maintenance & Service** tabs
+- Any asset → header **Edit** button (covers identity, purchase, status, and custom fields together)
+- Any asset → **Photos & Documents** tab
+- Settings → **Asset Custom Fields**
+
+---
+
+## 6. Asset Management Expansion (Phase 2 — Issues, Work Orders, QR Codes)
+
+**Date:** July 14, 2026
+**Status:** Implemented and verified
+
+### What was requested
+The second half of the Asset Management build-out: the ability to log issues against equipment (with a meter reading captured automatically), bundle issues into work orders with scheduling and cost tracking, notify admins when a new issue comes in, generate a printable QR code that links straight to an asset's issue log, and a dashboard showing open issues across the whole fleet.
+
+### What was built
+
+**Issue logging.** Any asset now has an **Issues** tab where you can log a problem with a title, description, and urgency (Low/Medium/High/Urgent). If you also enter a meter reading (hours or miles) when logging the issue, it's recorded and permanently tied to that issue, so you always know exactly where the equipment stood when the problem was found.
+
+**Issue status and comments.** Each issue moves through Open → In Progress → Resolved/Closed, and any staff member can leave comments on an issue to track back-and-forth (parts ordered, technician notes, etc.) without leaving the app.
+
+**Work Orders.** A new Work Orders section (Sidebar → Equipment Issues → Work Orders) lets you bundle one or more open issues — even across different pieces of equipment — into a single work order. Each work order tracks a scheduled date, estimated and actual repair duration, estimated and actual cost, who it's assigned to, its own comments, and file attachments (invoices, repair photos, etc.). Marking a work order Completed automatically resolves every issue bundled into it.
+
+**Admin notifications.** When a new issue is logged — whether by a staff member in the app or by someone scanning a QR code in the field — all company Admins get notified immediately, the same way they're already notified for asset requests.
+
+**Printable QR code.** Every asset detail page now has a **QR Code** button. Generating one produces a QR code (and a plain link, for copy/paste) that opens a public page — no login required — showing that asset's issue log and a "Report an Issue" form. Print it and stick it on the equipment; anyone with a phone can scan it to see open issues or report a new one. Sharing can be turned off at any time, which immediately invalidates the old code.
+
+**Equipment Issues dashboard.** A new sidebar item, **Equipment Issues**, shows every issue across your whole fleet in one place, filterable by status (Open / In Progress / Resolved / Closed), with quick counts and a direct link into each issue's asset.
+
+### Where to find it
+- Sidebar → **Equipment Issues** — cross-fleet issues dashboard, and a link into **Work Orders**
+- Any asset → **Issues** tab — log an issue, add comments, change status
+- Any asset → header **QR Code** button — generate/print/revoke the public issue-log QR code
+- The public QR page itself needs no login: `/shared/asset/<code>`
+
+---
+
+## 7. Asset Management Completion — Custom Statuses and Notification Routing
+
+**Date:** July 24, 2026
+**Status:** Implemented and verified
+
+### What was requested
+The remaining asset-management gaps were configurable equipment statuses and the ability to route new issue notifications to certain users or user groups.
+
+### What was built
+
+**Custom asset statuses.** Admins can now define company-specific asset status dropdown values in Settings. Each custom status maps back to one of the built-in base statuses, so existing filtering and reporting still work while users can select more precise operational statuses like “Awaiting Parts” or “Needs Inspection.”
+
+**Asset editor support.** Asset creation and asset editing now both include a Custom Status dropdown. The asset list and asset header display the custom status label when one is selected.
+
+**Configurable issue notification routing.** New asset issue notifications are no longer hard-coded only to admins. Admins can choose whether issue notifications go to all admins, all staff, and/or a specific list of users. The same routing applies to issues created inside the app and issues submitted from the public QR-code issue page.
+
+### Where to find it
+- Sidebar → **Settings → Asset Statuses**
+- Sidebar → **Assets → Add** → Custom Status
+- Any asset → **Edit** → Custom Status
+
+---
+
+## 8. Pay App Tracking — ACA Workflow and Lien Release Reconciliation
+
+**Date:** July 25, 2026
+**Status:** Implemented and verified
+
+### What was requested
+The Pay App Tracking Spreadsheet equivalent needed ACA-specific payment controls and real lien-release compliance tracking. Payment rows already accepted release uploads, but compliance needed to reconcile against actual Lien Release records instead of loose attachments.
+
+### What was built
+
+**ACA payment workflow.** Payment rows now include ACA Amount Requesting, discrepancy notes, early-pay discount percentage with calculated dollar amount, approved amount cost-code allocations, and cleaned-up Gross PTD / Net PTD / Current Retention Held summaries. AP status cannot be set to Paid while Amount Approved differs from ACA Amount Requesting.
+
+**Lien release reconciliation.** Payment rows can now be linked directly to actual Lien Release records on the same contract. The payment dashboard shows approved/expected lien-release compliance from those linked records, while release document uploads remain visible separately.
+
+**Spreadsheet-equivalent compliance dashboard.** Each contract now has a Lien Release Compliance grid that rolls up project, vendor/subtier, payment reference, payment period, payment amount, approved amount, expected vs linked vs approved releases, conditional and unconditional status, AP status, blockers, and linked release names. The grid includes search/filter controls and a CSV export for spreadsheet review.
+
+**Detail workflow.** In a payment row's detail modal, users can select which contract lien releases satisfy that payment request and immediately see how many linked releases are approved against the expected count.
+
+### Where to find it
+- Any vendor contract page → **Payments** section → Add/Edit Payment Row
+- Any vendor contract page → **Lien Release Compliance** grid
+- Any payment row → **Lien Release Reconciliation** section
+- Any vendor contract page → **Lien Releases** tab to create/manage the actual release records
+
+---

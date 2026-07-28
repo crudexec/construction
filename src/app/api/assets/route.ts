@@ -42,6 +42,19 @@ export async function GET(request: NextRequest) {
             lastName: true
           }
         },
+        attachments: {
+          where: { category: 'PHOTO' },
+          orderBy: { createdAt: 'asc' },
+          take: 1
+        },
+        statusDefinition: {
+          select: {
+            id: true,
+            name: true,
+            baseStatus: true,
+            color: true
+          }
+        },
         _count: {
           select: {
             requests: true,
@@ -54,13 +67,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Parse photos from JSON string to array for each asset
-    const assetsWithParsedPhotos = assets.map(asset => ({
-      ...asset,
-      photos: asset.photos ? JSON.parse(asset.photos) : []
-    }))
-
-    return NextResponse.json(assetsWithParsedPhotos)
+    return NextResponse.json(assets)
 
   } catch (error) {
     console.error('Error fetching assets:', error)
@@ -92,7 +99,14 @@ export async function POST(request: NextRequest) {
       description,
       type,
       serialNumber,
+      status,
+      statusDefinitionId,
       currentLocation,
+      make,
+      model,
+      year,
+      vin,
+      licensePlate,
       purchaseCost,
       purchaseDate,
       warrantyExpiry,
@@ -110,6 +124,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (status && !['AVAILABLE', 'IN_USE', 'UNDER_MAINTENANCE', 'RETIRED', 'LOST_DAMAGED'].includes(status)) {
+      return NextResponse.json(
+        { error: 'Invalid asset status' },
+        { status: 400 }
+      )
+    }
+
+    let resolvedStatusDefinition: { id: string; baseStatus: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED' } | null = null
+    if (statusDefinitionId) {
+      resolvedStatusDefinition = await prisma.assetStatusDefinition.findFirst({
+        where: {
+          id: statusDefinitionId,
+          companyId: user.companyId,
+          isActive: true
+        },
+        select: {
+          id: true,
+          baseStatus: true
+        }
+      })
+
+      if (!resolvedStatusDefinition) {
+        return NextResponse.json(
+          { error: 'Asset status option not found' },
+          { status: 404 }
+        )
+      }
+    }
+
     const asset = await prisma.asset.create({
       data: {
         name,
@@ -117,12 +160,17 @@ export async function POST(request: NextRequest) {
         type,
         serialNumber,
         currentLocation,
+        make,
+        model,
+        year: year ? parseInt(year) : null,
+        vin,
+        licensePlate,
         purchaseCost,
         purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
         warrantyExpiry: warrantyExpiry ? new Date(warrantyExpiry) : null,
-        photos: JSON.stringify([]),
         notes,
-        status: 'AVAILABLE',
+        status: resolvedStatusDefinition?.baseStatus || status || 'AVAILABLE',
+        statusDefinitionId: resolvedStatusDefinition?.id || null,
         companyId: user.companyId
       },
       include: {
@@ -132,17 +180,19 @@ export async function POST(request: NextRequest) {
             firstName: true,
             lastName: true
           }
+        },
+        statusDefinition: {
+          select: {
+            id: true,
+            name: true,
+            baseStatus: true,
+            color: true
+          }
         }
       }
     })
 
-    // Parse photos for response
-    const assetWithParsedPhotos = {
-      ...asset,
-      photos: []
-    }
-
-    return NextResponse.json(assetWithParsedPhotos, { status: 201 })
+    return NextResponse.json(asset, { status: 201 })
 
   } catch (error) {
     console.error('Error creating asset:', error)

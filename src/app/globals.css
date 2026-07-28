@@ -1,3 +1,4 @@
+@import '../../tokens.css';
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
@@ -70,11 +71,13 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    overflow-x: clip;
   }
 
   body {
     background-color: rgb(var(--color-surface-sunken));
     color: rgb(var(--color-ink));
+    overflow-x: clip;
   }
 
   /* Refined selection */

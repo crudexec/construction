@@ -2,7 +2,7 @@
 
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ContractPaymentAPStatus, ContractPaymentPMStatus } from '@prisma/client'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar, DollarSign, Paperclip, Pencil, Plus, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import toast from 'react-hot-toast'
 import {
@@ -24,6 +24,39 @@ interface PaymentRow extends ContractPaymentLike {
     lastName: string
   }
   attachments: ContractPaymentAttachmentLike[]
+}
+
+interface CostCodeOption {
+  id: string
+  code: string
+  name: string
+}
+
+interface PaymentCostAllocationFormValue {
+  costCodeId: string
+  amount: string
+  notes: string
+}
+
+interface LienReleaseOption {
+  id: string
+  type: string
+  status: string
+  title?: string | null
+  amount?: number | null
+  throughDate?: string | null
+  effectiveDate?: string | null
+  externalPaymentRef?: string | null
+  supplier?: {
+    id: string
+    name: string
+  } | null
+  documents?: Array<{
+    id: string
+    kind: string
+    originalName: string
+    createdAt: string
+  }>
 }
 
 interface ChangeOrderSummary {
@@ -56,7 +89,10 @@ interface PaymentFormValues {
   subtotal: string
   currentBilling: string
   earlyPayDiscount: string
+  earlyPayDiscountPercent: string
   amountRequesting: string
+  acaAmountRequesting: string
+  acaDiscrepancyNote: string
   currentRetention: string
   paidToDateOverride: string
   paidToDateAdjustment: string
@@ -67,6 +103,8 @@ interface PaymentFormValues {
   conditionalAmount: string
   unconditionalAmount: string
   expectedLienReleaseCount: string
+  costAllocations: PaymentCostAllocationFormValue[]
+  lienReleaseIds: string[]
   reference: string
   notes: string
 }
@@ -89,7 +127,9 @@ const CURRENCY_FIELDS = new Set<keyof PaymentFormValues>([
   'subtotal',
   'currentBilling',
   'earlyPayDiscount',
+  'earlyPayDiscountPercent',
   'amountRequesting',
+  'acaAmountRequesting',
   'currentRetention',
   'paidToDateOverride',
   'paidToDateAdjustment',
@@ -210,7 +250,10 @@ function buildFormFromPayment(payment: ComputedContractPayment): PaymentFormValu
     subtotal: currencyToInput(payment.subtotal),
     currentBilling: currencyToInput(payment.currentBilling),
     earlyPayDiscount: currencyToInput(payment.earlyPayDiscount),
+    earlyPayDiscountPercent: currencyToInput(payment.earlyPayDiscountPercent),
     amountRequesting: currencyToInput(payment.amountRequesting),
+    acaAmountRequesting: currencyToInput(payment.acaAmountRequesting ?? payment.amountRequesting),
+    acaDiscrepancyNote: payment.acaDiscrepancyNote || '',
     currentRetention: currencyToInput(payment.currentRetention ?? payment.previouslyWithheldRetention),
     paidToDateOverride: currencyToInput(payment.paidToDateOverride),
     paidToDateAdjustment: currencyToInput(payment.paidToDateAdjustment),
@@ -221,6 +264,12 @@ function buildFormFromPayment(payment: ComputedContractPayment): PaymentFormValu
     conditionalAmount: currencyToInput(payment.conditionalAmount),
     unconditionalAmount: currencyToInput(payment.unconditionalAmount),
     expectedLienReleaseCount: String(payment.expectedLienReleaseCount ?? 0),
+    costAllocations: (payment.costAllocations ?? []).map((allocation) => ({
+      costCodeId: allocation.costCodeId,
+      amount: currencyToInput(allocation.amount),
+      notes: allocation.notes || '',
+    })),
+    lienReleaseIds: (payment.lienReleaseLinks ?? []).map((link) => link.lienReleaseId),
     reference: payment.reference || '',
     notes: payment.notes || '',
   }
@@ -258,6 +307,34 @@ export function ContractPayments({
   const [manualFormulaFields, setManualFormulaFields] = useState<Set<string>>(new Set())
   const [attachmentTarget, setAttachmentTarget] = useState<{ paymentId: string; kind: AttachmentKind } | null>(null)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const { data: costCodes = [] } = useQuery<CostCodeOption[]>({
+    queryKey: ['cost-codes'],
+    queryFn: async () => {
+      const response = await fetch('/api/cost-codes', { credentials: 'include' })
+      if (!response.ok) throw new Error('Failed to fetch cost codes')
+      return response.json()
+    },
+    enabled: isModalOpen,
+  })
+  const { data: lienReleases = [] } = useQuery<LienReleaseOption[]>({
+    queryKey: ['contract-lien-releases', contractId],
+    queryFn: async () => {
+      const token = document.cookie
+        .split('; ')
+        .find((row) => row.startsWith('auth-token='))
+        ?.split('=')[1]
+
+      const response = await fetch(`/api/contracts/${contractId}/lien-releases`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed to fetch lien releases')
+      return response.json()
+    },
+    enabled: isModalOpen,
+  })
 
   const selectedPayment = computedPayments.find((payment) => payment.id === selectedPaymentId) || null
   const isSelectedPaymentLocked = Boolean(
@@ -509,12 +586,18 @@ export function ContractPayments({
     },
   })
 
-  const totalPaid = computedPayments
+  const netPaidToDate = computedPayments
     .filter((payment) => payment.apStatus === 'PAID')
     .reduce((sum, payment) => sum + (payment.amountApproved ?? payment.amount ?? 0), 0)
+  const grossPaidToDate = computedPayments
+    .filter((payment) => payment.apStatus === 'PAID')
+    .reduce((sum, payment) => sum + (payment.amountComplete ?? 0), 0)
+  const currentRetentionHeld = computedPayments
+    .filter((payment) => payment.apStatus === 'PAID')
+    .reduce((sum, payment) => sum + (payment.currentRetention ?? 0), 0)
   const revisedContract = roundCurrency(contractTotal + approvedChangeOrderTotal)
-  const remaining = revisedContract - totalPaid
-  const paidPercentage = revisedContract > 0 ? (totalPaid / revisedContract) * 100 : 0
+  const remaining = revisedContract - netPaidToDate
+  const paidPercentage = revisedContract > 0 ? (netPaidToDate / revisedContract) * 100 : 0
 
   useEffect(() => {
     if (!isModalOpen) return
@@ -541,7 +624,11 @@ export function ContractPayments({
       if (!manualFormulaFields.has('lessRetention')) assignIfNeeded('lessRetention', currencyToInput(preview.lessRetention))
       if (!manualFormulaFields.has('subtotal')) assignIfNeeded('subtotal', currencyToInput(preview.subtotal))
       if (!manualFormulaFields.has('currentBilling')) assignIfNeeded('currentBilling', currencyToInput(preview.currentBilling))
+      if (!manualFormulaFields.has('earlyPayDiscount')) assignIfNeeded('earlyPayDiscount', currencyToInput(preview.calculatedEarlyPayDiscount))
       if (!manualFormulaFields.has('amountRequesting')) assignIfNeeded('amountRequesting', currencyToInput(preview.amountRequesting))
+      if (!manualFormulaFields.has('acaAmountRequesting')) {
+        assignIfNeeded('acaAmountRequesting', currencyToInput(preview.amountRequesting))
+      }
       if (!manualFormulaFields.has('currentRetention')) assignIfNeeded('currentRetention', currencyToInput(preview.currentRetention))
       if (!manualFormulaFields.has('maxPayment') && !current.maxPayment) assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
       if (!manualFormulaFields.has('amountApproved') && !current.amountApproved) assignIfNeeded('amountApproved', currencyToInput(preview.amountRequesting))
@@ -570,7 +657,7 @@ export function ContractPayments({
   const openEditModal = (payment: ComputedContractPayment) => {
     setSelectedPaymentId(payment.id)
     setLocallyUnlockedPaymentId(null)
-    setManualFormulaFields(new Set(['lessRetention', 'subtotal', 'currentBilling', 'amountRequesting', 'currentRetention', 'maxPayment', 'amountApproved']))
+    setManualFormulaFields(new Set(['lessRetention', 'subtotal', 'currentBilling', 'earlyPayDiscount', 'amountRequesting', 'acaAmountRequesting', 'currentRetention', 'maxPayment', 'amountApproved']))
     setPaymentForm(buildFormFromPayment(payment))
     setIsModalOpen(true)
   }
@@ -587,7 +674,7 @@ export function ContractPayments({
     if (CURRENCY_FIELDS.has(field)) {
       setManualFormulaFields((prev) => {
         const next = new Set(prev)
-        if (['lessRetention', 'subtotal', 'currentBilling', 'amountRequesting', 'currentRetention', 'maxPayment', 'amountApproved', 'conditionalAmount', 'unconditionalAmount'].includes(field)) {
+        if (['lessRetention', 'subtotal', 'currentBilling', 'earlyPayDiscount', 'amountRequesting', 'acaAmountRequesting', 'currentRetention', 'maxPayment', 'amountApproved', 'conditionalAmount', 'unconditionalAmount'].includes(field)) {
           next.add(field)
         }
         return next
@@ -597,10 +684,46 @@ export function ContractPayments({
     setPaymentForm((current) => ({ ...current, [field]: value }))
   }
 
+  const updateCostAllocation = (index: number, field: keyof PaymentCostAllocationFormValue, value: string) => {
+    setPaymentForm((current) => {
+      const costAllocations = [...current.costAllocations]
+      costAllocations[index] = { ...costAllocations[index], [field]: value }
+      return { ...current, costAllocations }
+    })
+  }
+
+  const addCostAllocation = () => {
+    setPaymentForm((current) => ({
+      ...current,
+      costAllocations: [...current.costAllocations, { costCodeId: '', amount: '', notes: '' }],
+    }))
+  }
+
+  const removeCostAllocation = (index: number) => {
+    setPaymentForm((current) => ({
+      ...current,
+      costAllocations: current.costAllocations.filter((_, currentIndex) => currentIndex !== index),
+    }))
+  }
+
+  const toggleLienReleaseLink = (lienReleaseId: string) => {
+    setPaymentForm((current) => ({
+      ...current,
+      lienReleaseIds: current.lienReleaseIds.includes(lienReleaseId)
+        ? current.lienReleaseIds.filter((id) => id !== lienReleaseId)
+        : [...current.lienReleaseIds, lienReleaseId],
+    }))
+  }
+
   const handleSave = () => {
     const payload = buildPayload(paymentForm)
     if (!payload.paymentDate) {
       toast.error('Submitted date is required')
+      return
+    }
+
+    if (paymentForm.apStatus === 'PAID' && hasAcaDiscrepancy(paymentForm)) {
+      toast.error('AP status cannot be Paid until ACA Amount Requesting matches Amount Approved')
       return
     }
 
@@ -629,17 +752,6 @@ export function ContractPayments({
     voidMutation.mutate({ paymentId, payload })
   }
 
-  const handleVoidToggleForPayment = (payment: ComputedContractPayment) => {
-    const nextApStatus: ContractPaymentAPStatus = payment.apStatus === 'VOID' ? 'PROCESSING' : 'VOID'
-    handleVoidToggle({
-      paymentId: payment.id,
-      payload: buildPayload({
-        ...buildFormFromPayment(payment),
-        apStatus: nextApStatus,
-      }),
-    })
-  }
-
   const handleVoidToggleForSelectedPayment = () => {
     if (!selectedPaymentId || !selectedPayment) return
     const nextApStatus: ContractPaymentAPStatus = paymentForm.apStatus === 'VOID' ? 'PROCESSING' : 'VOID'
@@ -660,10 +772,16 @@ export function ContractPayments({
     payments,
     selectedPaymentId,
   })
+  const hasCurrentAcaDiscrepancy = hasAcaDiscrepancy(paymentForm)
+  const approvedAllocationTotal = roundCurrency(
+    paymentForm.costAllocations.reduce((sum, allocation) => sum + (parseCurrencyInput(allocation.amount) ?? 0), 0)
+  )
+  const linkedLienReleases = lienReleases.filter((release) => paymentForm.lienReleaseIds.includes(release.id))
+  const approvedLinkedLienReleaseCount = linkedLienReleases.filter((release) => release.status === 'APPROVED').length
 
   return (
     <>
-      <div className="bg-white rounded border overflow-hidden">
+      <div data-testid="contract-payments" className="bg-white rounded border overflow-hidden">
         <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <DollarSign className="h-3.5 w-3.5 text-gray-500" />
@@ -680,7 +798,7 @@ export function ContractPayments({
         </div>
 
         <div className="px-3 py-2 border-b bg-blue-50/50">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-[10px]">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-[10px]">
             <div>
               <p className="text-gray-500 uppercase">Original Contract</p>
               <p className="font-semibold text-gray-900">{formatCurrency(contractTotal)}</p>
@@ -694,8 +812,16 @@ export function ContractPayments({
               <p className="font-semibold text-gray-900">{formatCurrency(revisedContract)}</p>
             </div>
             <div>
-              <p className="text-gray-500 uppercase">Paid to Date</p>
-              <p className="font-semibold text-green-700">{formatCurrency(totalPaid)}</p>
+              <p className="text-gray-500 uppercase">Gross PTD</p>
+              <p className="font-semibold text-gray-900">{formatCurrency(grossPaidToDate)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 uppercase">Net PTD</p>
+              <p className="font-semibold text-green-700">{formatCurrency(netPaidToDate)}</p>
+            </div>
+            <div>
+              <p className="text-gray-500 uppercase">Current Retention Held</p>
+              <p className="font-semibold text-amber-700">{formatCurrency(currentRetentionHeld)}</p>
             </div>
           </div>
           <div className="mt-2 flex items-center justify-between text-[10px]">
@@ -727,8 +853,10 @@ export function ContractPayments({
                   <HeaderCell>Current Billing</HeaderCell>
                   <HeaderCell>Early Pay Discount</HeaderCell>
                   <HeaderCell>Amount Requesting</HeaderCell>
+                  <HeaderCell>ACA Amount Requesting</HeaderCell>
+                  <HeaderCell>Discrepancy</HeaderCell>
                   <HeaderCell>Current Retention</HeaderCell>
-                  <HeaderCell>Paid to Date</HeaderCell>
+                  <HeaderCell>Net PTD</HeaderCell>
                   <HeaderCell>Max Payment</HeaderCell>
                   <HeaderCell>Amount Approved</HeaderCell>
                   <HeaderCell>PM Status</HeaderCell>
@@ -736,6 +864,8 @@ export function ContractPayments({
                   <HeaderCell>Conditional</HeaderCell>
                   <HeaderCell>Unconditional</HeaderCell>
                   <HeaderCell>Lien Releases</HeaderCell>
+                  <HeaderCell>Release Docs</HeaderCell>
+                  <HeaderCell>Cost Codes</HeaderCell>
                   <HeaderCell>Attachments</HeaderCell>
                   <HeaderCell>Actions</HeaderCell>
                 </tr>
@@ -754,8 +884,16 @@ export function ContractPayments({
                     <BodyCell>{formatCurrency(payment.subtotal ?? 0)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.previouslyBilledApproved)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.currentBilling)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.earlyPayDiscount ?? 0)}</BodyCell>
+                    <BodyCell>{formatCurrency(payment.calculatedEarlyPayDiscount)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.amountRequesting ?? 0)}</BodyCell>
+                    <BodyCell>{formatCurrency(payment.acaAmountRequesting ?? payment.amountRequesting ?? 0)}</BodyCell>
+                    <BodyCell>
+                      {payment.calculatedAcaDiscrepancy || payment.hasAcaDiscrepancy ? (
+                        <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Review</span>
+                      ) : (
+                        <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">OK</span>
+                      )}
+                    </BodyCell>
                     <BodyCell>{formatCurrency(payment.currentRetention ?? 0)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.paidToDate)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.maxPayment ?? 0)}</BodyCell>
@@ -764,7 +902,18 @@ export function ContractPayments({
                     <BodyCell><StatusBadge value={payment.apStatus} /></BodyCell>
                     <BodyCell>{formatCurrency(payment.conditionalAmount ?? 0)}</BodyCell>
                     <BodyCell>{formatCurrency(payment.unconditionalAmount ?? 0)}</BodyCell>
+                    <BodyCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span>{payment.lienReleaseComplianceDisplay}</span>
+                        <span className="text-[10px] text-gray-400">{payment.linkedLienReleaseCount} linked</span>
+                      </div>
+                    </BodyCell>
                     <BodyCell>{payment.lienReleaseDisplay}</BodyCell>
+                    <BodyCell>
+                      {payment.costAllocations?.length
+                        ? `${payment.costAllocations.length} / ${formatCurrency(payment.costAllocations.reduce((sum, allocation) => sum + allocation.amount, 0))}`
+                        : '-'}
+                    </BodyCell>
                     <BodyCell>{payment.attachments?.length ?? 0}</BodyCell>
                     <td className="px-3 py-1.5">
                       <div className="flex items-center gap-1">
@@ -776,35 +925,6 @@ export function ContractPayments({
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
-                        {!payment.isLocked && (
-                          <button
-                            type="button"
-                            onClick={() => handleVoidToggleForPayment(payment)}
-                            disabled={voidMutation.isPending}
-                            className={`rounded px-2 py-1 text-[10px] font-medium ${
-                              payment.apStatus === 'VOID'
-                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                            } disabled:opacity-50`}
-                            title={payment.apStatus === 'VOID' ? 'Restore payment request' : 'Void payment request'}
-                          >
-                            {payment.apStatus === 'VOID' ? 'Restore' : 'Void'}
-                          </button>
-                        )}
-                        {!payment.isLocked && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (confirm('Delete this payment row?')) {
-                                deleteMutation.mutate(payment.id)
-                              }
-                            }}
-                            className="p-1 text-gray-500 hover:text-red-600"
-                            title="Delete payment row"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -817,10 +937,15 @@ export function ContractPayments({
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[92vh] overflow-hidden">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="payment-row-dialog-title"
+            className="bg-white rounded-lg shadow-xl w-full max-w-7xl max-h-[92vh] overflow-hidden"
+          >
             <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-900">{selectedPaymentId ? 'Edit Payment Row' : 'Add Payment Row'}</h3>
+                <h3 id="payment-row-dialog-title" className="text-sm font-medium text-gray-900">{selectedPaymentId ? 'Edit Payment Row' : 'Add Payment Row'}</h3>
                 <p className="text-[11px] text-gray-500">Billing row for a subcontractor pay application.</p>
               </div>
               <button onClick={closeModal} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
@@ -903,9 +1028,9 @@ export function ContractPayments({
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <SummaryCard label="Lien Releases Uploaded" value={previewPayment.lienReleaseDisplay} />
+                <SummaryCard label="Linked Lien Releases" value={`${approvedLinkedLienReleaseCount}/${paymentForm.expectedLienReleaseCount || linkedLienReleases.length || 0}`} />
+                <SummaryCard label="Release Documents Uploaded" value={previewPayment.lienReleaseDisplay} />
                 <SummaryCard label="Previously Billed Approved" value={formatCurrency(previewPayment.previouslyBilledApproved)} />
-                <div />
               </div>
 
               <SectionHeader
@@ -948,18 +1073,18 @@ export function ContractPayments({
                   helperText="Billing amount for this draw after prior approved billings."
                 />
                 <CurrencyInputField
-                  label="Early Pay Discount"
+                  label="Early Pay Discount %"
+                  value={paymentForm.earlyPayDiscountPercent}
+                  onChange={(value) => handleCurrencyChange('earlyPayDiscountPercent', value)}
+                  disabled={isSelectedPaymentLocked}
+                  helperText="Percentage discount for accelerated payment terms."
+                />
+                <CurrencyInputField
+                  label="Early Pay Discount $"
                   value={paymentForm.earlyPayDiscount}
                   onChange={(value) => handleCurrencyChange('earlyPayDiscount', value)}
                   disabled={isSelectedPaymentLocked}
-                  helperText="Optional discount for accelerated payment terms."
-                />
-                <CurrencyInputField
-                  label="Amount Requesting"
-                  value={paymentForm.amountRequesting}
-                  onChange={(value) => handleCurrencyChange('amountRequesting', value)}
-                  disabled={isSelectedPaymentLocked}
-                  helperText="Amount formally requested for payment this period."
+                  helperText="Calculated from the percentage, or manually entered."
                 />
                 <CurrencyInputField
                   label="Current Retention"
@@ -970,12 +1095,55 @@ export function ContractPayments({
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <CurrencyInputField
+                  label="Amount Requesting"
+                  value={paymentForm.amountRequesting}
+                  onChange={(value) => handleCurrencyChange('amountRequesting', value)}
+                  disabled={isSelectedPaymentLocked}
+                  helperText="Vendor amount formally requested for this pay application."
+                />
+                <CurrencyInputField
+                  label="ACA Amount Requesting"
+                  value={paymentForm.acaAmountRequesting}
+                  onChange={(value) => handleCurrencyChange('acaAmountRequesting', value)}
+                  disabled={isSelectedPaymentLocked}
+                  helperText="AP-controlled ACA amount. Must match approved amount before Paid."
+                />
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setManualFormulaFields((current) => new Set(current).add('acaAmountRequesting'))
+                      setPaymentForm((current) => ({
+                        ...current,
+                        acaAmountRequesting: current.amountRequesting,
+                        acaDiscrepancyNote: current.acaDiscrepancyNote || 'ACA amount reviewed against vendor request.',
+                      }))
+                    }}
+                    disabled={isSelectedPaymentLocked}
+                    className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    Discrepancy
+                  </button>
+                </div>
+                <div />
+              </div>
+
+              {hasCurrentAcaDiscrepancy && (
+                <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
+                  Amount Approved and ACA Amount Requesting do not match. AP status is blocked from Paid until AP updates the ACA amount or the approved amount.
+                </div>
+              )}
+
               <SectionHeader
                 title="Payment Limits"
                 description="Review what has been paid to date and the maximum payable amount on this request."
               />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <SummaryCard label="Paid to Date Preview" value={formatCurrency(previewPayment.paidToDate)} />
+                <SummaryCard label="Net PTD Preview" value={formatCurrency(previewPayment.paidToDate)} />
+                <SummaryCard label="Gross PTD Preview" value={formatCurrency(previewPayment.grossPaidToDate)} />
+                <SummaryCard label="Retention Held Preview" value={formatCurrency(previewPayment.currentRetentionHeld)} />
                 <CurrencyInputField
                   label="Max Payment"
                   value={paymentForm.maxPayment}
@@ -983,8 +1151,58 @@ export function ContractPayments({
                   disabled={isSelectedPaymentLocked}
                   helperText="Contract cap for this request after retention is considered."
                 />
-                <div />
-                <div />
+              </div>
+
+              <SectionHeader
+                title="Lien Release Reconciliation"
+                description="Link actual lien-release records that satisfy this payment request."
+              />
+              <div className="rounded border border-gray-200">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
+                  <div className="text-xs text-gray-700">
+                    Approved <span className="font-semibold">{approvedLinkedLienReleaseCount}</span>
+                    {' '}of <span className="font-semibold">{paymentForm.expectedLienReleaseCount || linkedLienReleases.length || 0}</span>
+                    {' '}linked/expected releases
+                  </div>
+                  <div className="text-[10px] text-gray-500">
+                    Use the Lien Releases tab to create missing releases, then link them here.
+                  </div>
+                </div>
+                <div className="max-h-60 overflow-y-auto p-3">
+                  {lienReleases.length === 0 ? (
+                    <p className="text-xs text-gray-500">No lien-release records exist for this contract yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {lienReleases.map((release) => {
+                        const isLinked = paymentForm.lienReleaseIds.includes(release.id)
+                        return (
+                          <label key={release.id} className="flex cursor-pointer items-start gap-2 rounded border border-gray-100 px-2 py-2 text-xs hover:bg-gray-50">
+                            <input
+                              type="checkbox"
+                              checked={isLinked}
+                              onChange={() => toggleLienReleaseLink(release.id)}
+                              disabled={isSelectedPaymentLocked}
+                              className="mt-0.5"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="font-medium text-gray-800">{release.title || release.type.replaceAll('_', ' ')}</span>
+                                <StatusBadge value={release.status} />
+                                {release.supplier ? <span className="text-[10px] text-gray-500">{release.supplier.name}</span> : null}
+                              </div>
+                              <div className="mt-0.5 flex flex-wrap gap-3 text-[10px] text-gray-500">
+                                <span>{formatCurrency(release.amount ?? 0)}</span>
+                                <span>Through {formatDate(release.throughDate)}</span>
+                                <span>{release.documents?.length ?? 0} document{(release.documents?.length ?? 0) === 1 ? '' : 's'}</span>
+                                {release.externalPaymentRef ? <span>Ref {release.externalPaymentRef}</span> : null}
+                              </div>
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <SectionHeader
@@ -1037,7 +1255,9 @@ export function ContractPayments({
                     className={inputClassName}
                   >
                     {AP_STATUS_OPTIONS.map((status) => (
-                      <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>
+                      <option key={status} value={status} disabled={status === 'PAID' && hasCurrentAcaDiscrepancy}>
+                        {status.replaceAll('_', ' ')}
+                      </option>
                     ))}
                   </select>
                 </FormField>
@@ -1063,6 +1283,88 @@ export function ContractPayments({
                   className={inputClassName}
                 />
               </FormField>
+
+              <FormField label="ACA Discrepancy Notes" helperText="AP notes for differences between vendor requested amount, ACA amount, and approved amount.">
+                <textarea
+                  value={paymentForm.acaDiscrepancyNote}
+                  onChange={(event) => setPaymentForm((current) => ({ ...current, acaDiscrepancyNote: event.target.value }))}
+                  disabled={isSelectedPaymentLocked}
+                  rows={2}
+                  className={inputClassName}
+                />
+              </FormField>
+
+              <SectionHeader
+                title="Approved Amount Cost Codes"
+                description="Allocate the approved payment amount across ACA cost codes."
+              />
+              <div className="rounded border border-gray-200">
+                <div className="flex items-center justify-between border-b bg-gray-50 px-3 py-2">
+                  <div className="text-xs text-gray-700">
+                    Allocated <span className="font-semibold">{formatCurrency(approvedAllocationTotal)}</span>
+                    {' '}of <span className="font-semibold">{formatCurrency(parseCurrencyInput(paymentForm.amountApproved) ?? 0)}</span>
+                  </div>
+                  {!isSelectedPaymentLocked && (
+                    <button
+                      type="button"
+                      onClick={addCostAllocation}
+                      className="inline-flex items-center gap-1 text-[10px] text-primary-600 hover:text-primary-800"
+                    >
+                      <Plus className="h-3 w-3" />
+                      Add Allocation
+                    </button>
+                  )}
+                </div>
+                <div className="space-y-2 p-3">
+                  {paymentForm.costAllocations.length === 0 ? (
+                    <p className="text-xs text-gray-500">No cost-code allocations added.</p>
+                  ) : (
+                    paymentForm.costAllocations.map((allocation, index) => (
+                      <div key={index} className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(180px,1fr)_140px_minmax(160px,1fr)_32px]">
+                        <select
+                          value={allocation.costCodeId}
+                          onChange={(event) => updateCostAllocation(index, 'costCodeId', event.target.value)}
+                          disabled={isSelectedPaymentLocked}
+                          className={inputClassName}
+                        >
+                          <option value="">Select cost code</option>
+                          {costCodes.map((costCode) => (
+                            <option key={costCode.id} value={costCode.id}>{costCode.code} - {costCode.name}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          step="0.01"
+                          inputMode="decimal"
+                          value={allocation.amount}
+                          onChange={(event) => updateCostAllocation(index, 'amount', event.target.value)}
+                          disabled={isSelectedPaymentLocked}
+                          className={inputClassName}
+                          placeholder="Amount"
+                        />
+                        <input
+                          type="text"
+                          value={allocation.notes}
+                          onChange={(event) => updateCostAllocation(index, 'notes', event.target.value)}
+                          disabled={isSelectedPaymentLocked}
+                          className={inputClassName}
+                          placeholder="Notes"
+                        />
+                        {!isSelectedPaymentLocked && (
+                          <button
+                            type="button"
+                            onClick={() => removeCostAllocation(index)}
+                            className="rounded p-1 text-gray-500 hover:text-red-600"
+                            title="Remove allocation"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
 
               {selectedPayment && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -1142,6 +1444,20 @@ export function ContractPayments({
                     }`}
                   >
                     {voidMutation.isPending ? 'Updating...' : paymentForm.apStatus === 'VOID' ? 'Restore Request' : 'Void Request'}
+                  </button>
+                )}
+                {selectedPaymentId && !isSelectedPaymentLocked && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirm('Delete this payment row?')) {
+                        deleteMutation.mutate(selectedPaymentId)
+                      }
+                    }}
+                    disabled={deleteMutation.isPending || updateMutation.isPending}
+                    className="px-3 py-1.5 text-xs rounded border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                  >
+                    {deleteMutation.isPending ? 'Deleting...' : 'Delete Row'}
                   </button>
                 )}
                 {!isSelectedPaymentLocked && (
@@ -1319,7 +1635,10 @@ function buildEmptyForm(): PaymentFormValues {
     subtotal: '',
     currentBilling: '',
     earlyPayDiscount: '',
+    earlyPayDiscountPercent: '',
     amountRequesting: '',
+    acaAmountRequesting: '',
+    acaDiscrepancyNote: '',
     currentRetention: '',
     paidToDateOverride: '',
     paidToDateAdjustment: '',
@@ -1330,6 +1649,8 @@ function buildEmptyForm(): PaymentFormValues {
     conditionalAmount: '',
     unconditionalAmount: '',
     expectedLienReleaseCount: '0',
+    costAllocations: [],
+    lienReleaseIds: [],
     reference: '',
     notes: '',
   }
@@ -1346,7 +1667,10 @@ function buildPayload(form: PaymentFormValues) {
     subtotal: parseCurrencyInput(form.subtotal),
     currentBilling: parseCurrencyInput(form.currentBilling),
     earlyPayDiscount: parseCurrencyInput(form.earlyPayDiscount),
+    earlyPayDiscountPercent: parseCurrencyInput(form.earlyPayDiscountPercent),
     amountRequesting: parseCurrencyInput(form.amountRequesting),
+    acaAmountRequesting: parseCurrencyInput(form.acaAmountRequesting),
+    acaDiscrepancyNote: form.acaDiscrepancyNote || undefined,
     currentRetention: parseCurrencyInput(form.currentRetention),
     paidToDateOverride: parseCurrencyInput(form.paidToDateOverride),
     paidToDateAdjustment: parseCurrencyInput(form.paidToDateAdjustment),
@@ -1357,9 +1681,24 @@ function buildPayload(form: PaymentFormValues) {
     conditionalAmount: parseCurrencyInput(form.conditionalAmount),
     unconditionalAmount: parseCurrencyInput(form.unconditionalAmount),
     expectedLienReleaseCount: Number(form.expectedLienReleaseCount || 0),
+    costAllocations: form.costAllocations
+      .map((allocation) => ({
+        costCodeId: allocation.costCodeId,
+        amount: parseCurrencyInput(allocation.amount),
+        notes: allocation.notes || undefined,
+      }))
+      .filter((allocation) => allocation.costCodeId && allocation.amount !== undefined),
+    lienReleaseIds: form.lienReleaseIds,
     reference: form.reference || undefined,
     notes: form.notes || undefined,
   }
+}
+
+function hasAcaDiscrepancy(form: PaymentFormValues) {
+  const amountApproved = parseCurrencyInput(form.amountApproved)
+  const acaAmountRequesting = parseCurrencyInput(form.acaAmountRequesting)
+  if (amountApproved === undefined || acaAmountRequesting === undefined) return false
+  return Math.abs(roundCurrency(amountApproved) - roundCurrency(acaAmountRequesting)) > 0.009
 }
 
 function getPreviewPayment(
@@ -1389,6 +1728,7 @@ function getPreviewPayment(
   const currentRetention = manualFormulaFields.has('currentRetention')
     ? draftCurrentRetention
     : draftCurrentRetention
+  const enteredEarlyPayDiscount = parseCurrencyInput(form.earlyPayDiscount)
 
   const draftPayment: PaymentRow = {
     id: context.selectedPaymentId || 'draft-payment-row',
@@ -1404,8 +1744,12 @@ function getPreviewPayment(
     lessRetention,
     subtotal,
     currentBilling: temporaryCurrentBilling ?? null,
-    earlyPayDiscount: parseCurrencyInput(form.earlyPayDiscount) ?? 0,
+    earlyPayDiscount: manualFormulaFields.has('earlyPayDiscount') ? enteredEarlyPayDiscount ?? 0 : null,
+    earlyPayDiscountPercent: parseCurrencyInput(form.earlyPayDiscountPercent) ?? null,
     amountRequesting: parseCurrencyInput(form.amountRequesting) ?? null,
+    acaAmountRequesting: parseCurrencyInput(form.acaAmountRequesting) ?? null,
+    hasAcaDiscrepancy: hasAcaDiscrepancy(form),
+    acaDiscrepancyNote: form.acaDiscrepancyNote || null,
     currentRetention,
     paidToDateOverride: parseCurrencyInput(form.paidToDateOverride) ?? null,
     paidToDateAdjustment: parseCurrencyInput(form.paidToDateAdjustment) ?? null,
@@ -1417,6 +1761,7 @@ function getPreviewPayment(
     unconditionalAmount: parseCurrencyInput(form.unconditionalAmount) ?? null,
     expectedLienReleaseCount: Number(form.expectedLienReleaseCount || 0),
     attachments: context.payments.find((payment) => payment.id === context.selectedPaymentId)?.attachments || [],
+    lienReleaseLinks: context.payments.find((payment) => payment.id === context.selectedPaymentId)?.lienReleaseLinks || [],
     createdBy: context.payments.find((payment) => payment.id === context.selectedPaymentId)?.createdBy || {
       id: 'draft',
       firstName: 'Draft',
@@ -1428,7 +1773,7 @@ function getPreviewPayment(
 
   const computed = computeContractPayments(paymentRows, context.contractTotal, context.approvedChangeOrderTotal)
   const preview = computed.find((payment) => payment.id === draftPayment.id)!
-  const requestedDefault = roundCurrency(preview.currentBilling - (parseCurrencyInput(form.earlyPayDiscount) ?? 0))
+  const requestedDefault = roundCurrency(preview.currentBilling - preview.calculatedEarlyPayDiscount)
   const populatedCurrentRetention = manualFormulaFields.has('currentRetention')
     ? draftCurrentRetention
     : preview.previouslyWithheldRetention
@@ -1440,6 +1785,9 @@ function getPreviewPayment(
     subtotal,
     amountRequesting: manualFormulaFields.has('amountRequesting')
       ? parseCurrencyInput(form.amountRequesting) ?? requestedDefault
+      : requestedDefault,
+    acaAmountRequesting: manualFormulaFields.has('acaAmountRequesting')
+      ? parseCurrencyInput(form.acaAmountRequesting) ?? requestedDefault
       : requestedDefault,
     currentRetention: populatedCurrentRetention,
     maxPayment: manualFormulaFields.has('maxPayment')

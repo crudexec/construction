@@ -27,6 +27,7 @@ import {
   Tags,
   Layers,
   Hash,
+  ListChecks,
   Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -37,6 +38,8 @@ import { EmailConfigForm } from '@/components/settings/email-config-form'
 import { SMSConfigForm } from '@/components/settings/sms-config-form'
 import { VendorCategoryManager } from '@/components/settings/vendor-category-manager'
 import { CostCodeManager } from '@/components/settings/cost-code-manager'
+import { AssetCustomFieldManager } from '@/components/settings/asset-custom-field-manager'
+import { AssetStatusManager } from '@/components/settings/asset-status-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
 
@@ -387,6 +390,8 @@ function SettingsContent() {
     { id: 'templates', name: 'Templates', icon: FileText },
     { id: 'vendor-categories', name: 'Vendor Categories', icon: Layers },
     { id: 'cost-codes', name: 'Cost Codes', icon: Hash },
+    { id: 'asset-custom-fields', name: 'Asset Custom Fields', icon: ListChecks },
+    { id: 'asset-statuses', name: 'Asset Statuses', icon: ListChecks },
     { id: 'service-tags', name: 'Service Tags', icon: Tags },
     { id: 'file-tags', name: 'File Tags', icon: Tag },
     { id: 'notifications', name: 'Notifications', icon: Bell },
@@ -1112,6 +1117,14 @@ function SettingsContent() {
 
         {activeTab === 'cost-codes' && (
           <CostCodeManager />
+        )}
+
+        {activeTab === 'asset-custom-fields' && (
+          <AssetCustomFieldManager />
+        )}
+
+        {activeTab === 'asset-statuses' && (
+          <AssetStatusManager />
         )}
 
         {activeTab === 'service-tags' && (

@@ -1,0 +1,14 @@
+{
+  "date": "2026-07-14",
+  "font_stack": "Plus Jakarta Sans + JetBrains Mono via src/app/globals.css",
+  "palette": "Existing RGB custom properties in src/app/globals.css; Tailwind primary blue in tailwind.config.ts",
+  "motion": "framer-motion installed; existing landing animation components present",
+  "spacing": "Tailwind utilities plus --space-unit: 4px",
+  "framework": "Next.js app router",
+  "preserve": [
+    "Next.js and Tailwind",
+    "Plus Jakarta Sans and JetBrains Mono",
+    "existing global stylesheet and dashboard styles",
+    "app routes"
+  ]
+}

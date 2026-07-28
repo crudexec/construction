@@ -18,7 +18,8 @@ import {
   Warehouse,
   HelpCircle,
   FileText,
-  Contact
+  Contact,
+  AlertCircle
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
@@ -42,6 +43,7 @@ const navigation = [
   { name: 'Contacts', href: '/dashboard/contacts', icon: Contact },
   { name: 'Inventory', href: '/dashboard/inventory', icon: Warehouse },
   { name: 'Assets', href: '/dashboard/assets', icon: Package },
+  { name: 'Equipment Issues', href: '/dashboard/assets/issues', icon: AlertCircle },
   { name: 'Activity', href: '/dashboard/activity', icon: Activity },
   { name: 'Help', href: '/dashboard/help', icon: HelpCircle },
   { name: 'Settings', href: '/dashboard/settings', icon: Settings },

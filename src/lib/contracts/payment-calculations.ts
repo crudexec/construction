@@ -11,6 +11,43 @@ export interface ContractPaymentAttachmentLike {
   createdAt: string | Date
 }
 
+export interface ContractPaymentCostAllocationLike {
+  id?: string
+  costCodeId: string
+  amount: number
+  notes?: string | null
+  costCode?: {
+    id: string
+    code: string
+    name: string
+  } | null
+}
+
+export interface ContractPaymentLienReleaseLike {
+  id: string
+  lienReleaseId: string
+  lienRelease: {
+    id: string
+    type: string
+    status: string
+    title?: string | null
+    amount?: number | null
+    throughDate?: string | Date | null
+    effectiveDate?: string | Date | null
+    externalPaymentRef?: string | null
+    supplier?: {
+      id: string
+      name: string
+    } | null
+    documents?: Array<{
+      id: string
+      kind: string
+      originalName: string
+      createdAt: string | Date
+    }>
+  }
+}
+
 export interface ContractPaymentLike {
   id: string
   amount: number
@@ -26,7 +63,11 @@ export interface ContractPaymentLike {
   subtotal?: number | null
   currentBilling?: number | null
   earlyPayDiscount?: number | null
+  earlyPayDiscountPercent?: number | null
   amountRequesting?: number | null
+  acaAmountRequesting?: number | null
+  hasAcaDiscrepancy?: boolean | null
+  acaDiscrepancyNote?: string | null
   currentRetention?: number | null
   paidToDateOverride?: number | null
   paidToDateAdjustment?: number | null
@@ -38,6 +79,8 @@ export interface ContractPaymentLike {
   unconditionalAmount?: number | null
   expectedLienReleaseCount?: number | null
   attachments?: ContractPaymentAttachmentLike[]
+  costAllocations?: ContractPaymentCostAllocationLike[]
+  lienReleaseLinks?: ContractPaymentLienReleaseLike[]
 }
 
 export interface ComputedContractPayment extends ContractPaymentLike {
@@ -48,6 +91,14 @@ export interface ComputedContractPayment extends ContractPaymentLike {
   previouslyWithheldRetention: number
   currentBilling: number
   paidToDate: number
+  grossPaidToDate: number
+  netPaidToDate: number
+  currentRetentionHeld: number
+  calculatedEarlyPayDiscount: number
+  calculatedAcaDiscrepancy: boolean
+  linkedLienReleaseCount: number
+  approvedLienReleaseCount: number
+  lienReleaseComplianceDisplay: string
   lienReleaseUploadedCount: number
   lienReleaseDisplay: string
   isLocked: boolean
@@ -83,6 +134,7 @@ export function computeContractPayments(
   })
 
   let runningApprovedPaid = 0
+  let runningGrossPaid = 0
   let runningRetentionWithheld = 0
 
   const computed = sortedPayments.map<ComputedContractPayment>((payment) => {
@@ -93,12 +145,30 @@ export function computeContractPayments(
     )
     const subtotal = payment.subtotal ?? computedSubtotal
     const currentBilling = roundCurrency(payment.currentBilling ?? (subtotal - previouslyBilledApproved))
-    const basePaidToDate = roundCurrency(previouslyBilledApproved + subtotal)
-    const paidToDate = roundCurrency(
-      payment.paidToDateOverride ?? (basePaidToDate + (payment.paidToDateAdjustment ?? 0))
+    const calculatedEarlyPayDiscount = payment.earlyPayDiscount ?? roundCurrency(
+      currentBilling * ((payment.earlyPayDiscountPercent ?? 0) / 100)
     )
+    const currentPaidAmount = payment.apStatus === 'PAID' ? (payment.amountApproved ?? payment.amount ?? 0) : 0
+    const currentGrossPaid = payment.apStatus === 'PAID' ? (payment.amountComplete ?? 0) : 0
+    const netPaidToDate = roundCurrency(
+      payment.paidToDateOverride ?? (runningApprovedPaid + currentPaidAmount + (payment.paidToDateAdjustment ?? 0))
+    )
+    const grossPaidToDate = roundCurrency(runningGrossPaid + currentGrossPaid)
+    const currentRetentionHeld = roundCurrency(previouslyWithheldRetention + (payment.apStatus === 'PAID' ? (payment.currentRetention ?? 0) : 0))
+    const calculatedAcaDiscrepancy = payment.amountApproved !== null &&
+      payment.amountApproved !== undefined &&
+      payment.acaAmountRequesting !== null &&
+      payment.acaAmountRequesting !== undefined &&
+      Math.abs(roundCurrency(payment.amountApproved) - roundCurrency(payment.acaAmountRequesting)) > 0.009
     const lienReleaseUploadedCount = getLienReleaseUploadedCount(payment.attachments)
+    const linkedLienReleaseCount = payment.lienReleaseLinks?.length ?? 0
+    const approvedLienReleaseCount = payment.lienReleaseLinks?.filter((link) =>
+      link.lienRelease.status === 'APPROVED'
+    ).length ?? 0
     const expectedLienReleaseCount = payment.expectedLienReleaseCount ?? 0
+    const lienReleaseComplianceDisplay = expectedLienReleaseCount > 0
+      ? `${approvedLienReleaseCount}/${expectedLienReleaseCount}`
+      : `${approvedLienReleaseCount}/${linkedLienReleaseCount}`
 
     const computedPayment: ComputedContractPayment = {
       ...payment,
@@ -108,7 +178,15 @@ export function computeContractPayments(
       previouslyBilledApproved,
       previouslyWithheldRetention,
       currentBilling,
-      paidToDate,
+      paidToDate: netPaidToDate,
+      grossPaidToDate,
+      netPaidToDate,
+      currentRetentionHeld,
+      calculatedEarlyPayDiscount,
+      calculatedAcaDiscrepancy,
+      linkedLienReleaseCount,
+      approvedLienReleaseCount,
+      lienReleaseComplianceDisplay,
       lienReleaseUploadedCount,
       lienReleaseDisplay: expectedLienReleaseCount > 0
         ? `${lienReleaseUploadedCount}/${expectedLienReleaseCount}`
@@ -118,6 +196,7 @@ export function computeContractPayments(
 
     if (payment.apStatus === 'PAID') {
       runningApprovedPaid += payment.amountApproved ?? payment.amount ?? 0
+      runningGrossPaid += payment.amountComplete ?? 0
       runningRetentionWithheld += payment.currentRetention ?? 0
     }
 

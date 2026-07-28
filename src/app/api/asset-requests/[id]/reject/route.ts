@@ -60,9 +60,9 @@ export async function POST(
       where: { id },
       data: {
         status: 'REJECTED',
-        approvedById: user.id,
-        approvedAt: new Date(),
-        notes: reason ? `Rejected: ${reason}` : assetRequest.notes
+        rejectedById: user.id,
+        rejectedAt: new Date(),
+        rejectionReason: reason || null
       },
       include: {
         asset: true,
@@ -74,7 +74,7 @@ export async function POST(
             email: true
           }
         },
-        approvedBy: {
+        rejectedBy: {
           select: {
             id: true,
             firstName: true,

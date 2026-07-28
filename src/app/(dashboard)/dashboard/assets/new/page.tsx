@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Package } from 'lucide-react'
 import Link from 'next/link'
@@ -13,11 +13,39 @@ interface AssetFormData {
   description: string
   type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
   serialNumber: string
+  status: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED'
+  statusDefinitionId: string
+  make: string
+  model: string
+  year: string
+  vin: string
+  licensePlate: string
   currentLocation: string
   purchaseCost: string
   purchaseDate: string
   warrantyExpiry: string
   notes: string
+}
+
+interface AssetStatusDefinition {
+  id: string
+  name: string
+  baseStatus: AssetFormData['status']
+}
+
+function getToken() {
+  return document.cookie
+    .split('; ')
+    .find(row => row.startsWith('auth-token='))
+    ?.split('=')[1]
+}
+
+async function fetchAssetStatuses(): Promise<AssetStatusDefinition[]> {
+  const response = await fetch('/api/asset-statuses', {
+    headers: { Authorization: `Bearer ${getToken()}` }
+  })
+  if (!response.ok) return []
+  return response.json()
 }
 
 export default function NewAssetPage() {
@@ -31,6 +59,13 @@ export default function NewAssetPage() {
     description: '',
     type: 'EQUIPMENT',
     serialNumber: '',
+    status: 'AVAILABLE',
+    statusDefinitionId: '',
+    make: '',
+    model: '',
+    year: '',
+    vin: '',
+    licensePlate: '',
     currentLocation: '',
     purchaseCost: '',
     purchaseDate: '',
@@ -38,12 +73,14 @@ export default function NewAssetPage() {
     notes: ''
   })
 
+  const { data: assetStatuses = [] } = useQuery({
+    queryKey: ['asset-statuses'],
+    queryFn: fetchAssetStatuses
+  })
+
   const createMutation = useMutation({
     mutationFn: async (data: AssetFormData) => {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth-token='))
-        ?.split('=')[1]
+      const token = getToken()
 
       const response = await fetch('/api/assets', {
         method: 'POST',
@@ -56,6 +93,13 @@ export default function NewAssetPage() {
           description: data.description || undefined,
           type: data.type,
           serialNumber: data.serialNumber || undefined,
+          status: data.status,
+          statusDefinitionId: data.statusDefinitionId || undefined,
+          make: data.make || undefined,
+          model: data.model || undefined,
+          year: data.year || undefined,
+          vin: data.vin || undefined,
+          licensePlate: data.licensePlate || undefined,
           currentLocation: data.currentLocation || undefined,
           purchaseCost: data.purchaseCost ? parseFloat(data.purchaseCost) : undefined,
           purchaseDate: data.purchaseDate || undefined,
@@ -145,6 +189,53 @@ export default function NewAssetPage() {
             </div>
 
             <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                Base Status *
+              </label>
+              <select
+                id="status"
+                name="status"
+                value={formData.status}
+                onChange={(event) => setFormData(prev => ({ ...prev, status: event.target.value as AssetFormData['status'], statusDefinitionId: '' }))}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                required
+              >
+                <option value="AVAILABLE">Available</option>
+                <option value="IN_USE">In Use</option>
+                <option value="UNDER_MAINTENANCE">Under Maintenance</option>
+                <option value="RETIRED">Retired</option>
+                <option value="LOST_DAMAGED">Lost/Damaged</option>
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="statusDefinitionId" className="block text-sm font-medium text-gray-700 mb-1">
+                Custom Status
+              </label>
+              <select
+                id="statusDefinitionId"
+                name="statusDefinitionId"
+                value={formData.statusDefinitionId}
+                onChange={(event) => {
+                  const selected = assetStatuses.find((status) => status.id === event.target.value)
+                  setFormData(prev => ({
+                    ...prev,
+                    statusDefinitionId: event.target.value,
+                    ...(selected && { status: selected.baseStatus })
+                  }))
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">No custom status</option>
+                {assetStatuses.map((status) => (
+                  <option key={status.id} value={status.id}>
+                    {status.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
               <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-1">
                 Asset Type *
               </label>
@@ -174,6 +265,79 @@ export default function NewAssetPage() {
                 onChange={handleChange}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 placeholder="e.g., SN-12345678"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="make" className="block text-sm font-medium text-gray-700 mb-1">
+                Make
+              </label>
+              <input
+                type="text"
+                id="make"
+                name="make"
+                value={formData.make}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="e.g., CAT, Ford"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="model" className="block text-sm font-medium text-gray-700 mb-1">
+                Model
+              </label>
+              <input
+                type="text"
+                id="model"
+                name="model"
+                value={formData.model}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="e.g., 320, F-150"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="year" className="block text-sm font-medium text-gray-700 mb-1">
+                Year
+              </label>
+              <input
+                type="number"
+                id="year"
+                name="year"
+                value={formData.year}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                placeholder="e.g., 2022"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="vin" className="block text-sm font-medium text-gray-700 mb-1">
+                VIN
+              </label>
+              <input
+                type="text"
+                id="vin"
+                name="vin"
+                value={formData.vin}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="licensePlate" className="block text-sm font-medium text-gray-700 mb-1">
+                License Plate
+              </label>
+              <input
+                type="text"
+                id="licensePlate"
+                name="licensePlate"
+                value={formData.licensePlate}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               />
             </div>
 

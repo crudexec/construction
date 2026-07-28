@@ -1,0 +1,23 @@
+[
+  {
+    "date": "2026-07-14",
+    "macrostructure": "Narrative Workflow",
+    "theme": "studied-DNA",
+    "theme_axes": "light / rounded-sans / pear-coral",
+    "enrichment": "none",
+    "nav": "N1b compact",
+    "footer": "Ft8 marquee/statement hybrid",
+    "brief": "Adapt BuildFlo landing page to usehallmark Hum-07 workflow design DNA",
+    "source_url": "https://www.usehallmark.com/examples/hum-07/"
+  },
+  {
+    "date": "2026-07-14",
+    "macrostructure": "Workbench",
+    "theme": "Cobalt-adjacent construction",
+    "theme_axes": "light / rounded-sans / warm",
+    "enrichment": "Tier-A CSS product workbench",
+    "nav": "N11 Mega-menu",
+    "footer": "Ft5 Statement",
+    "brief": "Revamp BuildFlo landing page around construction CRM with vendor coordination"
+  }
+]

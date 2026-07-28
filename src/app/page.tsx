@@ -1,344 +1,262 @@
 import Link from 'next/link'
-import { 
-  Building2, 
-  CheckCircle2, 
-  ArrowRight, 
-  Users, 
-  FolderOpen, 
+import {
+  ArrowRight,
+  BellRing,
+  Building2,
+  ClipboardCheck,
   FileText,
-  BarChart3,
-  Clock,
-  Shield,
-  Zap,
-  Target,
-  TrendingUp,
-  Gavel,
-  Activity
+  HardHat,
+  PackageCheck,
+  ShieldCheck,
+  UsersRound,
 } from 'lucide-react'
-import { AnimatedBackground } from '@/components/landing/animated-background'
-import { ConstructionAnimation } from '@/components/landing/construction-animation'
-import { FloatingElements } from '@/components/landing/floating-elements'
-import { AnimatedSection } from '@/components/landing/animated-section'
+import styles from './landing.module.css'
+
+const stageNav = ['01 capture', '02 assign', '03 prove', '04 pay']
+
+const stages = [
+  {
+    number: '1.0',
+    label: 'Capture · first call',
+    title: 'Start with the lead, not a spreadsheet.',
+    body: 'Put the contact, site, budget, scope notes, and next follow-up in one pipeline before the job turns into another tab in someone’s browser.',
+    facts: ['Lead record', 'Contact details', 'Budget notes'],
+    icon: UsersRound,
+  },
+  {
+    number: '2.0',
+    label: 'Assign · job setup',
+    title: 'Turn accepted work into a job packet.',
+    body: 'Move the bid into a project with tasks, files, milestones, team ownership, and the early documents the office will need later.',
+    facts: ['Project tasks', 'Shared files', 'Milestones'],
+    icon: ClipboardCheck,
+  },
+  {
+    number: '3.0',
+    label: 'Prove · vendor work',
+    title: 'Give vendors a place to see their work.',
+    body: 'Assign subcontractors, attach contracts, collect progress updates, and keep vendor communication connected to the job instead of buried in texts.',
+    facts: ['Vendor portal', 'Contracts', 'Progress updates'],
+    icon: HardHat,
+  },
+  {
+    number: '4.0',
+    label: 'Pay · closeout',
+    title: 'Keep purchase orders and payments attached.',
+    body: 'Track supplier pricing, purchase orders, task payments, contract payments, generated documents, and closeout records without hunting across folders.',
+    facts: ['Purchase orders', 'Payments', 'Closeout docs'],
+    icon: PackageCheck,
+  },
+]
+
+const math = [
+  ['4', 'operating stages from lead to payment.'],
+  ['1', 'vendor portal for assigned work, contracts, and updates.'],
+  ['0', 'placeholder customer counts or compliance claims on this page.'],
+]
+
+const plans = [
+  {
+    name: 'Trial',
+    price: '$0',
+    description: 'Explore the workflow, create sample jobs, and see how vendor records connect to project work.',
+    action: 'Start free',
+    href: '/register',
+    features: ['Lead and project workspace', 'Vendor records', 'Document and task examples'],
+  },
+  {
+    name: 'Team',
+    price: 'Draft',
+    description: 'Use once pricing, limits, and onboarding scope are confirmed. Keep this honest until the offer is final.',
+    action: 'View demo',
+    href: '/login',
+    features: ['Vendor portal workflow', 'Purchase orders and payments', 'Client-facing project view'],
+  },
+]
 
 export default function HomePage() {
-  const features = [
-    {
-      icon: Users,
-      title: 'Lead Management',
-      description: 'Track leads through customizable pipeline stages with our intuitive kanban board'
-    },
-    {
-      icon: FolderOpen,
-      title: 'Project Tracking',
-      description: 'Manage projects from bid to completion with comprehensive task management'
-    },
-    {
-      icon: Gavel,
-      title: 'Bid Management',
-      description: 'Create, track, and manage bids with detailed cost breakdowns and timelines'
-    },
-    {
-      icon: FileText,
-      title: 'Document Control',
-      description: 'Centralize all project documents with secure sharing and version control'
-    },
-    {
-      icon: BarChart3,
-      title: 'Financial Insights',
-      description: 'Track budgets, expenses, and profitability with real-time reporting'
-    },
-    {
-      icon: Activity,
-      title: 'Activity Tracking',
-      description: 'Monitor team productivity and project progress with detailed activity logs'
-    }
-  ]
-
-  const benefits = [
-    {
-      icon: Clock,
-      title: 'Save Time',
-      stat: '40%',
-      description: 'Reduction in administrative tasks'
-    },
-    {
-      icon: TrendingUp,
-      title: 'Increase Revenue',
-      stat: '25%',
-      description: 'More projects completed on time'
-    },
-    {
-      icon: Target,
-      title: 'Improve Accuracy',
-      stat: '90%',
-      description: 'Fewer estimation errors'
-    }
-  ]
-
   return (
-    <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="border-b border-gray-200 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Building2 className="h-8 w-8 text-gray-900" />
-              <span className="text-xl font-bold text-gray-900">BuildFlo</span>
-            </div>
-            <div className="flex items-center space-x-6">
-              <Link
-                href="/login"
-                className="text-gray-600 hover:text-gray-900 font-medium text-sm transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link
-                href="/register"
-                className="bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-800 font-medium text-sm transition-colors"
-              >
-                Get Started Free
-              </Link>
-            </div>
-          </div>
+    <main className={styles.page}>
+      <header className={styles.nav}>
+        <Link href="/" className={styles.brand} aria-label="BuildFlo home">
+          <span className={styles.brandIcon}>
+            <Building2 aria-hidden="true" />
+          </span>
+          <span>BuildFlo</span>
+        </Link>
+        <nav className={styles.navLinks} aria-label="Primary navigation">
+          <Link href="#method">Method</Link>
+          <Link href="#math">Math</Link>
+          <Link href="#plans">Plans</Link>
+        </nav>
+        <div className={styles.navActions}>
+          <Link href="/login">Sign in</Link>
+          <Link href="/register" className={styles.navButton}>Start free</Link>
         </div>
-      </nav>
+      </header>
 
-      {/* Hero Section with Animations */}
-      <section className="relative overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-white" />
-        
-        {/* Animated elements - contained to hero section */}
-        <AnimatedBackground />
-        <FloatingElements />
-        <ConstructionAnimation />
-        
-        {/* Hero content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 relative z-10">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-medium mb-6">
-              <Zap className="h-4 w-4" />
-              Trusted by 500+ construction companies
-            </div>
-            <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 mb-6 leading-tight">
-              The CRM built for
-              <span className="text-primary-600 block sm:inline"> construction pros</span>
-            </h1>
-            <p className="text-xl text-gray-600 mb-10 leading-relaxed">
-              Stop juggling spreadsheets and paperwork. Manage leads, projects, and teams 
-              in one powerful platform designed specifically for contractors.
+      <section className={styles.hero}>
+        <div className={styles.stageRail} aria-label="BuildFlo workflow stages">
+          {stageNav.map((stage) => (
+            <span key={stage}>{stage}</span>
+          ))}
+        </div>
+
+        <div className={styles.heroGrid}>
+          <div>
+            <p className={styles.kicker}>
+              <ShieldCheck aria-hidden="true" />
+              Construction CRM with vendor coordination built in
             </p>
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <Link
-                href="/register"
-                className="bg-gray-900 text-white px-8 py-4 rounded-md hover:bg-gray-800 font-medium text-base transition-all transform hover:scale-105 flex items-center justify-center group"
-              >
-                Start 14-Day Free Trial
-                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            <h1>Every job, vendor, document, and payment in order.</h1>
+            <p className={styles.heroText}>
+              BuildFlo walks contractors from lead intake to project work, vendor updates,
+              purchase orders, and closeout records — one stage at a time.
+            </p>
+            <div className={styles.heroActions}>
+              <Link href="/register" className={styles.primaryButton}>
+                Start the workflow <ArrowRight aria-hidden="true" />
               </Link>
-              <Link
-                href="/login"
-                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-md hover:border-gray-400 hover:bg-gray-50 font-medium text-base transition-all"
-              >
-                View Live Demo
-              </Link>
+              <Link href="#method" className={styles.textLink}>See the four stages</Link>
             </div>
-            <p className="text-sm text-gray-500 mt-4">No credit card required • Setup in 5 minutes</p>
           </div>
+
+          <aside className={styles.timerCard} aria-label="BuildFlo workflow preview">
+            <p>BuildFlo · today</p>
+            <strong>Brightline Electric uploaded progress photos.</strong>
+            <span>
+              Next: approve task payment, attach PO, notify the project manager.
+            </span>
+          </aside>
         </div>
       </section>
 
-      {/* Stats Section - Clean, no animations */}
-      <section className="border-y border-gray-200 bg-gray-50 relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-3 gap-8">
-            {benefits.map((benefit, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl font-bold text-gray-900 mb-1">{benefit.stat}</div>
-                <div className="text-sm text-gray-600">{benefit.description}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid - Clean section */}
-      <section className="py-20 bg-white relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <AnimatedSection animation="fade-up" className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Everything you need to run your business
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              From lead capture to project completion, we've got you covered with tools built for how contractors actually work.
-            </p>
-          </AnimatedSection>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <AnimatedSection key={index} animation="fade-up" delay={index * 100}>
-                <div className="group hover:shadow-lg transition-all duration-300 rounded-lg p-6 bg-white/95 backdrop-blur border border-gray-200 hover:-translate-y-1">
-                <div className="flex items-start space-x-4">
-                  <div className="bg-gray-100 rounded-lg p-3 group-hover:bg-primary-100 transition-colors group-hover:scale-110 duration-300">
-                    <feature.icon className="h-6 w-6 text-gray-700 group-hover:text-primary-600 transition-colors" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-gray-900 mb-2">{feature.title}</h3>
-                    <p className="text-gray-600 text-sm leading-relaxed">{feature.description}</p>
-                  </div>
-                </div>
-              </div>
-              </AnimatedSection>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works - Clean section */}
-      <section className="py-20 bg-gray-50 relative z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Get up and running in minutes
-            </h2>
-            <p className="text-lg text-gray-600">
-              Our intuitive platform gets you organized fast, no training required.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="relative">
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <div className="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                  1
-                </div>
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">Import Your Data</h3>
-                <p className="text-gray-600 text-sm">
-                  Easily import existing leads and projects from spreadsheets or other tools.
-                </p>
-              </div>
-              <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                <ArrowRight className="h-8 w-8 text-gray-300" />
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-                <div className="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                  2
-                </div>
-                <h3 className="font-semibold text-lg text-gray-900 mb-2">Customize Your Workflow</h3>
-                <p className="text-gray-600 text-sm">
-                  Set up your pipeline stages, project templates, and team permissions.
-                </p>
-              </div>
-              <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                <ArrowRight className="h-8 w-8 text-gray-300" />
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-              <div className="w-12 h-12 bg-gray-900 text-white rounded-lg flex items-center justify-center font-bold text-lg mb-4">
-                3
-              </div>
-              <h3 className="font-semibold text-lg text-gray-900 mb-2">Start Growing</h3>
-              <p className="text-gray-600 text-sm">
-                Track leads, manage projects, and watch your business thrive with better organization.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonial */}
-      <section className="py-20 bg-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="bg-gray-50 rounded-2xl p-12 border border-gray-200">
-            <p className="text-xl text-gray-700 italic mb-6 leading-relaxed">
-              "BuildFlo transformed how we manage our construction business. We've doubled our project capacity 
-              without adding admin staff. The ROI was immediate."
-            </p>
-            <div className="flex items-center justify-center space-x-4">
-              <div className="text-left">
-                <div className="font-semibold text-gray-900">Michael Rodriguez</div>
-                <div className="text-sm text-gray-600">Owner, Rodriguez Construction LLC</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Security Badge */}
-      <section className="py-12 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center items-center gap-8 text-gray-500">
-            <div className="flex items-center space-x-2">
-              <Shield className="h-5 w-5" />
-              <span className="text-sm font-medium">SOC 2 Compliant</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <CheckCircle2 className="h-5 w-5" />
-              <span className="text-sm font-medium">99.9% Uptime</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Shield className="h-5 w-5" />
-              <span className="text-sm font-medium">Bank-level Security</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="py-20 bg-gray-900 relative overflow-hidden">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-600/10 via-transparent to-primary-600/10 animate-pulse-slow"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary-500/5 to-transparent"></div>
-        </div>
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-3xl font-bold text-white mb-4">
-            Ready to streamline your construction business?
-          </h2>
-          <p className="text-lg text-gray-300 mb-8">
-            Join hundreds of contractors who've simplified their operations with BuildFlo.
+      <section id="method" className={styles.method}>
+        <div className={styles.sectionIntro}>
+          <h2>Four stages, from first call to final record.</h2>
+          <p>
+            The same operating loop every job. BuildFlo keeps the timeline, the vendor
+            record, and the paperwork together so your team does not have to remember where everything lives.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link
-              href="/register"
-              className="bg-white text-gray-900 px-8 py-4 rounded-md hover:bg-gray-100 font-medium text-base transition-all flex items-center justify-center group"
-            >
-              Start Free Trial
-              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/login"
-              className="border-2 border-white text-white px-8 py-4 rounded-md hover:bg-white/10 font-medium text-base transition-all"
-            >
-              Schedule Demo
-            </Link>
-          </div>
+        </div>
+
+        <ol className={styles.steps}>
+          {stages.map((stage) => (
+            <li key={stage.number} className={styles.step}>
+              <div className={styles.stepNumber}>{stage.number}</div>
+              <article className={styles.stepCard}>
+                <div className={styles.stepCopy}>
+                  <p>{stage.label}</p>
+                  <h3>{stage.title}</h3>
+                  <span>{stage.body}</span>
+                </div>
+                <div className={styles.stepPanel}>
+                  <stage.icon aria-hidden="true" />
+                  {stage.facts.map((fact) => (
+                    <small key={fact}>{fact}</small>
+                  ))}
+                </div>
+              </article>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section id="math" className={styles.math}>
+        <div className={styles.sectionIntro}>
+          <h2>Mostly, you stop chasing.</h2>
+          <p>
+            The product value is not a made-up percentage. It is the operating record:
+            what came in, who owns it, what changed, and what still needs approval.
+          </p>
+        </div>
+        <div className={styles.mathGrid}>
+          {math.map(([value, label]) => (
+            <div key={label}>
+              <strong>{value}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-white border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center space-x-2 mb-4 md:mb-0">
-              <Building2 className="h-6 w-6 text-gray-900" />
-              <span className="text-sm font-semibold text-gray-900">BuildFlo</span>
-            </div>
-            <div className="flex items-center space-x-6 text-sm text-gray-600">
-              <Link href="#" className="hover:text-gray-900 transition-colors">Privacy</Link>
-              <Link href="#" className="hover:text-gray-900 transition-colors">Terms</Link>
-              <Link href="#" className="hover:text-gray-900 transition-colors">Contact</Link>
-            </div>
-            <div className="text-sm text-gray-500 mt-4 md:mt-0">
-              © 2024 BuildFlo. All rights reserved.
-            </div>
-          </div>
+      <section className={styles.fieldNotes}>
+        <div className={styles.sectionIntro}>
+          <h2>What this replaces.</h2>
+          <p>
+            Not one more dashboard for its own sake. A calmer replacement for the daily
+            mix of spreadsheets, shared drives, text threads, vendor calls, and payment follow-ups.
+          </p>
+        </div>
+        <div className={styles.noteGrid}>
+          <article>
+            <BellRing aria-hidden="true" />
+            <p>Follow-ups move from memory into assigned tasks and notifications.</p>
+          </article>
+          <article>
+            <FileText aria-hidden="true" />
+            <p>Contracts, generated documents, and attachments stay connected to the job.</p>
+          </article>
+          <article>
+            <HardHat aria-hidden="true" />
+            <p>Vendors see their work without getting access to internal budget fields.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="plans" className={styles.plans}>
+        <div className={styles.sectionIntro}>
+          <h2>Start small. Prove the workflow.</h2>
+          <p>
+            Keep the offer honest while pricing is finalized. The first conversion should
+            get a contractor into a demo or trial, then validate which records matter most.
+          </p>
+        </div>
+        <div className={styles.planGrid}>
+          {plans.map((plan) => (
+            <article key={plan.name} className={styles.planCard}>
+              <div>
+                <p>{plan.name}</p>
+                <strong>{plan.price}</strong>
+                <span>{plan.description}</span>
+              </div>
+              <ul>
+                {plan.features.map((feature) => (
+                  <li key={feature}>{feature}</li>
+                ))}
+              </ul>
+              <Link href={plan.href} className={plan.name === 'Trial' ? styles.primaryButton : styles.secondaryButton}>
+                {plan.action}
+              </Link>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.finalCta}>
+        <h2>Start at stage one.</h2>
+        <p>Add a lead, connect a vendor, and watch the job record become easier to trust.</p>
+        <div>
+          <Link href="/register" className={styles.primaryButton}>
+            Start the workflow <ArrowRight aria-hidden="true" />
+          </Link>
+          <Link href="/login" className={styles.textLink}>Open demo</Link>
+        </div>
+      </section>
+
+      <footer className={styles.footer}>
+        <p>Contracting is messy. The record does not have to be.</p>
+        <div className={styles.footerMeta}>
+          <strong>BuildFlo</strong>
+          <span>Remote · jobs everywhere</span>
+          <nav aria-label="Footer navigation">
+            <Link href="#method">Method</Link>
+            <Link href="#plans">Plans</Link>
+            <Link href="/login">Sign in</Link>
+          </nav>
+          <small>© 2026 BuildFlo · capture · assign · prove · pay</small>
         </div>
       </footer>
-    </div>
+    </main>
   )
 }

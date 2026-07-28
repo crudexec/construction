@@ -1,0 +1,636 @@
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R4 V5
+ * Hallmark · genre: playful · macrostructure: Narrative Workflow · theme: studied-DNA (source: https://www.usehallmark.com/examples/hum-07/) · enrichment: none · nav: N1b compact · footer: Ft8 marquee/statement hybrid
+ * F4 knobs: numbering=01/02/03, layout=vertical stack, connector=line · T4 knobs: layout=3-up, number weight=display, qualifier=under · mobile: pass target (34,49,50-57)
+ */
+.page,
+.page * {
+  box-sizing: border-box;
+}
+
+.page {
+  min-height: 100svh;
+  overflow-x: clip;
+  background:
+    radial-gradient(circle at 92% 12%, color-mix(in oklch, var(--hm-color-pear) 38%, transparent), transparent 24rem),
+    linear-gradient(180deg, var(--hm-color-paper), var(--hm-color-paper-2));
+  color: var(--hm-color-ink);
+  font-family: var(--hm-font-body);
+}
+
+.page :where(a, button):focus-visible {
+  outline: 2px solid var(--hm-color-focus);
+  outline-offset: 4px;
+}
+
+.nav {
+  width: min(var(--hm-page-max), calc(100% - (var(--hm-page-gutter) * 2)));
+  min-height: 4.5rem;
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--hm-space-lg);
+  border-block-end: var(--hm-rule-hair) solid var(--hm-color-rule);
+}
+
+.brand,
+.navLinks,
+.navActions,
+.heroActions,
+.finalCta div,
+.footerMeta nav {
+  display: flex;
+  align-items: center;
+}
+
+.brand {
+  gap: var(--hm-space-xs);
+  color: var(--hm-color-ink);
+  font-weight: 900;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.brandIcon {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: var(--hm-rule-hair) solid var(--hm-color-rule);
+  border-radius: var(--hm-radius-md);
+  background: var(--hm-color-panel);
+}
+
+.brandIcon svg {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.navLinks {
+  justify-content: center;
+  gap: var(--hm-space-lg);
+}
+
+.navActions {
+  justify-content: flex-end;
+  gap: var(--hm-space-sm);
+}
+
+.nav a,
+.footer a,
+.textLink {
+  color: var(--hm-color-ink);
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navLinks a,
+.navActions > a:first-child,
+.footerMeta a {
+  color: var(--hm-color-muted);
+  font-size: var(--hm-text-sm);
+}
+
+.navButton,
+.primaryButton,
+.secondaryButton {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--hm-space-xs);
+  border-radius: var(--hm-radius-sm);
+  font-size: var(--hm-text-sm);
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    transform var(--hm-dur-short) var(--hm-ease-out),
+    background-color var(--hm-dur-short) var(--hm-ease-out),
+    border-color var(--hm-dur-short) var(--hm-ease-out);
+}
+
+.navButton,
+.primaryButton {
+  padding-inline: var(--hm-space-md);
+  color: var(--hm-color-paper);
+  background: var(--hm-color-ink);
+}
+
+.nav .navButton,
+.nav .navButton:hover {
+  color: var(--hm-color-paper);
+}
+
+.secondaryButton {
+  padding-inline: var(--hm-space-md);
+  border: var(--hm-rule-hair) solid var(--hm-color-rule-strong);
+  color: var(--hm-color-ink);
+  background: var(--hm-color-panel);
+}
+
+.navButton:hover,
+.primaryButton:hover,
+.secondaryButton:hover {
+  transform: translateY(-2px);
+}
+
+.navButton:active,
+.primaryButton:active,
+.secondaryButton:active {
+  transform: translateY(0);
+}
+
+.primaryButton svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.hero,
+.method,
+.math,
+.fieldNotes,
+.plans,
+.finalCta,
+.footer {
+  width: min(var(--hm-page-max), calc(100% - (var(--hm-page-gutter) * 2)));
+  margin-inline: auto;
+}
+
+.hero {
+  padding-block: clamp(var(--hm-space-2xl), 8vw, var(--hm-space-4xl)) var(--hm-space-3xl);
+}
+
+.stageRail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--hm-space-sm);
+  margin-block-end: var(--hm-space-xl);
+  color: var(--hm-color-ink);
+  font-family: var(--hm-font-outlier);
+  font-size: var(--hm-text-sm);
+}
+
+.stageRail span {
+  padding: var(--hm-space-xs) var(--hm-space-sm);
+  border: var(--hm-rule-hair) solid var(--hm-color-rule);
+  border-radius: var(--hm-radius-round);
+  background: color-mix(in oklch, var(--hm-color-panel) 78%, transparent);
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.44fr);
+  gap: clamp(var(--hm-space-xl), 7vw, var(--hm-space-4xl));
+  align-items: end;
+}
+
+.kicker {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--hm-space-xs);
+  margin: 0 0 var(--hm-space-lg);
+  color: var(--hm-color-muted);
+  font-size: var(--hm-text-sm);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.kicker svg {
+  width: 1rem;
+  height: 1rem;
+  color: var(--hm-color-coral);
+}
+
+.hero h1,
+.sectionIntro h2,
+.finalCta h2,
+.footer > p {
+  margin: 0;
+  color: var(--hm-color-ink);
+  font-family: var(--hm-font-display);
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.hero h1 {
+  max-width: 15ch;
+  font-size: var(--hm-text-display);
+  line-height: 0.94;
+}
+
+.heroText {
+  max-width: 62ch;
+  margin: var(--hm-space-lg) 0 0;
+  color: var(--hm-color-ink-2);
+  font-size: var(--hm-text-md);
+  line-height: 1.5;
+}
+
+.heroActions,
+.finalCta div {
+  flex-wrap: wrap;
+  gap: var(--hm-space-md);
+  margin-block-start: var(--hm-space-xl);
+}
+
+.textLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--hm-color-ink);
+  border-block-end: 2px solid var(--hm-color-coral);
+}
+
+.timerCard {
+  display: grid;
+  gap: var(--hm-space-md);
+  padding: var(--hm-space-xl);
+  border: 2px solid var(--hm-color-ink);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-color-pear);
+  box-shadow: 10px 10px 0 var(--hm-color-ink);
+}
+
+.timerCard p {
+  margin: 0;
+  font-family: var(--hm-font-outlier);
+  font-size: var(--hm-text-xs);
+}
+
+.timerCard strong {
+  font-size: var(--hm-text-xl);
+  line-height: 1.05;
+}
+
+.timerCard span {
+  color: var(--hm-color-ink-2);
+  line-height: 1.5;
+}
+
+.method,
+.math,
+.fieldNotes,
+.plans,
+.finalCta {
+  padding-block: var(--hm-space-3xl);
+}
+
+.sectionIntro {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1fr);
+  gap: var(--hm-space-xl);
+  align-items: end;
+  margin-block-end: var(--hm-space-2xl);
+}
+
+.sectionIntro h2,
+.finalCta h2 {
+  max-width: 13ch;
+  font-size: clamp(2.2rem, 4vw, 4rem);
+  line-height: 0.98;
+}
+
+.sectionIntro p,
+.finalCta p {
+  margin: 0;
+  color: var(--hm-color-ink-2);
+  font-size: var(--hm-text-md);
+  line-height: 1.55;
+}
+
+.steps {
+  display: grid;
+  gap: var(--hm-space-xl);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--hm-space-xl);
+  align-items: stretch;
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  min-height: 7rem;
+  border: 2px solid var(--hm-color-ink);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-color-cyan);
+  color: var(--hm-color-ink);
+  font-family: var(--hm-font-outlier);
+  font-size: var(--hm-text-xl);
+  font-weight: 900;
+}
+
+.stepCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(13rem, 0.32fr);
+  gap: var(--hm-space-lg);
+  padding: var(--hm-space-xl);
+  border: var(--hm-rule-hair) solid var(--hm-color-rule);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-color-panel);
+}
+
+.stepCopy p,
+.planCard p {
+  margin: 0 0 var(--hm-space-xs);
+  color: var(--hm-color-muted);
+  font-family: var(--hm-font-outlier);
+  font-size: var(--hm-text-xs);
+}
+
+.stepCopy h3 {
+  max-width: 18ch;
+  margin: 0 0 var(--hm-space-md);
+  font-size: var(--hm-text-2xl);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.stepCopy span,
+.planCard span {
+  color: var(--hm-color-ink-2);
+  line-height: 1.55;
+}
+
+.stepPanel {
+  display: grid;
+  gap: var(--hm-space-sm);
+  align-content: center;
+  padding: var(--hm-space-lg);
+  border-radius: var(--hm-radius-lg);
+  background: var(--hm-color-paper-2);
+}
+
+.stepPanel svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--hm-color-coral);
+}
+
+.stepPanel small {
+  padding-block: var(--hm-space-xs);
+  border-block-start: var(--hm-rule-hair) solid var(--hm-color-rule);
+  color: var(--hm-color-ink);
+  font-weight: 800;
+}
+
+.math {
+  border-block: 2px solid var(--hm-color-ink);
+}
+
+.mathGrid,
+.noteGrid,
+.planGrid {
+  display: grid;
+  gap: var(--hm-space-md);
+}
+
+.mathGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.mathGrid div {
+  padding: var(--hm-space-xl);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-color-panel);
+}
+
+.mathGrid strong {
+  display: block;
+  color: var(--hm-color-coral);
+  font-size: clamp(3rem, 8vw, 6rem);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+.mathGrid span {
+  display: block;
+  margin-block-start: var(--hm-space-md);
+  color: var(--hm-color-ink-2);
+  line-height: 1.45;
+}
+
+.noteGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.noteGrid article {
+  min-width: 0;
+  padding: var(--hm-space-xl);
+  border: var(--hm-rule-hair) solid var(--hm-color-rule);
+  border-radius: var(--hm-radius-xl);
+  background: color-mix(in oklch, var(--hm-color-panel) 72%, var(--hm-color-cyan));
+}
+
+.noteGrid svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--hm-color-plum);
+}
+
+.noteGrid p {
+  margin: var(--hm-space-lg) 0 0;
+  font-size: var(--hm-text-md);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.planGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.planCard {
+  display: grid;
+  gap: var(--hm-space-lg);
+  align-content: space-between;
+  padding: var(--hm-space-xl);
+  border: 2px solid var(--hm-color-ink);
+  border-radius: var(--hm-radius-xl);
+  background: var(--hm-color-panel);
+}
+
+.planCard:first-child {
+  background: var(--hm-color-pear);
+}
+
+.planCard strong {
+  display: block;
+  margin-block-end: var(--hm-space-sm);
+  font-size: clamp(2.5rem, 5vw, 4.5rem);
+  line-height: 0.9;
+}
+
+.planCard ul {
+  display: grid;
+  gap: var(--hm-space-sm);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planCard li {
+  padding-block-start: var(--hm-space-sm);
+  border-block-start: var(--hm-rule-hair) solid color-mix(in oklch, var(--hm-color-ink) 18%, transparent);
+  color: var(--hm-color-ink-2);
+}
+
+.finalCta {
+  display: grid;
+  gap: var(--hm-space-lg);
+  border-block-start: var(--hm-rule-hair) solid var(--hm-color-rule);
+}
+
+.footer {
+  padding-block: var(--hm-space-3xl) var(--hm-space-xl);
+}
+
+.footer > p {
+  max-width: 18ch;
+  font-size: clamp(2.8rem, 7vw, 6rem);
+  line-height: 0.9;
+}
+
+.footerMeta {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: var(--hm-space-lg);
+  align-items: baseline;
+  margin-block-start: var(--hm-space-2xl);
+  padding-block-start: var(--hm-space-md);
+  border-block-start: var(--hm-rule-hair) solid var(--hm-color-rule);
+  color: var(--hm-color-muted);
+  font-size: var(--hm-text-sm);
+}
+
+.footerMeta strong {
+  color: var(--hm-color-ink);
+}
+
+.footerMeta nav {
+  justify-content: center;
+  gap: var(--hm-space-md);
+}
+
+.footerMeta small {
+  justify-self: end;
+}
+
+@media (max-width: 70rem) {
+  .nav {
+    grid-template-columns: auto auto;
+  }
+
+  .navLinks,
+  .navActions > a:first-child {
+    display: none;
+  }
+
+  .heroGrid,
+  .sectionIntro,
+  .step,
+  .stepCard,
+  .footerMeta {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .timerCard {
+    max-width: 32rem;
+  }
+
+  .footerMeta nav,
+  .footerMeta small {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 48rem) {
+  .hero {
+    padding-block-start: var(--hm-space-2xl);
+  }
+
+  .stageRail {
+    gap: var(--hm-space-xs);
+  }
+
+  .stageRail span {
+    font-size: var(--hm-text-xs);
+  }
+
+  .hero h1 {
+    font-size: var(--hm-text-display-s);
+    line-height: 0.98;
+  }
+
+  .heroText,
+  .sectionIntro p,
+  .finalCta p {
+    font-size: var(--hm-text-base);
+  }
+
+  .heroActions,
+  .finalCta div {
+    display: grid;
+  }
+
+  .primaryButton,
+  .secondaryButton {
+    width: 100%;
+  }
+
+  .timerCard,
+  .stepCard,
+  .stepPanel,
+  .mathGrid div,
+  .noteGrid article,
+  .planCard {
+    padding: var(--hm-space-lg);
+  }
+
+  .method,
+  .math,
+  .fieldNotes,
+  .plans,
+  .finalCta,
+  .footer {
+    padding-block: var(--hm-space-2xl);
+  }
+
+  .mathGrid,
+  .noteGrid,
+  .planGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 23rem) {
+  .brandIcon {
+    display: none;
+  }
+
+  .navButton {
+    padding-inline: var(--hm-space-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after {
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 150ms !important;
+  }
+}
