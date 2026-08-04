@@ -25,7 +25,6 @@ import {
 import { ContractLineItems } from '@/components/contracts/contract-line-items'
 import { ContractChangeOrders } from '@/components/contracts/contract-change-orders'
 import { ContractSummaryCard } from '@/components/contracts/contract-summary-card'
-import { ContractLienReleases } from '@/components/contracts/contract-lien-releases'
 import { ContractLienReleaseCompliance } from '@/components/contracts/contract-lien-release-compliance'
 import { ContractPayments } from '@/components/contracts/contract-payments'
 import { ContractSuppliers } from '@/components/contracts/contract-suppliers'
@@ -784,19 +783,6 @@ export default function ContractDetailPage() {
         suppliers={contract.contractSuppliers}
         payments={contract.payments || []}
         lienReleases={contract.lienReleases || []}
-      />
-
-      <ContractLienReleases
-        contractId={contract.id}
-        projects={contract.projects.map(({ project }) => ({
-          id: project.id,
-          title: project.title,
-          status: project.status
-        }))}
-        suppliers={contract.contractSuppliers.map(({ supplier }) => ({
-          id: supplier.id,
-          name: supplier.name
-        }))}
       />
 
       {/* Footer */}

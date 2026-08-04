@@ -317,7 +317,7 @@ export function ContractPayments({
     enabled: isModalOpen,
   })
   const { data: lienReleases = [] } = useQuery<LienReleaseOption[]>({
-    queryKey: ['contract-lien-releases', contractId],
+    queryKey: ['payment-lien-releases', contractId],
     queryFn: async () => {
       const token = document.cookie
         .split('; ')
@@ -1165,7 +1165,7 @@ export function ContractPayments({
                     {' '}linked/expected releases
                   </div>
                   <div className="text-[10px] text-gray-500">
-                    Use the Lien Releases tab to create missing releases, then link them here.
+                    Link the records required for this payment before AP can mark it paid.
                   </div>
                 </div>
                 <div className="max-h-60 overflow-y-auto p-3">
