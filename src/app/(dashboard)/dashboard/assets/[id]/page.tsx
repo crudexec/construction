@@ -172,7 +172,7 @@ async function fetchProjects(): Promise<Project[]> {
   })
   if (!response.ok) return []
   const data = await response.json()
-  return data.projects || []
+  return Array.isArray(data) ? data : data.projects || []
 }
 
 async function fetchVendors(): Promise<VendorOption[]> {
@@ -209,10 +209,10 @@ async function fetchAssetStatuses(): Promise<AssetStatusDefinition[]> {
 
 const getAssetTypeIcon = (type: string) => {
   switch (type) {
-    case 'VEHICLE': return <Truck className="h-6 w-6" />
-    case 'EQUIPMENT': return <Settings className="h-6 w-6" />
-    case 'TOOL': return <Wrench className="h-6 w-6" />
-    default: return <Package className="h-6 w-6" />
+    case 'VEHICLE': return <Truck className="h-4 w-4" />
+    case 'EQUIPMENT': return <Settings className="h-4 w-4" />
+    case 'TOOL': return <Wrench className="h-4 w-4" />
+    default: return <Package className="h-4 w-4" />
   }
 }
 
@@ -226,7 +226,7 @@ const getStatusBadge = (status: string, customStatus?: AssetStatusDefinition | n
   }
   const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', label: status }
   return (
-    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${config.bg} ${config.text}`}>
+    <span className={`inline-flex px-1.5 py-0.5 text-[10px] font-medium rounded ${config.bg} ${config.text}`}>
       {customStatus?.name || config.label}
     </span>
   )
@@ -582,60 +582,88 @@ export default function AssetDetailPage() {
   ]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <button onClick={() => router.back()} className="text-gray-600 hover:text-gray-900">
-            <ArrowLeft className="h-6 w-6" />
-          </button>
-          <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-600">
-            {getAssetTypeIcon(asset.type)}
+    <div className="space-y-3">
+      <div className="bg-white border rounded-lg px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700 p-1">
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center text-gray-600">
+              {getAssetTypeIcon(asset.type)}
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-semibold text-gray-900">{asset.name}</h1>
+                {getStatusBadge(asset.status, asset.statusDefinition)}
+              </div>
+              <p className="text-xs text-gray-500">
+                {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || asset.type}
+                {asset.serialNumber ? ` | SN: ${asset.serialNumber}` : ''}
+              </p>
+            </div>
+            <div className="hidden md:flex items-center gap-4 ml-6 pl-6 border-l border-gray-200">
+              <div className="flex items-center gap-1.5 text-sm">
+                <DollarSign className="h-4 w-4 text-green-500" />
+                <span className="font-medium">{asset.purchaseCost ? formatCurrency(asset.purchaseCost) : '-'}</span>
+                <span className="text-gray-400 text-xs">cost</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <Clock className="h-4 w-4 text-purple-500" />
+                <span className="font-medium">{asset.requests.length}</span>
+                <span className="text-gray-400 text-xs">requests</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <Settings className="h-4 w-4 text-orange-500" />
+                <span className="font-medium">{asset.maintenanceRecords.length}</span>
+                <span className="text-gray-400 text-xs">service</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <span className="font-medium">{asset._count?.issues || 0}</span>
+                <span className="text-gray-400 text-xs">issues</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">{asset.name}</h1>
-            {asset.serialNumber && <p className="text-gray-600">SN: {asset.serialNumber}</p>}
-          </div>
-          {getStatusBadge(asset.status, asset.statusDefinition)}
-        </div>
-        <div className="flex space-x-2">
+          <div className="flex items-center gap-2">
           {isEditing ? (
             <>
-              <button onClick={handleCancelEdit} className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2">
-                <X className="h-4 w-4" />
+              <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+                <X className="h-3.5 w-3.5" />
                 <span>Cancel</span>
               </button>
               <button
                 onClick={() => updateMutation.mutate()}
                 disabled={updateMutation.isPending}
-                className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2 disabled:opacity-50"
+                className="text-primary-700 hover:text-primary-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-primary-50 rounded disabled:opacity-50"
               >
-                <Save className="h-4 w-4" />
+                <Save className="h-3.5 w-3.5" />
                 <span>{updateMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
               </button>
             </>
           ) : (
             <>
-              <button onClick={() => setShowQrModal(true)} className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2">
-                <QrCode className="h-4 w-4" />
+              <button onClick={() => setShowQrModal(true)} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+                <QrCode className="h-3.5 w-3.5" />
                 <span>QR Code</span>
               </button>
-              <button onClick={() => setIsEditing(true)} className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2">
-                <Edit className="h-4 w-4" />
+              <button onClick={() => setIsEditing(true)} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+                <Edit className="h-3.5 w-3.5" />
                 <span>Edit</span>
               </button>
               {isAdmin && (
                 <button
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 flex items-center space-x-2 disabled:opacity-50"
+                  className="text-red-600 hover:text-red-700 px-2 py-1 text-sm flex items-center gap-1 hover:bg-red-50 rounded disabled:opacity-50"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                   <span>Delete</span>
                 </button>
               )}
             </>
           )}
+          </div>
         </div>
       </div>
 
@@ -657,55 +685,16 @@ export default function AssetDetailPage() {
         </div>
       )}
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <DollarSign className="h-8 w-8 text-green-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">{asset.purchaseCost ? formatCurrency(asset.purchaseCost) : 'N/A'}</div>
-              <div className="text-sm text-gray-500">Purchase Cost</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Calendar className="h-8 w-8 text-blue-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">{asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : 'N/A'}</div>
-              <div className="text-sm text-gray-500">Purchase Date</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Clock className="h-8 w-8 text-purple-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">{asset.requests.length}</div>
-              <div className="text-sm text-gray-500">Total Requests</div>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow border">
-          <div className="flex items-center">
-            <Settings className="h-8 w-8 text-orange-600" />
-            <div className="ml-4">
-              <div className="text-2xl font-bold text-gray-900">{asset.maintenanceRecords.length}</div>
-              <div className="text-sm text-gray-500">Maintenance Records</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-6 overflow-x-auto">
+      <div className="border-b border-gray-200 bg-white rounded-t-lg px-2">
+        <nav className="-mb-px flex space-x-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                activeTab === tab.id ? 'border-primary-500 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              className={`py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-b-2 border-primary-500 text-primary-600'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab.label}

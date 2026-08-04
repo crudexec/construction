@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Package } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -40,9 +40,18 @@ function getToken() {
     ?.split('=')[1]
 }
 
+function getAuthHeaders(extraHeaders: HeadersInit = {}) {
+  const token = getToken()
+  return {
+    ...extraHeaders,
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  }
+}
+
 async function fetchAssetStatuses(): Promise<AssetStatusDefinition[]> {
   const response = await fetch('/api/asset-statuses', {
-    headers: { Authorization: `Bearer ${getToken()}` }
+    headers: getAuthHeaders(),
+    credentials: 'include'
   })
   if (!response.ok) return []
   return response.json()
@@ -80,14 +89,12 @@ export default function NewAssetPage() {
 
   const createMutation = useMutation({
     mutationFn: async (data: AssetFormData) => {
-      const token = getToken()
-
       const response = await fetch('/api/assets', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
+        headers: getAuthHeaders({
           'Content-Type': 'application/json'
-        },
+        }),
+        credentials: 'include',
         body: JSON.stringify({
           name: data.name,
           description: data.description || undefined,
@@ -141,7 +148,7 @@ export default function NewAssetPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center space-x-4">
         <Link
@@ -150,12 +157,9 @@ export default function NewAssetPage() {
         >
           <ArrowLeft className="h-6 w-6" />
         </Link>
-        <div className="flex items-center space-x-3">
-          <Package className="h-8 w-8 text-primary-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Add New Asset</h1>
-            <p className="text-sm text-gray-600">Register a new asset in the system</p>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Add New Asset</h1>
+          <p className="text-gray-600">Create a new equipment, vehicle, or tool profile</p>
         </div>
       </div>
 
@@ -167,10 +171,10 @@ export default function NewAssetPage() {
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow border p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-8">
         {/* Basic Information */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+        <div className="bg-white rounded-lg shadow border p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
@@ -359,8 +363,8 @@ export default function NewAssetPage() {
         </div>
 
         {/* Location */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Location</h3>
+        <div className="bg-white rounded-lg shadow border p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Location</h3>
           <div>
             <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700 mb-1">
               Current Location
@@ -378,8 +382,8 @@ export default function NewAssetPage() {
         </div>
 
         {/* Purchase Information */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Purchase Information</h3>
+        <div className="bg-white rounded-lg shadow border p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Purchase Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label htmlFor="purchaseCost" className="block text-sm font-medium text-gray-700 mb-1">
@@ -426,7 +430,7 @@ export default function NewAssetPage() {
         </div>
 
         {/* Notes */}
-        <div>
+        <div className="bg-white rounded-lg shadow border p-6">
           <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1">
             Additional Notes
           </label>
