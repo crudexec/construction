@@ -149,12 +149,20 @@ export function computeContractPayments(
       currentBilling * ((payment.earlyPayDiscountPercent ?? 0) / 100)
     )
     const currentPaidAmount = payment.apStatus === 'PAID' ? (payment.amountApproved ?? payment.amount ?? 0) : 0
-    const currentGrossPaid = payment.apStatus === 'PAID' ? (payment.amountComplete ?? 0) : 0
+    const currentGrossPaid = payment.apStatus === 'PAID' ? (payment.amountComplete ?? runningGrossPaid) : runningGrossPaid
     const netPaidToDate = roundCurrency(
       payment.paidToDateOverride ?? (runningApprovedPaid + currentPaidAmount + (payment.paidToDateAdjustment ?? 0))
     )
-    const grossPaidToDate = roundCurrency(runningGrossPaid + currentGrossPaid)
-    const currentRetentionHeld = roundCurrency(previouslyWithheldRetention + (payment.apStatus === 'PAID' ? (payment.currentRetention ?? 0) : 0))
+    const grossPaidToDate = roundCurrency(currentGrossPaid)
+    const storedRetention = payment.currentRetention ?? null
+    const paidRetentionHeld = storedRetention === null
+      ? previouslyWithheldRetention + (payment.lessRetention ?? 0)
+      : storedRetention >= previouslyWithheldRetention
+        ? storedRetention
+        : previouslyWithheldRetention + storedRetention
+    const currentRetentionHeld = roundCurrency(
+      payment.apStatus === 'PAID' ? paidRetentionHeld : previouslyWithheldRetention
+    )
     const calculatedAcaDiscrepancy = payment.amountApproved !== null &&
       payment.amountApproved !== undefined &&
       payment.acaAmountRequesting !== null &&
@@ -190,14 +198,14 @@ export function computeContractPayments(
       lienReleaseUploadedCount,
       lienReleaseDisplay: expectedLienReleaseCount > 0
         ? `${lienReleaseUploadedCount}/${expectedLienReleaseCount}`
-        : `${lienReleaseUploadedCount}`,
+        : `${lienReleaseUploadedCount}/${linkedLienReleaseCount}`,
       isLocked: isContractPaymentLocked(payment),
     }
 
     if (payment.apStatus === 'PAID') {
       runningApprovedPaid += payment.amountApproved ?? payment.amount ?? 0
-      runningGrossPaid += payment.amountComplete ?? 0
-      runningRetentionWithheld += payment.currentRetention ?? 0
+      runningGrossPaid = payment.amountComplete ?? runningGrossPaid
+      runningRetentionWithheld = currentRetentionHeld
     }
 
     return computedPayment

@@ -15,7 +15,7 @@ import { useCurrency } from '@/hooks/useCurrency'
 import { useAuth } from '@/hooks/use-auth'
 import { DatePicker } from '@/components/ui/date-picker'
 
-type AttachmentKind = 'CONDITIONAL_LIEN_RELEASE' | 'UNCONDITIONAL_LIEN_RELEASE' | 'GENERAL_ATTACHMENT'
+type AttachmentKind = 'GENERAL_ATTACHMENT'
 
 interface PaymentRow extends ContractPaymentLike {
   createdBy: {
@@ -116,8 +116,6 @@ const PM_STATUS_OPTIONS: ContractPaymentPMStatus[] = ['PENDING', 'APPROVED', 'RE
 const AP_STATUS_OPTIONS: ContractPaymentAPStatus[] = ['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID', 'VOID']
 
 const LIEN_ATTACHMENT_LABELS: Record<AttachmentKind, string> = {
-  CONDITIONAL_LIEN_RELEASE: 'Conditional Lien Release',
-  UNCONDITIONAL_LIEN_RELEASE: 'Unconditional Lien Release',
   GENERAL_ATTACHMENT: 'Attachment',
 }
 
@@ -135,8 +133,6 @@ const CURRENCY_FIELDS = new Set<keyof PaymentFormValues>([
   'paidToDateAdjustment',
   'maxPayment',
   'amountApproved',
-  'conditionalAmount',
-  'unconditionalAmount',
 ])
 
 function formatDate(value?: string | Date | null) {
@@ -589,12 +585,9 @@ export function ContractPayments({
   const netPaidToDate = computedPayments
     .filter((payment) => payment.apStatus === 'PAID')
     .reduce((sum, payment) => sum + (payment.amountApproved ?? payment.amount ?? 0), 0)
-  const grossPaidToDate = computedPayments
-    .filter((payment) => payment.apStatus === 'PAID')
-    .reduce((sum, payment) => sum + (payment.amountComplete ?? 0), 0)
-  const currentRetentionHeld = computedPayments
-    .filter((payment) => payment.apStatus === 'PAID')
-    .reduce((sum, payment) => sum + (payment.currentRetention ?? 0), 0)
+  const latestPaidPayment = computedPayments.find((payment) => payment.apStatus === 'PAID')
+  const grossPaidToDate = latestPaidPayment?.grossPaidToDate ?? 0
+  const currentRetentionHeld = latestPaidPayment?.currentRetentionHeld ?? 0
   const revisedContract = roundCurrency(contractTotal + approvedChangeOrderTotal)
   const remaining = revisedContract - netPaidToDate
   const paidPercentage = revisedContract > 0 ? (netPaidToDate / revisedContract) * 100 : 0
@@ -630,7 +623,7 @@ export function ContractPayments({
         assignIfNeeded('acaAmountRequesting', currencyToInput(preview.amountRequesting))
       }
       if (!manualFormulaFields.has('currentRetention')) assignIfNeeded('currentRetention', currencyToInput(preview.currentRetention))
-      if (!manualFormulaFields.has('maxPayment') && !current.maxPayment) assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
+      if (!manualFormulaFields.has('maxPayment')) assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
       if (!manualFormulaFields.has('amountApproved') && !current.amountApproved) assignIfNeeded('amountApproved', currencyToInput(preview.amountRequesting))
 
       return changed ? next : current
@@ -657,7 +650,7 @@ export function ContractPayments({
   const openEditModal = (payment: ComputedContractPayment) => {
     setSelectedPaymentId(payment.id)
     setLocallyUnlockedPaymentId(null)
-    setManualFormulaFields(new Set(['lessRetention', 'subtotal', 'currentBilling', 'earlyPayDiscount', 'amountRequesting', 'acaAmountRequesting', 'currentRetention', 'maxPayment', 'amountApproved']))
+    setManualFormulaFields(new Set(['amountRequesting', 'acaAmountRequesting', 'amountApproved']))
     setPaymentForm(buildFormFromPayment(payment))
     setIsModalOpen(true)
   }
@@ -674,7 +667,17 @@ export function ContractPayments({
     if (CURRENCY_FIELDS.has(field)) {
       setManualFormulaFields((prev) => {
         const next = new Set(prev)
-        if (['lessRetention', 'subtotal', 'currentBilling', 'earlyPayDiscount', 'amountRequesting', 'acaAmountRequesting', 'currentRetention', 'maxPayment', 'amountApproved', 'conditionalAmount', 'unconditionalAmount'].includes(field)) {
+        if (field === 'earlyPayDiscountPercent') {
+          next.delete('earlyPayDiscount')
+        }
+        if (field === 'amountComplete') {
+          next.delete('lessRetention')
+          next.delete('subtotal')
+          next.delete('currentBilling')
+          next.delete('currentRetention')
+          next.delete('maxPayment')
+        }
+        if (['lessRetention', 'subtotal', 'currentBilling', 'earlyPayDiscount', 'amountRequesting', 'acaAmountRequesting', 'amountApproved'].includes(field)) {
           next.add(field)
         }
         return next
@@ -773,11 +776,20 @@ export function ContractPayments({
     selectedPaymentId,
   })
   const hasCurrentAcaDiscrepancy = hasAcaDiscrepancy(paymentForm)
+  const isAcaPaidBlocked = paymentForm.apStatus === 'PAID' && hasCurrentAcaDiscrepancy
+  const isDiscrepancyReviewActive = hasCurrentAcaDiscrepancy || Boolean(paymentForm.acaDiscrepancyNote.trim())
+  const isSaveDisabled = createMutation.isPending ||
+    updateMutation.isPending ||
+    unlockMutation.isPending ||
+    voidMutation.isPending ||
+    isAcaPaidBlocked
   const approvedAllocationTotal = roundCurrency(
     paymentForm.costAllocations.reduce((sum, allocation) => sum + (parseCurrencyInput(allocation.amount) ?? 0), 0)
   )
   const linkedLienReleases = lienReleases.filter((release) => paymentForm.lienReleaseIds.includes(release.id))
   const approvedLinkedLienReleaseCount = linkedLienReleases.filter((release) => release.status === 'APPROVED').length
+  const expectedLienReleaseTarget = Number(paymentForm.expectedLienReleaseCount || 0) || linkedLienReleases.length || 0
+  const releaseDocumentsUploadedDisplay = `${previewPayment.lienReleaseUploadedCount}/${expectedLienReleaseTarget}`
 
   return (
     <>
@@ -861,8 +873,6 @@ export function ContractPayments({
                   <HeaderCell>Amount Approved</HeaderCell>
                   <HeaderCell>PM Status</HeaderCell>
                   <HeaderCell>AP Status</HeaderCell>
-                  <HeaderCell>Conditional</HeaderCell>
-                  <HeaderCell>Unconditional</HeaderCell>
                   <HeaderCell>Lien Releases</HeaderCell>
                   <HeaderCell>Release Docs</HeaderCell>
                   <HeaderCell>Cost Codes</HeaderCell>
@@ -900,8 +910,6 @@ export function ContractPayments({
                     <BodyCell>{formatCurrency(payment.amountApproved ?? 0)}</BodyCell>
                     <BodyCell><StatusBadge value={payment.pmStatus} /></BodyCell>
                     <BodyCell><StatusBadge value={payment.apStatus} /></BodyCell>
-                    <BodyCell>{formatCurrency(payment.conditionalAmount ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.unconditionalAmount ?? 0)}</BodyCell>
                     <BodyCell>
                       <div className="flex flex-col gap-0.5">
                         <span>{payment.lienReleaseComplianceDisplay}</span>
@@ -1020,16 +1028,18 @@ export function ContractPayments({
                 </FormField>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
                 <SummaryCard label="Original Contract" value={formatCurrency(previewPayment.originalContractAmount)} />
                 <SummaryCard label="Modifications" value={formatCurrency(previewPayment.modifications)} />
                 <SummaryCard label="Revised Contract" value={formatCurrency(previewPayment.revisedContract)} />
                 <SummaryCard label="Retention %" value={`${retentionPercent ?? 0}%`} />
+                <SummaryCard label="Current Retention Held" value={formatCurrency(previewPayment.currentRetention)} />
+                <SummaryCard label="Max Payment" value={formatCurrency(previewPayment.maxPayment ?? 0)} />
               </div>
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <SummaryCard label="Linked Lien Releases" value={`${approvedLinkedLienReleaseCount}/${paymentForm.expectedLienReleaseCount || linkedLienReleases.length || 0}`} />
-                <SummaryCard label="Release Documents Uploaded" value={previewPayment.lienReleaseDisplay} />
+                <SummaryCard label="Linked Lien Releases" value={`${approvedLinkedLienReleaseCount}/${expectedLienReleaseTarget}`} />
+                <SummaryCard label="Release Documents Uploaded" value={releaseDocumentsUploadedDisplay} />
                 <SummaryCard label="Previously Billed Approved" value={formatCurrency(previewPayment.previouslyBilledApproved)} />
               </div>
 
@@ -1086,13 +1096,7 @@ export function ContractPayments({
                   disabled={isSelectedPaymentLocked}
                   helperText="Calculated from the percentage, or manually entered."
                 />
-                <CurrencyInputField
-                  label="Current Retention"
-                  value={paymentForm.currentRetention}
-                  onChange={(value) => handleCurrencyChange('currentRetention', value)}
-                  disabled={isSelectedPaymentLocked}
-                  helperText="Cumulative retention withheld from prior paid requests."
-                />
+                <SummaryCard label="Current Retention Held" value={formatCurrency(previewPayment.currentRetention)} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -1122,13 +1126,23 @@ export function ContractPayments({
                       }))
                     }}
                     disabled={isSelectedPaymentLocked}
-                    className="mb-4 rounded border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                    className={`mb-4 rounded border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+                      isDiscrepancyReviewActive
+                        ? 'border-amber-500 bg-amber-100 text-amber-900'
+                        : 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                    }`}
                   >
-                    Discrepancy
+                    {isDiscrepancyReviewActive ? 'Discrepancy Active' : 'Discrepancy'}
                   </button>
                 </div>
                 <div />
               </div>
+
+              {isDiscrepancyReviewActive && (
+                <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Discrepancy review is active. Use the ACA Amount Requesting field as the AP-controlled amount and resolve any mismatch before setting AP status to Paid.
+                </div>
+              )}
 
               {hasCurrentAcaDiscrepancy && (
                 <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">
@@ -1144,13 +1158,7 @@ export function ContractPayments({
                 <SummaryCard label="Net PTD Preview" value={formatCurrency(previewPayment.paidToDate)} />
                 <SummaryCard label="Gross PTD Preview" value={formatCurrency(previewPayment.grossPaidToDate)} />
                 <SummaryCard label="Retention Held Preview" value={formatCurrency(previewPayment.currentRetentionHeld)} />
-                <CurrencyInputField
-                  label="Max Payment"
-                  value={paymentForm.maxPayment}
-                  onChange={(value) => handleCurrencyChange('maxPayment', value)}
-                  disabled={isSelectedPaymentLocked}
-                  helperText="Contract cap for this request after retention is considered."
-                />
+                <SummaryCard label="Max Payment" value={formatCurrency(previewPayment.maxPayment ?? 0)} />
               </div>
 
               <SectionHeader
@@ -1161,7 +1169,7 @@ export function ContractPayments({
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-gray-50 px-3 py-2">
                   <div className="text-xs text-gray-700">
                     Approved <span className="font-semibold">{approvedLinkedLienReleaseCount}</span>
-                    {' '}of <span className="font-semibold">{paymentForm.expectedLienReleaseCount || linkedLienReleases.length || 0}</span>
+                    {' '}of <span className="font-semibold">{expectedLienReleaseTarget}</span>
                     {' '}linked/expected releases
                   </div>
                   <div className="text-[10px] text-gray-500">
@@ -1206,8 +1214,8 @@ export function ContractPayments({
               </div>
 
               <SectionHeader
-                title="Approval & Releases"
-                description="Record approved amounts, lien release values, and workflow statuses."
+                title="Approval Workflow"
+                description="Record approved amounts and workflow statuses."
               />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <CurrencyInputField
@@ -1217,20 +1225,8 @@ export function ContractPayments({
                   disabled={isSelectedPaymentLocked}
                   helperText="Amount approved internally for payment processing."
                 />
-                <CurrencyInputField
-                  label="Conditional"
-                  value={paymentForm.conditionalAmount}
-                  onChange={(value) => handleCurrencyChange('conditionalAmount', value)}
-                  disabled={isSelectedPaymentLocked}
-                  helperText="Conditional lien release amount tied to this request."
-                />
-                <CurrencyInputField
-                  label="Unconditional"
-                  value={paymentForm.unconditionalAmount}
-                  onChange={(value) => handleCurrencyChange('unconditionalAmount', value)}
-                  disabled={isSelectedPaymentLocked}
-                  helperText="Unconditional lien release amount after payment clears."
-                />
+                <div />
+                <div />
                 <div />
               </div>
 
@@ -1250,7 +1246,14 @@ export function ContractPayments({
                 <FormField label="AP Status" helperText="Accounts payable processing state for this request.">
                   <select
                     value={paymentForm.apStatus}
-                    onChange={(event) => setPaymentForm((current) => ({ ...current, apStatus: event.target.value as ContractPaymentAPStatus }))}
+                    onChange={(event) => {
+                      const nextStatus = event.target.value as ContractPaymentAPStatus
+                      if (nextStatus === 'PAID' && hasCurrentAcaDiscrepancy) {
+                        toast.error('AP status cannot be Paid until ACA Amount Requesting matches Amount Approved')
+                        return
+                      }
+                      setPaymentForm((current) => ({ ...current, apStatus: nextStatus }))
+                    }}
                     disabled={isSelectedPaymentLocked}
                     className={inputClassName}
                   >
@@ -1293,6 +1296,12 @@ export function ContractPayments({
                   className={inputClassName}
                 />
               </FormField>
+
+              {isAcaPaidBlocked && (
+                <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+                  Save Changes is disabled because AP Status is Paid while Amount Approved and ACA Amount Requesting do not match.
+                </div>
+              )}
 
               <SectionHeader
                 title="Approved Amount Cost Codes"
@@ -1368,7 +1377,7 @@ export function ContractPayments({
 
               {selectedPayment && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {(['CONDITIONAL_LIEN_RELEASE', 'UNCONDITIONAL_LIEN_RELEASE', 'GENERAL_ATTACHMENT'] as AttachmentKind[]).map((kind) => (
+                  {(['GENERAL_ATTACHMENT'] as AttachmentKind[]).map((kind) => (
                     <div key={kind} className="rounded border border-gray-200">
                       <div className="px-3 py-2 border-b bg-gray-50 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -1464,7 +1473,7 @@ export function ContractPayments({
                   <button
                     type="button"
                     onClick={handleSave}
-                    disabled={createMutation.isPending || updateMutation.isPending || unlockMutation.isPending || voidMutation.isPending}
+                    disabled={isSaveDisabled}
                     className="px-3 py-1.5 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
                   >
                     {selectedPaymentId ? (updateMutation.isPending ? 'Saving...' : 'Save Changes') : (createMutation.isPending ? 'Creating...' : 'Create Row')}
@@ -1724,9 +1733,11 @@ function getPreviewPayment(
     ? parseCurrencyInput(form.currentBilling)
     : undefined
   const paymentRowsWithoutDraft = context.payments.filter((payment) => payment.id !== context.selectedPaymentId)
-  const draftCurrentRetention = parseCurrencyInput(form.currentRetention) ?? 0
+  const previousComputedPayments = computeContractPayments(paymentRowsWithoutDraft, context.contractTotal, context.approvedChangeOrderTotal)
+  const previousRetentionHeld = previousComputedPayments.find((payment) => payment.apStatus === 'PAID')?.currentRetentionHeld ?? 0
+  const draftCurrentRetention = roundCurrency(previousRetentionHeld + lessRetention)
   const currentRetention = manualFormulaFields.has('currentRetention')
-    ? draftCurrentRetention
+    ? parseCurrencyInput(form.currentRetention) ?? draftCurrentRetention
     : draftCurrentRetention
   const enteredEarlyPayDiscount = parseCurrencyInput(form.earlyPayDiscount)
 
@@ -1775,9 +1786,13 @@ function getPreviewPayment(
   const preview = computed.find((payment) => payment.id === draftPayment.id)!
   const requestedDefault = roundCurrency(preview.currentBilling - preview.calculatedEarlyPayDiscount)
   const populatedCurrentRetention = manualFormulaFields.has('currentRetention')
-    ? draftCurrentRetention
-    : preview.previouslyWithheldRetention
-  const maxPaymentDefault = roundCurrency(preview.revisedContract - lessRetention)
+    ? parseCurrencyInput(form.currentRetention) ?? draftCurrentRetention
+    : draftCurrentRetention
+  const retentionCap = roundCurrency(preview.revisedContract * ((context.retentionPercent || 0) / 100))
+  const maxEarnedLessRetention = roundCurrency(preview.revisedContract - retentionCap)
+  const maxPaymentDefault = roundCurrency(
+    Math.min(subtotal, maxEarnedLessRetention) - preview.previouslyBilledApproved
+  )
 
   return {
     ...preview,
