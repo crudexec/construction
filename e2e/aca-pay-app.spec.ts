@@ -222,6 +222,43 @@ test('rejects approved payment allocations that reference cost codes outside the
   })
 })
 
+test('uses the computed max payment consistently in the grid and modal', async ({ page, request }) => {
+  const token = await loginToken(request)
+  const createResponse = await request.post(`/api/contracts/${fixture.contractId}/payments`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    data: {
+      paymentDate: '2026-07-01',
+      billingPeriodDate: '2026-06-30',
+      submittedBy: 'E2E Max Check',
+      amountComplete: 20_000,
+      lessRetention: 2_000,
+      subtotal: 18_000,
+      currentBilling: 18_000,
+      amountRequesting: 18_000,
+      acaAmountRequesting: 18_000,
+      amountApproved: 18_000,
+      maxPayment: -12_345,
+      expectedLienReleaseCount: 0,
+      pmStatus: 'PENDING',
+      apStatus: 'PROCESSING',
+    },
+  })
+  expect(createResponse.status()).toBe(201)
+
+  await login(page, fixture.user.email, fixture.user.password)
+  await page.goto(`/dashboard/vendors/${fixture.vendorId}/contracts/${fixture.contractId}`)
+
+  const payments = page.getByTestId('contract-payments')
+  const row = payments.locator('tr', { hasText: 'E2E Max Check' }).first()
+  await expect(row.locator('td').nth(17)).toHaveText('$18,000.00')
+
+  await row.locator('button[title="Edit payment row"]').click()
+  const dialog = page.getByRole('dialog', { name: 'Edit Payment Row' })
+  await expect(dialog.locator('div').filter({ hasText: /^Max Payment\$18,000\.00$/ }).first()).toBeVisible()
+})
+
 test('shows ACA workflow fields in the payment grid and detail modal', async ({ page }) => {
   await login(page, fixture.user.email, fixture.user.password)
   await page.goto(`/dashboard/vendors/${fixture.vendorId}/contracts/${fixture.contractId}`)
@@ -257,6 +294,10 @@ test('shows ACA workflow fields in the payment grid and detail modal', async ({ 
   await fieldByLabel(dialog, 'Current Billing').fill('45000')
   await fieldByLabel(dialog, 'Early Pay Discount %').fill('5')
   await expect(fieldByLabel(dialog, 'Early Pay Discount $')).toHaveValue('2250')
+  await fieldByLabel(dialog, 'Current Billing').fill('0')
+  await fieldByLabel(dialog, 'Amount Requesting').fill('10000')
+  await fieldByLabel(dialog, 'Early Pay Discount %').fill('5')
+  await expect(fieldByLabel(dialog, 'Early Pay Discount $')).toHaveValue('500')
   await expect(dialog.getByRole('button', { name: 'Void Request' })).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Delete Row' })).toBeVisible()
 })

@@ -108,6 +108,10 @@ const toTime = (value?: string | Date | null) => (value ? new Date(value).getTim
 
 const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 
+function firstPositiveAmount(...values: Array<number | null | undefined>) {
+  return values.find((value) => value !== null && value !== undefined && value > 0) ?? 0
+}
+
 export function getLienReleaseUploadedCount(attachments: ContractPaymentAttachmentLike[] = []) {
   return attachments.filter((attachment) =>
     attachment.kind === 'CONDITIONAL_LIEN_RELEASE' || attachment.kind === 'UNCONDITIONAL_LIEN_RELEASE'
@@ -122,6 +126,7 @@ export function computeContractPayments(
   payments: ContractPaymentLike[],
   contractValue: number,
   approvedChangeOrderTotal: number,
+  retentionPercent = 0,
 ) {
   const originalContractAmount = roundCurrency(contractValue || 0)
   const modifications = roundCurrency(approvedChangeOrderTotal || 0)
@@ -145,9 +150,19 @@ export function computeContractPayments(
     )
     const subtotal = payment.subtotal ?? computedSubtotal
     const currentBilling = roundCurrency(payment.currentBilling ?? (subtotal - previouslyBilledApproved))
-    const calculatedEarlyPayDiscount = payment.earlyPayDiscount ?? roundCurrency(
-      currentBilling * ((payment.earlyPayDiscountPercent ?? 0) / 100)
+    const discountBasis = firstPositiveAmount(
+      currentBilling,
+      payment.amountRequesting,
+      payment.acaAmountRequesting,
+      payment.amountApproved,
+      payment.amount
     )
+    const discountPercent = payment.earlyPayDiscountPercent ?? 0
+    const hasStoredDiscount = payment.earlyPayDiscount !== null && payment.earlyPayDiscount !== undefined
+    const shouldUseStoredDiscount = hasStoredDiscount && (payment.earlyPayDiscount !== 0 || discountPercent === 0)
+    const calculatedEarlyPayDiscount = shouldUseStoredDiscount
+      ? payment.earlyPayDiscount!
+      : roundCurrency(discountBasis * (discountPercent / 100))
     const currentPaidAmount = payment.apStatus === 'PAID' ? (payment.amountApproved ?? payment.amount ?? 0) : 0
     const currentGrossPaid = payment.apStatus === 'PAID' ? (payment.amountComplete ?? runningGrossPaid) : runningGrossPaid
     const netPaidToDate = roundCurrency(
@@ -163,6 +178,10 @@ export function computeContractPayments(
     const currentRetentionHeld = roundCurrency(
       payment.apStatus === 'PAID' ? paidRetentionHeld : previouslyWithheldRetention
     )
+    const retentionCap = roundCurrency(revisedContract * ((retentionPercent || 0) / 100))
+    const maxEarnedLessRetention = roundCurrency(revisedContract - retentionCap)
+    const maxPayment = roundCurrency(Math.min(subtotal, maxEarnedLessRetention) - previouslyBilledApproved)
+    const grossPaidFallback = roundCurrency(netPaidToDate + currentRetentionHeld)
     const calculatedAcaDiscrepancy = payment.amountApproved !== null &&
       payment.amountApproved !== undefined &&
       payment.acaAmountRequesting !== null &&
@@ -187,9 +206,10 @@ export function computeContractPayments(
       previouslyWithheldRetention,
       currentBilling,
       paidToDate: netPaidToDate,
-      grossPaidToDate,
+      grossPaidToDate: grossPaidToDate > 0 ? grossPaidToDate : grossPaidFallback,
       netPaidToDate,
       currentRetentionHeld,
+      maxPayment,
       calculatedEarlyPayDiscount,
       calculatedAcaDiscrepancy,
       linkedLienReleaseCount,
@@ -204,7 +224,9 @@ export function computeContractPayments(
 
     if (payment.apStatus === 'PAID') {
       runningApprovedPaid += payment.amountApproved ?? payment.amount ?? 0
-      runningGrossPaid = payment.amountComplete ?? runningGrossPaid
+      runningGrossPaid = (payment.amountComplete && payment.amountComplete > 0)
+        ? payment.amountComplete
+        : grossPaidFallback
       runningRetentionWithheld = currentRetentionHeld
     }
 

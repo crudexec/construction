@@ -292,8 +292,8 @@ export function ContractPayments({
     [changeOrders]
   )
   const computedPayments = useMemo(
-    () => computeContractPayments(payments, contractTotal, approvedChangeOrderTotal),
-    [payments, contractTotal, approvedChangeOrderTotal]
+    () => computeContractPayments(payments, contractTotal, approvedChangeOrderTotal, retentionPercent ?? 0),
+    [payments, contractTotal, approvedChangeOrderTotal, retentionPercent]
   )
 
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -1733,7 +1733,12 @@ function getPreviewPayment(
     ? parseCurrencyInput(form.currentBilling)
     : undefined
   const paymentRowsWithoutDraft = context.payments.filter((payment) => payment.id !== context.selectedPaymentId)
-  const previousComputedPayments = computeContractPayments(paymentRowsWithoutDraft, context.contractTotal, context.approvedChangeOrderTotal)
+  const previousComputedPayments = computeContractPayments(
+    paymentRowsWithoutDraft,
+    context.contractTotal,
+    context.approvedChangeOrderTotal,
+    context.retentionPercent
+  )
   const previousRetentionHeld = previousComputedPayments.find((payment) => payment.apStatus === 'PAID')?.currentRetentionHeld ?? 0
   const draftCurrentRetention = roundCurrency(previousRetentionHeld + lessRetention)
   const currentRetention = manualFormulaFields.has('currentRetention')
@@ -1782,17 +1787,18 @@ function getPreviewPayment(
 
   const paymentRows = paymentRowsWithoutDraft.concat(draftPayment)
 
-  const computed = computeContractPayments(paymentRows, context.contractTotal, context.approvedChangeOrderTotal)
+  const computed = computeContractPayments(
+    paymentRows,
+    context.contractTotal,
+    context.approvedChangeOrderTotal,
+    context.retentionPercent
+  )
   const preview = computed.find((payment) => payment.id === draftPayment.id)!
   const requestedDefault = roundCurrency(preview.currentBilling - preview.calculatedEarlyPayDiscount)
   const populatedCurrentRetention = manualFormulaFields.has('currentRetention')
     ? parseCurrencyInput(form.currentRetention) ?? draftCurrentRetention
     : draftCurrentRetention
-  const retentionCap = roundCurrency(preview.revisedContract * ((context.retentionPercent || 0) / 100))
-  const maxEarnedLessRetention = roundCurrency(preview.revisedContract - retentionCap)
-  const maxPaymentDefault = roundCurrency(
-    Math.min(subtotal, maxEarnedLessRetention) - preview.previouslyBilledApproved
-  )
+  const maxPaymentDefault = preview.maxPayment ?? 0
 
   return {
     ...preview,
