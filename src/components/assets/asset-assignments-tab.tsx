@@ -47,7 +47,12 @@ async function fetchProjects(): Promise<ProjectOption[]> {
 export function AssetAssignmentsTab({ assetId }: { assetId: string }) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ projectId: '', notes: '' })
+  const [form, setForm] = useState({
+    projectId: '',
+    assignedAt: new Date().toISOString().split('T')[0],
+    removedAt: '',
+    notes: ''
+  })
 
   const { data: assignments = [], isLoading } = useQuery({
     queryKey: ['asset-job-assignments', assetId],
@@ -65,7 +70,12 @@ export function AssetAssignmentsTab({ assetId }: { assetId: string }) {
       const response = await fetch(`/api/assets/${assetId}/job-assignments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-        body: JSON.stringify({ projectId: data.projectId, notes: data.notes || undefined })
+        body: JSON.stringify({
+          projectId: data.projectId,
+          assignedAt: data.assignedAt || undefined,
+          removedAt: data.removedAt || undefined,
+          notes: data.notes || undefined
+        })
       })
       const result = await response.json()
       if (!response.ok) throw new Error(result.error || 'Failed to assign to job')
@@ -75,7 +85,7 @@ export function AssetAssignmentsTab({ assetId }: { assetId: string }) {
       toast.success('Assigned to job')
       queryClient.invalidateQueries({ queryKey: ['asset-job-assignments', assetId] })
       setShowForm(false)
-      setForm({ projectId: '', notes: '' })
+      setForm({ projectId: '', assignedAt: new Date().toISOString().split('T')[0], removedAt: '', notes: '' })
     },
     onError: (error: Error) => toast.error(error.message)
   })
@@ -196,6 +206,27 @@ export function AssetAssignmentsTab({ assetId }: { assetId: string }) {
                     <option key={p.id} value={p.id}>{p.title}</option>
                   ))}
                 </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.assignedAt}
+                    onChange={(e) => setForm({ ...form, assignedAt: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Removed Date</label>
+                  <input
+                    type="date"
+                    value={form.removedAt}
+                    onChange={(e) => setForm({ ...form, removedAt: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>

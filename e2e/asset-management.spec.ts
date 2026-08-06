@@ -206,17 +206,31 @@ test('covers asset identity, purchase data, custom fields, assignment, rental hi
     headers: { Authorization: `Bearer ${token}` },
     data: {
       projectId: fixture.projectId,
+      assignedAt: '2026-06-14',
+      removedAt: '2026-06-16',
       notes: 'Assigned to ACA project',
     },
   })
   expect(assignmentResponse.status()).toBe(201)
   const assignment = await assignmentResponse.json()
   expect(assignment.project.id).toBe(fixture.projectId)
-  expect(assignment.removedAt).toBeNull()
+  expect(assignment.assignedAt).toContain('2026-06-14')
+  expect(assignment.removedAt).toContain('2026-06-16')
 
-  const removalResponse = await request.patch(`/api/assets/job-assignments/${assignment.id}`, {
+  const activeAssignmentResponse = await request.post(`/api/assets/${asset.id}/job-assignments`, {
     headers: { Authorization: `Bearer ${token}` },
-    data: {},
+    data: {
+      projectId: fixture.projectId,
+      assignedAt: '2026-06-17',
+      notes: 'Active ACA assignment',
+    },
+  })
+  expect(activeAssignmentResponse.status()).toBe(201)
+  const activeAssignment = await activeAssignmentResponse.json()
+  expect(activeAssignment.removedAt).toBeNull()
+
+  const removalResponse = await request.patch(`/api/assets/job-assignments/${activeAssignment.id}`, {
+    headers: { Authorization: `Bearer ${token}` },
   })
   expect(removalResponse.ok()).toBeTruthy()
   const removedAssignment = await removalResponse.json()
@@ -596,11 +610,21 @@ test('drives rental, meter, job assignment, maintenance, DOT, and issue tabs fro
   await page.getByRole('button', { name: 'Assign to Job' }).click()
   modal = modalByTitle(page, 'Assign to Job')
   await fieldByLabel(modal, 'Project').selectOption(fixture.projectId)
+  await fieldByLabel(modal, 'Assigned Date').fill('2026-06-14')
+  await fieldByLabel(modal, 'Removed Date').fill('2026-06-16')
   await fieldByLabel(modal, 'Notes').fill('UI assigned to ACA project')
   await modal.getByRole('button', { name: 'Assign' }).click()
   await expect(modal).toHaveCount(0)
   await expect(page.getByText('UI assigned to ACA project')).toBeVisible()
-  await expect(page.getByText('Active')).toBeVisible()
+
+  const uiAssignmentsResponse = await request.get(`/api/assets/${asset.id}/job-assignments`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  expect(uiAssignmentsResponse.ok()).toBeTruthy()
+  const uiAssignments = await uiAssignmentsResponse.json()
+  const uiAssignment = uiAssignments.find((assignment: { notes: string | null }) => assignment.notes === 'UI assigned to ACA project')
+  expect(uiAssignment.assignedAt).toContain('2026-06-14')
+  expect(uiAssignment.removedAt).toContain('2026-06-16')
 
   await page.getByRole('button', { name: 'Maintenance & Service' }).click()
   await page.getByRole('button', { name: 'Log Record' }).click()

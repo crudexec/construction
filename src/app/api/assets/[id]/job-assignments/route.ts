@@ -81,10 +81,25 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { projectId, notes } = body
+    const { projectId, assignedAt, removedAt, notes } = body
 
     if (!projectId) {
       return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
+    }
+
+    const assignedDate = assignedAt ? new Date(assignedAt) : new Date()
+    const removedDate = removedAt ? new Date(removedAt) : null
+
+    if (Number.isNaN(assignedDate.getTime())) {
+      return NextResponse.json({ error: 'Valid assigned date is required' }, { status: 400 })
+    }
+
+    if (removedDate && Number.isNaN(removedDate.getTime())) {
+      return NextResponse.json({ error: 'Valid removed date is required' }, { status: 400 })
+    }
+
+    if (removedDate && removedDate < assignedDate) {
+      return NextResponse.json({ error: 'Removed date cannot be before assigned date' }, { status: 400 })
     }
 
     const project = await prisma.card.findFirst({
@@ -99,6 +114,8 @@ export async function POST(
       data: {
         assetId: id,
         projectId,
+        assignedAt: assignedDate,
+        removedAt: removedDate,
         notes: notes || null,
         createdById: user.id
       },
