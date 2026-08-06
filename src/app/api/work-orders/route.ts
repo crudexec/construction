@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json()
     const {
-      title, description, scheduledDate, estimatedDuration, estimatedCost, assignedToId, issueIds
+      title, description, scheduledDate, estimatedDuration, actualDuration, estimatedCost, actualCost, assignedToId, issueIds
     } = body
 
     if (!title) {
@@ -97,7 +97,9 @@ export async function POST(request: NextRequest) {
         description: description || null,
         scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
         estimatedDuration: estimatedDuration ?? null,
+        actualDuration: actualDuration ?? null,
         estimatedCost: estimatedCost ?? null,
+        actualCost: actualCost ?? null,
         assignedToId: assignedToId || null,
         createdById: user.id,
         issues: {

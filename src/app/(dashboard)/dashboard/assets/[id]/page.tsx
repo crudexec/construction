@@ -279,6 +279,18 @@ export default function AssetDetailPage() {
   const [customFieldEdits, setCustomFieldEdits] = useState<Record<string, string>>({})
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
   const [showQrModal, setShowQrModal] = useState(false)
+  const [showCustomFieldModal, setShowCustomFieldModal] = useState(false)
+  const [showStatusModal, setShowStatusModal] = useState(false)
+  const [customFieldForm, setCustomFieldForm] = useState({
+    name: '',
+    fieldType: 'TEXT' as CustomFieldDefinition['fieldType'],
+    selectOptions: ''
+  })
+  const [statusForm, setStatusForm] = useState({
+    name: '',
+    baseStatus: 'AVAILABLE' as Asset['status'],
+    color: '#2563eb'
+  })
 
   const [requestForm, setRequestForm] = useState({
     purpose: '', projectId: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: ''
@@ -319,6 +331,57 @@ export default function AssetDetailPage() {
     queryKey: ['asset-statuses'],
     queryFn: fetchAssetStatuses,
     enabled: isEditing
+  })
+
+  const createCustomFieldMutation = useMutation({
+    mutationFn: async (data: typeof customFieldForm) => {
+      const selectOptions = data.selectOptions
+        .split(/[\n,]/)
+        .map((option) => option.trim())
+        .filter(Boolean)
+
+      const response = await fetch('/api/asset-custom-fields', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: data.name,
+          fieldType: data.fieldType,
+          selectOptions: data.fieldType === 'SELECT' ? selectOptions : undefined
+        })
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to create custom field')
+      return result as CustomFieldDefinition
+    },
+    onSuccess: (definition) => {
+      toast.success('Custom field created')
+      queryClient.invalidateQueries({ queryKey: ['asset-custom-fields'] })
+      setCustomFieldEdits((prev) => ({ ...prev, [definition.id]: '' }))
+      setShowCustomFieldModal(false)
+      setCustomFieldForm({ name: '', fieldType: 'TEXT', selectOptions: '' })
+    },
+    onError: (err: Error) => toast.error(err.message)
+  })
+
+  const createStatusMutation = useMutation({
+    mutationFn: async (data: typeof statusForm) => {
+      const response = await fetch('/api/asset-statuses', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to create custom status')
+      return result as AssetStatusDefinition
+    },
+    onSuccess: (status) => {
+      toast.success('Custom status created')
+      queryClient.invalidateQueries({ queryKey: ['asset-statuses'] })
+      setEditForm((prev) => ({ ...prev, statusDefinitionId: status.id, status: status.baseStatus }))
+      setShowStatusModal(false)
+      setStatusForm({ name: '', baseStatus: 'AVAILABLE', color: '#2563eb' })
+    },
+    onError: (err: Error) => toast.error(err.message)
   })
 
   useEffect(() => {
@@ -580,6 +643,7 @@ export default function AssetDetailPage() {
     { id: 'issues', label: asset._count?.issues ? `Issues (${asset._count.issues})` : 'Issues' },
     { id: 'attachments', label: 'Photos & Documents' }
   ]
+  const activeCustomFieldDefinitions = customFieldDefinitions.filter(f => f.isActive)
 
   return (
     <div className="space-y-3">
@@ -777,7 +841,14 @@ export default function AssetDetailPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Custom Status</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Custom Status</label>
+                    {isAdmin && (
+                      <button type="button" onClick={() => setShowStatusModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
+                        New Custom Status
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={editForm.statusDefinitionId}
                     onChange={(e) => {
@@ -797,6 +868,7 @@ export default function AssetDetailPage() {
                       </option>
                     ))}
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">Create and reuse company-specific dropdown statuses for equipment and vehicles.</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status Note <span className="text-gray-400 font-normal">(optional)</span></label>
@@ -816,10 +888,22 @@ export default function AssetDetailPage() {
                   <textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
                 </div>
 
-                {customFieldDefinitions.filter(f => f.isActive).length > 0 && (
-                  <div className="border-t pt-4 space-y-4">
-                    <h4 className="text-sm font-semibold text-gray-700">Custom Fields</h4>
-                    {customFieldDefinitions.filter(f => f.isActive).map((field) => (
+                <div className="border-t pt-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-gray-700">Custom Fields</h4>
+                      <p className="text-xs text-gray-500">Add asset-specific fields for identifiers, compliance data, or internal tracking.</p>
+                    </div>
+                    {isAdmin && (
+                      <button type="button" onClick={() => setShowCustomFieldModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
+                        Add Custom Field
+                      </button>
+                    )}
+                  </div>
+                  {activeCustomFieldDefinitions.length === 0 ? (
+                    <p className="rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500">No custom fields have been configured yet.</p>
+                  ) : (
+                    activeCustomFieldDefinitions.map((field) => (
                       <div key={field.id}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">{field.name}</label>
                         {field.fieldType === 'SELECT' ? (
@@ -842,9 +926,9 @@ export default function AssetDetailPage() {
                           />
                         )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             ) : (
               <div className="space-y-4">
@@ -1102,6 +1186,86 @@ export default function AssetDetailPage() {
       )}
 
       {/* New Request Modal */}
+      {showCustomFieldModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Add Custom Field</h3>
+              <button onClick={() => setShowCustomFieldModal(false)} className="text-gray-400 hover:text-gray-500">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); createCustomFieldMutation.mutate(customFieldForm) }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Field Name *</label>
+                <input type="text" required value={customFieldForm.name} onChange={(e) => setCustomFieldForm({ ...customFieldForm, name: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Field Type *</label>
+                <select value={customFieldForm.fieldType} onChange={(e) => setCustomFieldForm({ ...customFieldForm, fieldType: e.target.value as CustomFieldDefinition['fieldType'] })} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                  <option value="TEXT">Text</option>
+                  <option value="NUMBER">Number</option>
+                  <option value="DATE">Date</option>
+                  <option value="BOOLEAN">Yes/No</option>
+                  <option value="SELECT">Dropdown</option>
+                </select>
+              </div>
+              {customFieldForm.fieldType === 'SELECT' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dropdown Options *</label>
+                  <textarea required value={customFieldForm.selectOptions} onChange={(e) => setCustomFieldForm({ ...customFieldForm, selectOptions: e.target.value })} rows={3} className="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="One option per line or comma-separated" />
+                </div>
+              )}
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowCustomFieldModal(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={createCustomFieldMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50">
+                  {createCustomFieldMutation.isPending ? 'Creating...' : 'Create Field'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">New Custom Status</h3>
+              <button onClick={() => setShowStatusModal(false)} className="text-gray-400 hover:text-gray-500">
+                <XCircle className="h-6 w-6" />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); createStatusMutation.mutate(statusForm) }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Status Name *</label>
+                <input type="text" required value={statusForm.name} onChange={(e) => setStatusForm({ ...statusForm, name: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Awaiting Parts" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Base Status *</label>
+                <select value={statusForm.baseStatus} onChange={(e) => setStatusForm({ ...statusForm, baseStatus: e.target.value as Asset['status'] })} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                  <option value="AVAILABLE">Available</option>
+                  <option value="IN_USE">In Use</option>
+                  <option value="UNDER_MAINTENANCE">Under Maintenance</option>
+                  <option value="RETIRED">Retired</option>
+                  <option value="LOST_DAMAGED">Lost/Damaged</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                <input type="color" value={statusForm.color} onChange={(e) => setStatusForm({ ...statusForm, color: e.target.value })} className="h-10 w-20 border border-gray-300 rounded-md px-1 py-1" />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowStatusModal(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={createStatusMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50">
+                  {createStatusMutation.isPending ? 'Creating...' : 'Create Status'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {isRequestModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">

@@ -148,15 +148,16 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Meter Type (Hours or Miles)</label>
                 <select value={form.readingType} onChange={(e) => setForm({ ...form, readingType: e.target.value as 'HOURS' | 'MILES' })} className="w-full border border-gray-300 rounded-md px-3 py-2">
                   <option value="HOURS">Hours</option>
                   <option value="MILES">Miles</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Value *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{form.readingType === 'MILES' ? 'Odometer Miles *' : 'Hour Meter Reading *'}</label>
                 <input type="number" step="0.1" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" required />
+                <p className="mt-1 text-xs text-gray-500">Saved readings are kept in dated sequence for audit history.</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>

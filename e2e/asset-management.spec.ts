@@ -325,7 +325,9 @@ test('captures meter readings on issues, bundles issues into work orders, record
       description: 'Bundle issue into repair order',
       scheduledDate: '2026-06-14',
       estimatedDuration: 4,
+      actualDuration: 3.75,
       estimatedCost: 1_250,
+      actualCost: 1_175,
       assignedToId: fixture.user.id,
       issueIds: [issue.id],
     },
@@ -336,7 +338,9 @@ test('captures meter readings on issues, bundles issues into work orders, record
     title: 'E2E repair hydraulic leak',
     status: 'SCHEDULED',
     estimatedDuration: 4,
+    actualDuration: 3.75,
     estimatedCost: 1_250,
+    actualCost: 1_175,
   })
   expect(workOrder.assignedTo.id).toBe(fixture.user.id)
   expect(workOrder.issues).toHaveLength(1)
@@ -472,17 +476,36 @@ test('creates an asset and edits identity, assignment, purchase, status, and cus
   expect(assetId).toBeTruthy()
 
   await page.getByRole('button', { name: 'Edit' }).click()
+  await page.getByRole('button', { name: 'New Custom Status' }).click()
+  let modal = modalByTitle(page, 'New Custom Status')
+  await fieldByLabel(modal, 'Status Name').fill('E2E UI Awaiting Parts')
+  await fieldByLabel(modal, 'Base Status').selectOption('UNDER_MAINTENANCE')
+  await modal.getByRole('button', { name: 'Create Status' }).click()
+  await expect(modal).toHaveCount(0)
+
+  await page.getByRole('button', { name: 'Add Custom Field' }).click()
+  modal = modalByTitle(page, 'Add Custom Field')
+  await fieldByLabel(modal, 'Field Name').fill('E2E UI Service Region')
+  await fieldByLabel(modal, 'Field Type').selectOption('SELECT')
+  await fieldByLabel(modal, 'Dropdown Options').fill('West\nEast')
+  await modal.getByRole('button', { name: 'Create Field' }).click()
+  await expect(modal).toHaveCount(0)
+
   await fieldByLabel(page.locator('body'), 'Name').fill('E2E UI Loader 544 Updated')
   await fieldByLabel(page.locator('body'), 'Assigned To').selectOption(fixture.user.id)
   await fieldByLabel(page.locator('body'), 'Status Note').fill('Ready for ACA dispatch')
   await fieldByLabel(page.locator('body'), 'E2E UI Fleet Category').selectOption('Earthwork')
+  await fieldByLabel(page.locator('body'), 'E2E UI Service Region').selectOption('West')
   await page.getByRole('button', { name: 'Save Changes' }).click()
 
   await expect(page.getByRole('heading', { name: 'E2E UI Loader 544 Updated' })).toBeVisible()
+  await expect(page.getByText('E2E UI Awaiting Parts')).toBeVisible()
   await expect(page.getByText('Ready for ACA dispatch')).toBeVisible()
   await expect(page.getByText(`(${fixture.user.email})`)).toBeVisible()
   await expect(page.getByText('E2E UI Fleet Category')).toBeVisible()
   await expect(page.getByText('Earthwork')).toBeVisible()
+  await expect(page.getByText('E2E UI Service Region')).toBeVisible()
+  await expect(page.getByText('West')).toBeVisible()
 
   await page.getByRole('button', { name: 'Purchase' }).click()
   await page.getByRole('button', { name: 'Edit' }).click()
@@ -560,8 +583,9 @@ test('drives rental, meter, job assignment, maintenance, DOT, and issue tabs fro
   await page.getByRole('button', { name: 'Meter Reads' }).click()
   await page.getByRole('button', { name: 'Log Reading' }).click()
   modal = modalByTitle(page, 'Log Meter Reading')
-  await fieldByLabel(modal, 'Type').selectOption('HOURS')
-  await fieldByLabel(modal, 'Value').fill('420.5')
+  await expect(modal.getByText('Saved readings are kept in dated sequence')).toBeVisible()
+  await fieldByLabel(modal, 'Meter Type (Hours or Miles)').selectOption('HOURS')
+  await fieldByLabel(modal, 'Hour Meter Reading').fill('420.5')
   await fieldByLabel(modal, 'Notes').fill('UI morning check')
   await modal.getByRole('button', { name: 'Log Reading' }).click()
   await expect(modal).toHaveCount(0)
@@ -612,8 +636,23 @@ test('drives rental, meter, job assignment, maintenance, DOT, and issue tabs fro
   await fieldByLabel(modal, 'Title').fill('UI hydraulic leak')
   await fieldByLabel(modal, 'Description').fill('Hydraulic fluid visible under machine')
   await fieldByLabel(modal, 'Urgency').selectOption('URGENT')
-  await modal.locator('select').nth(1).selectOption('HOURS')
-  await modal.locator('input[placeholder="Value"]').fill('430')
+  await fieldByLabel(modal, 'Initial Issue Status').selectOption('OPEN')
+  await expect(modal.getByText('Every issue captures')).toBeVisible()
+  await modal.getByLabel('Issue meter type').selectOption('HOURS')
+  await modal.getByPlaceholder('Hour meter').fill('430')
+  await expect(modal.getByText('Notification Routing')).toBeVisible()
+  const staffSettingsResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/asset-issue-notification-settings') &&
+    response.request().method() === 'PATCH'
+  )
+  await modal.getByLabel('Notify staff').click()
+  await expect((await staffSettingsResponse).ok()).toBeTruthy()
+  const recipientSettingsResponse = page.waitForResponse((response) =>
+    response.url().includes('/api/asset-issue-notification-settings') &&
+    response.request().method() === 'PATCH'
+  )
+  await modal.getByLabel(new RegExp(`${fixture.user.email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)).click()
+  await expect((await recipientSettingsResponse).ok()).toBeTruthy()
   await modal.getByRole('button', { name: 'Log Issue' }).click()
   await expect(modal).toHaveCount(0)
   await expect(page.getByText('UI hydraulic leak')).toBeVisible()
@@ -629,9 +668,33 @@ test('drives rental, meter, job assignment, maintenance, DOT, and issue tabs fro
   )
   await page.getByRole('button', { name: 'Post' }).click()
   await expect((await commentResponse).ok()).toBeTruthy()
-  await page.getByRole('button', { name: /UI hydraulic leak/ }).click()
-  await page.getByRole('button', { name: /UI hydraulic leak/ }).click()
-  await expect(page.getByText('UI issue comment added')).toBeVisible()
+
+  await page.goto('/dashboard/assets/work-orders')
+  await page.getByRole('button', { name: 'New Work Order' }).click()
+  modal = modalByTitle(page, 'New Work Order')
+  await fieldByLabel(modal, 'Title').fill('UI repair hydraulic leak')
+  await fieldByLabel(modal, 'Estimated Duration (hrs)').fill('4')
+  await fieldByLabel(modal, 'Actual Duration (hrs)').fill('3.5')
+  await fieldByLabel(modal, 'Estimated Cost').fill('1250')
+  await fieldByLabel(modal, 'Actual Cost').fill('1100')
+  await modal.getByLabel(/UI hydraulic leak/).check()
+  await modal.getByRole('button', { name: 'Create Work Order' }).click()
+  await expect(modal).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'UI repair hydraulic leak' })).toBeVisible()
+
+  await page.goto(`/dashboard/assets/${asset.id}`)
+  await page.getByRole('button', { name: 'QR Code' }).click()
+  modal = modalByTitle(page, 'Issue Log QR Code')
+  await expect(modal.getByRole('button', { name: 'Print' })).toBeDisabled()
+  await expect(modal.getByRole('button', { name: 'Download' })).toBeDisabled()
+  const shareResponse = page.waitForResponse((response) =>
+    response.url().includes(`/api/assets/${asset.id}/share`) &&
+    response.request().method() === 'POST'
+  )
+  await modal.getByRole('button', { name: 'Generate QR Code' }).click()
+  await expect((await shareResponse).ok()).toBeTruthy()
+  await expect(modal.getByRole('button', { name: 'Print' })).toBeEnabled()
+  await expect(modal.getByRole('button', { name: 'Download' })).toBeEnabled()
 
   const ratesResponse = await request.get(`/api/assets/${asset.id}/rental-rates`, {
     headers: { Authorization: `Bearer ${token}` },

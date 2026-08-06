@@ -66,7 +66,7 @@ export default function WorkOrdersPage() {
   const { format: formatCurrency } = useCurrency()
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({
-    title: '', description: '', scheduledDate: '', estimatedDuration: '', estimatedCost: '', assignedToId: '', issueIds: [] as string[]
+    title: '', description: '', scheduledDate: '', estimatedDuration: '', actualDuration: '', estimatedCost: '', actualCost: '', assignedToId: '', issueIds: [] as string[]
   })
 
   const { data: workOrders = [], isLoading } = useQuery({ queryKey: ['work-orders'], queryFn: fetchWorkOrders })
@@ -83,7 +83,9 @@ export default function WorkOrdersPage() {
           description: data.description || undefined,
           scheduledDate: data.scheduledDate || undefined,
           estimatedDuration: data.estimatedDuration ? parseFloat(data.estimatedDuration) : undefined,
+          actualDuration: data.actualDuration ? parseFloat(data.actualDuration) : undefined,
           estimatedCost: data.estimatedCost ? parseFloat(data.estimatedCost) : undefined,
+          actualCost: data.actualCost ? parseFloat(data.actualCost) : undefined,
           assignedToId: data.assignedToId || undefined,
           issueIds: data.issueIds
         })
@@ -96,7 +98,7 @@ export default function WorkOrdersPage() {
       toast.success('Work order created')
       queryClient.invalidateQueries({ queryKey: ['work-orders'] })
       setShowForm(false)
-      setForm({ title: '', description: '', scheduledDate: '', estimatedDuration: '', estimatedCost: '', assignedToId: '', issueIds: [] })
+      setForm({ title: '', description: '', scheduledDate: '', estimatedDuration: '', actualDuration: '', estimatedCost: '', actualCost: '', assignedToId: '', issueIds: [] })
     },
     onError: (error: Error) => toast.error(error.message)
   })
@@ -200,8 +202,18 @@ export default function WorkOrdersPage() {
                   <input type="number" step="0.5" value={form.estimatedDuration} onChange={(e) => setForm({ ...form, estimatedDuration: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Actual Duration (hrs)</label>
+                  <input type="number" step="0.5" value={form.actualDuration} onChange={(e) => setForm({ ...form, actualDuration: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Cost</label>
                   <input type="number" step="0.01" value={form.estimatedCost} onChange={(e) => setForm({ ...form, estimatedCost: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Actual Cost</label>
+                  <input type="number" step="0.01" value={form.actualCost} onChange={(e) => setForm({ ...form, actualCost: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
                 </div>
               </div>
               <div className="border-t pt-4">

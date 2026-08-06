@@ -4,6 +4,7 @@ import { validateUser } from '@/lib/auth'
 
 const VALID_URGENCIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 const VALID_METER_TYPES = ['HOURS', 'MILES']
+const VALID_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
 
 export async function GET(
   request: NextRequest,
@@ -85,7 +86,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { title, description, urgency, meterReadingType, meterReadingValue } = body
+    const { title, description, status, urgency, meterReadingType, meterReadingValue } = body
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
@@ -93,6 +94,10 @@ export async function POST(
 
     if (urgency && !VALID_URGENCIES.includes(urgency)) {
       return NextResponse.json({ error: 'Invalid urgency' }, { status: 400 })
+    }
+
+    if (status && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
     if (meterReadingType && !VALID_METER_TYPES.includes(meterReadingType)) {
@@ -122,6 +127,7 @@ export async function POST(
         assetId: id,
         title,
         description: description || null,
+        status: status || 'OPEN',
         urgency: urgency || 'MEDIUM',
         meterReadingId,
         reportedById: user.id
