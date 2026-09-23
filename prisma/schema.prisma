@@ -34,6 +34,7 @@ model Company {
   vendors             Vendor[]
   contacts            Contact[]
   assets              Asset[]
+  assetYards          AssetYard[]
   procurementItems    ProcurementItem[]
   stockAlertConfigs   StockAlertConfig[]
   emailConfig         EmailConfig?
@@ -142,10 +143,13 @@ model User {
   assetRentalRates       AssetRentalRate[]
   assetMeterReadings     AssetMeterReading[]
   assetJobAssignments    AssetJobAssignment[]
+  assetPersonAssignments AssetPersonAssignment[] @relation("AssetPersonAssignee")
+  createdAssetPersonAssignments AssetPersonAssignment[] @relation("AssetPersonAssignmentCreator")
   assetInspections       AssetInspection[]
   reportedAssetIssues    AssetIssue[]          @relation("AssetIssueReporter")
   resolvedAssetIssues    AssetIssue[]          @relation("AssetIssueResolver")
   assetIssueComments     AssetIssueComment[]
+  assetIssueAttachments  AssetIssueAttachment[]
   assignedWorkOrders     WorkOrder[]           @relation("WorkOrderAssignee")
   createdWorkOrders      WorkOrder[]           @relation("WorkOrderCreator")
   workOrderComments      WorkOrderComment[]
@@ -263,6 +267,7 @@ model Card {
   projectContracts     ProjectContract[]
   assetRequests        AssetRequest[]
   assetJobAssignments  AssetJobAssignment[]
+  locatedAssets        Asset[] @relation("AssetCurrentProject")
   inventoryEntries     InventoryEntry[]
   projectMilestones    ProjectMilestone[]
   purchaseOrders       PurchaseOrder[]
@@ -2196,6 +2201,8 @@ enum WorkOrderStatus {
 
 model Asset {
   id                 String      @id @default(cuid())
+  equipmentId        String?     @db.VarChar(100)
+  category           String?     @db.VarChar(100)
   name               String
   description        String?
   type               AssetType
@@ -2204,6 +2211,8 @@ model Asset {
   customStatusNote   String? // Free-text detail alongside the fixed status enum
   statusDefinitionId String?
   currentLocation    String? // Current site/location
+  currentProjectId   String?
+  currentYardId      String?
   currentAssigneeId  String? // Currently assigned user
 
   // Identity
@@ -2240,6 +2249,8 @@ model Asset {
   sharedById  String?
 
   company              Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  currentProject       Card?                   @relation("AssetCurrentProject", fields: [currentProjectId], references: [id], onDelete: SetNull)
+  currentYard          AssetYard?              @relation(fields: [currentYardId], references: [id], onDelete: SetNull)
   currentAssignee      User?                   @relation("AssetCurrentAssignee", fields: [currentAssigneeId], references: [id])
   purchasedFromVendor  Vendor?                 @relation("AssetPurchasedFrom", fields: [purchasedFromVendorId], references: [id], onDelete: SetNull)
   statusDefinition     AssetStatusDefinition?  @relation(fields: [statusDefinitionId], references: [id], onDelete: SetNull)
@@ -2251,9 +2262,14 @@ model Asset {
   customFieldValues    AssetCustomFieldValue[]
   meterReadings        AssetMeterReading[]
   jobAssignments       AssetJobAssignment[]
+  personAssignments    AssetPersonAssignment[]
   inspections          AssetInspection[]
   issues               AssetIssue[]
 
+  @@unique([companyId, equipmentId])
+  @@index([currentProjectId])
+  @@index([currentYardId])
+  @@index([companyId, type, category])
   @@index([companyId])
   @@index([type])
   @@index([status])
@@ -2261,6 +2277,18 @@ model Asset {
   @@index([currentAssigneeId])
   @@index([purchasedFromVendorId])
   @@index([shareToken])
+}
+
+model AssetYard {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String   @db.VarChar(100)
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assets    Asset[]
+  locations AssetJobAssignment[]
+
+  @@unique([companyId, name])
 }
 
 model AssetStatusDefinition {
@@ -2365,12 +2393,20 @@ model AssetMeterReading {
   readingType  AssetMeterReadingType
   value        Float
   recordedAt   DateTime              @default(now())
-  recordedById String
+  recordedById String?
   notes        String?
+  // Immutable context snapshots; IDs are retained even if source records change.
+  contextRecorded    Boolean @default(false)
+  assignedPersonId   String?
+  assignedPersonName String?
+  locationProjectId  String?
+  locationYardId     String?
+  locationName       String?
+  event              String @default("READING")
   createdAt    DateTime              @default(now())
 
   asset      Asset       @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  recordedBy User        @relation(fields: [recordedById], references: [id])
+  recordedBy User?       @relation(fields: [recordedById], references: [id])
   issue      AssetIssue?
 
   @@index([assetId, readingType, recordedAt])
@@ -2379,7 +2415,9 @@ model AssetMeterReading {
 model AssetJobAssignment {
   id          String    @id @default(cuid())
   assetId     String
-  projectId   String
+  projectId   String?
+  yardId      String?
+  locationName String?
   assignedAt  DateTime  @default(now())
   removedAt   DateTime?
   notes       String?
@@ -2387,11 +2425,30 @@ model AssetJobAssignment {
   createdAt   DateTime  @default(now())
 
   asset     Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  project   Card  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project   Card? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  yard      AssetYard? @relation(fields: [yardId], references: [id], onDelete: SetNull)
   createdBy User  @relation(fields: [createdById], references: [id])
 
   @@index([assetId])
   @@index([projectId])
+}
+
+model AssetPersonAssignment {
+  id          String    @id @default(cuid())
+  assetId     String
+  assigneeId  String
+  assignedAt  DateTime  @default(now())
+  removedAt   DateTime?
+  notes       String?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  asset     Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assignee  User  @relation("AssetPersonAssignee", fields: [assigneeId], references: [id])
+  createdBy User  @relation("AssetPersonAssignmentCreator", fields: [createdById], references: [id])
+
+  @@index([assetId])
+  @@index([assigneeId])
 }
 
 model AssetInspection {
@@ -2442,6 +2499,7 @@ model AssetIssue {
   resolvedBy   User?               @relation("AssetIssueResolver", fields: [resolvedById], references: [id])
   comments     AssetIssueComment[]
   workOrders   WorkOrderIssue[]
+  attachments  AssetIssueAttachment[]
 
   @@index([assetId])
   @@index([status])
@@ -2465,6 +2523,22 @@ model AssetIssueComment {
   @@index([issueId])
   @@index([authorId])
   @@index([createdAt])
+}
+
+model AssetIssueAttachment {
+  id           String   @id @default(cuid())
+  issueId      String
+  fileName     String
+  fileSize     Int
+  mimeType     String
+  url          String
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  issue      AssetIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  uploadedBy User?      @relation(fields: [uploadedById], references: [id])
+
+  @@index([issueId])
 }
 
 model WorkOrder {

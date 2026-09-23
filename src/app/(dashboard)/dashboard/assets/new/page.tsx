@@ -7,8 +7,13 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
+import { AssetStatusSelect } from '@/components/assets/asset-status-select'
+import { AssetCategoryField } from '@/components/assets/asset-category-field'
+import { AssetLocationSelect, AssetPersonSelect, locationFields } from '@/components/assets/asset-context-fields'
 
 interface AssetFormData {
+  equipmentId: string
+  category: string
   name: string
   description: string
   type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
@@ -20,7 +25,8 @@ interface AssetFormData {
   year: string
   vin: string
   licensePlate: string
-  currentLocation: string
+  locationSelection: string
+  currentAssigneeId: string
   purchaseCost: string
   purchaseDate: string
   warrantyExpiry: string
@@ -64,6 +70,8 @@ export default function NewAssetPage() {
   const { symbol: currencySymbol } = useCurrency()
 
   const [formData, setFormData] = useState<AssetFormData>({
+    equipmentId: '',
+    category: '',
     name: '',
     description: '',
     type: 'EQUIPMENT',
@@ -75,7 +83,8 @@ export default function NewAssetPage() {
     year: '',
     vin: '',
     licensePlate: '',
-    currentLocation: '',
+    locationSelection: '',
+    currentAssigneeId: '',
     purchaseCost: '',
     purchaseDate: '',
     warrantyExpiry: '',
@@ -96,6 +105,8 @@ export default function NewAssetPage() {
         }),
         credentials: 'include',
         body: JSON.stringify({
+          equipmentId: data.equipmentId.trim() || null,
+          category: data.category.trim() || null,
           name: data.name,
           description: data.description || undefined,
           type: data.type,
@@ -107,7 +118,8 @@ export default function NewAssetPage() {
           year: data.year || undefined,
           vin: data.vin || undefined,
           licensePlate: data.licensePlate || undefined,
-          currentLocation: data.currentLocation || undefined,
+          ...locationFields(data.locationSelection),
+          currentAssigneeId: data.currentAssigneeId || null,
           purchaseCost: data.purchaseCost ? parseFloat(data.purchaseCost) : undefined,
           purchaseDate: data.purchaseDate || undefined,
           warrantyExpiry: data.warrantyExpiry || undefined,
@@ -123,6 +135,7 @@ export default function NewAssetPage() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['asset-categories'] })
       router.push(`/dashboard/assets/${data.id}`)
     },
     onError: (err: Error) => {
@@ -177,6 +190,11 @@ export default function NewAssetPage() {
           <h3 className="text-lg font-medium text-gray-900 mb-6">Basic Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="md:col-span-2">
+              <label htmlFor="equipmentId" className="block text-sm font-medium text-gray-700 mb-1">Equipment ID</label>
+              <input id="equipmentId" name="equipmentId" value={formData.equipmentId} onChange={handleChange} maxLength={100} placeholder="e.g., EX-001" className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+              <p className="mt-1 text-xs text-gray-500">Your fleet identifier. Optional; must be unique within your company.</p>
+            </div>
+            <div className="md:col-span-2">
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                 Asset Name *
               </label>
@@ -194,49 +212,15 @@ export default function NewAssetPage() {
 
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
-                Base Status *
+                Status *
               </label>
-              <select
+              <AssetStatusSelect
                 id="status"
-                name="status"
-                value={formData.status}
-                onChange={(event) => setFormData(prev => ({ ...prev, status: event.target.value as AssetFormData['status'], statusDefinitionId: '' }))}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                required
-              >
-                <option value="AVAILABLE">Available</option>
-                <option value="IN_USE">In Use</option>
-                <option value="UNDER_MAINTENANCE">Under Maintenance</option>
-                <option value="RETIRED">Retired</option>
-                <option value="LOST_DAMAGED">Lost/Damaged</option>
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="statusDefinitionId" className="block text-sm font-medium text-gray-700 mb-1">
-                Custom Status
-              </label>
-              <select
-                id="statusDefinitionId"
-                name="statusDefinitionId"
-                value={formData.statusDefinitionId}
-                onChange={(event) => {
-                  const selected = assetStatuses.find((status) => status.id === event.target.value)
-                  setFormData(prev => ({
-                    ...prev,
-                    statusDefinitionId: event.target.value,
-                    ...(selected && { status: selected.baseStatus })
-                  }))
-                }}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">No custom status</option>
-                {assetStatuses.map((status) => (
-                  <option key={status.id} value={status.id}>
-                    {status.name}
-                  </option>
-                ))}
-              </select>
+                status={formData.status}
+                statusDefinitionId={formData.statusDefinitionId}
+                definitions={assetStatuses}
+                onChange={(value) => setFormData(prev => ({ ...prev, ...value }))}
+              />
             </div>
 
             <div>
@@ -247,7 +231,7 @@ export default function NewAssetPage() {
                 id="type"
                 name="type"
                 value={formData.type}
-                onChange={handleChange}
+                onChange={event => setFormData(prev => ({ ...prev, type: event.target.value as AssetFormData['type'], category: '' }))}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 required
               >
@@ -256,6 +240,8 @@ export default function NewAssetPage() {
                 <option value="TOOL">Tool</option>
               </select>
             </div>
+
+            <AssetCategoryField type={formData.type} value={formData.category} onChange={category => setFormData(prev => ({ ...prev, category }))} />
 
             <div>
               <label htmlFor="serialNumber" className="block text-sm font-medium text-gray-700 mb-1">
@@ -364,20 +350,10 @@ export default function NewAssetPage() {
 
         {/* Location */}
         <div className="bg-white rounded-lg shadow border p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-6">Location</h3>
-          <div>
-            <label htmlFor="currentLocation" className="block text-sm font-medium text-gray-700 mb-1">
-              Current Location
-            </label>
-            <input
-              type="text"
-              id="currentLocation"
-              name="currentLocation"
-              value={formData.currentLocation}
-              onChange={handleChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              placeholder="e.g., Main Warehouse, Site A"
-            />
+          <h3 className="text-lg font-medium text-gray-900 mb-6">Assignment and Location</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <AssetLocationSelect value={formData.locationSelection} onChange={locationSelection => setFormData(prev => ({ ...prev, locationSelection }))} />
+            <AssetPersonSelect value={formData.currentAssigneeId} onChange={currentAssigneeId => setFormData(prev => ({ ...prev, currentAssigneeId }))} />
           </div>
         </div>
 

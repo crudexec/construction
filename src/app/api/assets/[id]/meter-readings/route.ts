@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { applyAssetContext, meterContext, AssetContextError } from '@/lib/assets/context'
 
 export async function GET(
   request: NextRequest,
@@ -36,7 +37,7 @@ export async function GET(
           select: { id: true, firstName: true, lastName: true }
         }
       },
-      orderBy: { recordedAt: 'desc' }
+      orderBy: [{ recordedAt: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }]
     })
 
     return NextResponse.json(readings)
@@ -84,9 +85,15 @@ export async function POST(
       return NextResponse.json({ error: 'A valid readingType (HOURS or MILES) is required' }, { status: 400 })
     }
 
-    if (value === undefined || value === null || Number(value) < 0) {
+    if (!['number', 'string'].includes(typeof value) || value === '' || !Number.isFinite(Number(value)) || Number(value) < 0) {
       return NextResponse.json({ error: 'A non-negative value is required' }, { status: 400 })
     }
+
+    const date = recordedAt ? new Date(recordedAt) : new Date()
+    if (Number.isNaN(date.getTime())) return NextResponse.json({ error: 'Valid reading date is required' }, { status: 400 })
+    const event = body.event || 'READING'
+    if (!['READING', 'ARRIVAL', 'DEPARTURE'].includes(event)) return NextResponse.json({ error: 'Invalid reading event' }, { status: 400 })
+    if (body.updateAssetContext !== undefined && typeof body.updateAssetContext !== 'boolean') return NextResponse.json({ error: 'Invalid update choice' }, { status: 400 })
 
     const latest = await prisma.assetMeterReading.findFirst({
       where: { assetId: id, readingType },
@@ -98,12 +105,22 @@ export async function POST(
       ? `This reading (${numericValue}) is lower than the most recent recorded value (${latest.value}). It was saved anyway — double-check it's correct.`
       : undefined
 
-    const reading = await prisma.assetMeterReading.create({
+    const reading = await prisma.$transaction(async tx => {
+    const context = await meterContext(tx, id, user.companyId, body)
+    if (body.updateAssetContext) {
+      await applyAssetContext(tx, id, user, {
+        currentAssigneeId: context.assignedPersonId,
+        ...(body.projectId !== undefined || body.yardId !== undefined ? { currentProjectId: context.locationProjectId, currentYardId: context.locationYardId } : {}),
+      })
+    }
+    return tx.assetMeterReading.create({
       data: {
+        ...context,
+        event,
         assetId: id,
         readingType,
         value: numericValue,
-        recordedAt: recordedAt ? new Date(recordedAt) : new Date(),
+        recordedAt: date,
         recordedById: user.id,
         notes: notes || null
       },
@@ -113,10 +130,12 @@ export async function POST(
         }
       }
     })
+    })
 
     return NextResponse.json({ ...reading, warning }, { status: 201 })
 
   } catch (error) {
+    if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('Error logging meter reading:', error)
     return NextResponse.json(
       { error: 'Failed to log meter reading' },

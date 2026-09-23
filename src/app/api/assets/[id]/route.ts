@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
+import { AssetIdentityValidationError, parseAssetIdentity } from '@/lib/assets/identity'
+import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
 
 export async function GET(
   request: NextRequest,
@@ -27,6 +30,8 @@ export async function GET(
         companyId: user.companyId
       },
       include: {
+        currentProject: { select: { id: true, title: true } },
+        currentYard: { select: { id: true, name: true } },
         currentAssignee: {
           select: {
             id: true,
@@ -182,6 +187,7 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const identity = parseAssetIdentity(body)
 
     const {
       name,
@@ -228,7 +234,8 @@ export async function PATCH(
         where: {
           id: statusDefinitionId,
           companyId: user.companyId,
-          isActive: true
+          // An asset may retain its existing status after that option is retired.
+          ...(statusDefinitionId !== existingAsset.statusDefinitionId && { isActive: true })
         },
         select: {
           id: true,
@@ -294,9 +301,8 @@ export async function PATCH(
       }
     }
 
-    const asset = await prisma.asset.update({
-      where: { id },
-      data: {
+    const assetUpdateData = {
+        ...identity,
         ...(name && { name }),
         ...(description !== undefined && { description }),
         ...(type && { type }),
@@ -305,8 +311,6 @@ export async function PATCH(
         ...(resolvedStatusDefinition && { status: resolvedStatusDefinition.baseStatus }),
         ...(statusDefinitionId !== undefined && { statusDefinitionId: statusDefinitionId || null }),
         ...(customStatusNote !== undefined && { customStatusNote }),
-        ...(currentLocation !== undefined && { currentLocation }),
-        ...(currentAssigneeId !== undefined && { currentAssigneeId: currentAssigneeId || null }),
         ...(make !== undefined && { make }),
         ...(model !== undefined && { model }),
         ...(year !== undefined && { year: year ? parseInt(year) : null }),
@@ -326,36 +330,51 @@ export async function PATCH(
         ...(usefulLifeYears !== undefined && { usefulLifeYears: usefulLifeYears ? parseInt(usefulLifeYears) : null }),
         ...(salvageValue !== undefined && { salvageValue }),
         ...(notes !== undefined && { notes })
-      },
-      include: {
-        currentAssignee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true
-          }
-        },
-        purchasedFromVendor: {
-          select: {
-            id: true,
-            name: true,
-            companyName: true
-          }
-        },
-        statusDefinition: {
-          select: {
-            id: true,
-            name: true,
-            baseStatus: true,
-            color: true
+      }
+
+    const asset = await prisma.$transaction(async (tx) => {
+      await applyAssetContext(tx, id, user, body)
+
+      return tx.asset.update({
+        where: { id },
+        data: assetUpdateData,
+        include: {
+          currentAssignee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          },
+          purchasedFromVendor: {
+            select: {
+              id: true,
+              name: true,
+              companyName: true
+            }
+          },
+          statusDefinition: {
+            select: {
+              id: true,
+              name: true,
+              baseStatus: true,
+              color: true
+            }
           }
         }
-      }
+      })
     })
 
     return NextResponse.json(asset)
 
   } catch (error) {
+    if (error instanceof AssetIdentityValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'This Equipment ID is already in use in your company' }, { status: 409 })
+    }
     console.error('Error updating asset:', error)
     return NextResponse.json(
       { error: 'Failed to update asset' },

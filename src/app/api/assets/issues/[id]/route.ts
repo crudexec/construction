@@ -36,6 +36,10 @@ export async function GET(
           include: { author: { select: { id: true, firstName: true, lastName: true } } },
           orderBy: { createdAt: 'asc' }
         },
+        attachments: {
+          include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
+          orderBy: { createdAt: 'desc' }
+        },
         workOrders: {
           include: {
             workOrder: { select: { id: true, title: true, status: true, scheduledDate: true } }

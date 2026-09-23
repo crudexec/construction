@@ -11,7 +11,7 @@ interface Issue {
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED'
   urgency: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   createdAt: string
-  asset: { id: string; name: string; type: string }
+  asset: { id: string; name: string; type: string; equipmentId?: string | null }
   reportedBy: { id: string; firstName: string; lastName: string } | null
   _count: { comments: number }
 }
@@ -65,6 +65,9 @@ export default function AssetIssuesDashboardPage() {
 
   return (
     <div className="space-y-6">
+      <Link href="/dashboard/assets" className="inline-flex text-sm font-medium text-primary-600 hover:text-primary-800">
+        ← Back to Assets
+      </Link>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Equipment Issues</h1>
@@ -161,7 +164,7 @@ export default function AssetIssuesDashboardPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
-                      <Link href={`/dashboard/assets/${issue.asset.id}`} className="hover:text-primary-600">{issue.asset.name}</Link>
+                      <Link href={`/dashboard/assets/${issue.asset.id}`} className="hover:text-primary-600">{issue.asset.equipmentId ? `${issue.asset.equipmentId} · ` : ''}{issue.asset.name}</Link>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`text-xs px-2 py-1 rounded-full font-medium ${URGENCY_STYLES[issue.urgency]}`}>{issue.urgency}</span>

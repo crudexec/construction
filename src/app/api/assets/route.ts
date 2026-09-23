@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
+import { AssetIdentityValidationError, parseAssetIdentity } from '@/lib/assets/identity'
+import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
 
 function getRequestToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -30,6 +33,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type')
     const status = searchParams.get('status')
+    const category = searchParams.get('category')?.trim()
 
     const whereClause: any = {
       companyId: user.companyId
@@ -42,10 +46,15 @@ export async function GET(request: NextRequest) {
     if (status) {
       whereClause.status = status
     }
+    if (category) {
+      whereClause.category = { equals: category, mode: 'insensitive' }
+    }
 
     const assets = await prisma.asset.findMany({
       where: whereClause,
       include: {
+        currentProject: { select: { id: true, title: true } },
+        currentYard: { select: { id: true, name: true } },
         currentAssignee: {
           select: {
             id: true,
@@ -103,6 +112,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
+    const identity = parseAssetIdentity(body)
 
     const {
       name,
@@ -163,8 +173,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const asset = await prisma.asset.create({
+    const asset = await prisma.$transaction(async tx => {
+    const created = await tx.asset.create({
       data: {
+        ...identity,
         name,
         description,
         type,
@@ -201,10 +213,20 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+    await applyAssetContext(tx, created.id, user, body)
+    return tx.asset.findUniqueOrThrow({ where: { id: created.id }, include: { currentAssignee: { select: { id: true, firstName: true, lastName: true } }, statusDefinition: true } })
+    })
 
     return NextResponse.json(asset, { status: 201 })
 
   } catch (error) {
+    if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
+    if (error instanceof AssetIdentityValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'This Equipment ID is already in use in your company' }, { status: 409 })
+    }
     console.error('Error creating asset:', error)
     return NextResponse.json(
       { error: 'Failed to create asset' },

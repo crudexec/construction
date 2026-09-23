@@ -24,6 +24,7 @@ interface SharedAssetData {
     reporterName: string | null
     createdAt: string
     resolvedAt: string | null
+    meterReading: { readingType: 'HOURS' | 'MILES'; value: number; recordedAt: string } | null
     reportedBy: { firstName: string; lastName: string } | null
   }[]
 }
@@ -50,7 +51,14 @@ export default function SharedAssetIssueLogPage() {
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ title: '', description: '', reporterName: '', urgency: 'MEDIUM' })
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    reporterName: '',
+    urgency: 'MEDIUM',
+    meterReadingType: 'HOURS' as 'HOURS' | 'MILES',
+    meterReadingValue: ''
+  })
 
   const fetchData = async () => {
     try {
@@ -82,7 +90,7 @@ export default function SharedAssetIssueLogPage() {
         const result = await response.json()
         throw new Error(result.error || 'Failed to submit issue')
       }
-      setForm({ title: '', description: '', reporterName: '', urgency: 'MEDIUM' })
+      setForm({ title: '', description: '', reporterName: '', urgency: 'MEDIUM', meterReadingType: 'HOURS', meterReadingValue: '' })
       setShowForm(false)
       await fetchData()
     } catch (err) {
@@ -154,6 +162,12 @@ export default function SharedAssetIssueLogPage() {
                           {issue.reportedBy ? `${issue.reportedBy.firstName} ${issue.reportedBy.lastName}` : issue.reporterName || 'Unknown'}
                           {' · '}
                           {new Date(issue.createdAt).toLocaleDateString()}
+                          {issue.meterReading && (
+                            <>
+                              {' · '}
+                              {issue.meterReading.value.toLocaleString()} {issue.meterReading.readingType.toLowerCase()}
+                            </>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -220,6 +234,30 @@ export default function SharedAssetIssueLogPage() {
                   <option value="HIGH">High</option>
                   <option value="URGENT">Urgent</option>
                 </select>
+              </div>
+              <div className="border-t pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-2">Current Meter Reading *</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    value={form.meterReadingType}
+                    onChange={(e) => setForm({ ...form, meterReadingType: e.target.value as 'HOURS' | 'MILES' })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    required
+                  >
+                    <option value="HOURS">Hours</option>
+                    <option value="MILES">Miles</option>
+                  </select>
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    required
+                    value={form.meterReadingValue}
+                    onChange={(e) => setForm({ ...form, meterReadingValue: e.target.value })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    placeholder={form.meterReadingType === 'MILES' ? 'Odometer miles' : 'Hour meter'}
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">

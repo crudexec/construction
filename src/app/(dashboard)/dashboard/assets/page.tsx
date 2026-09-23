@@ -6,9 +6,12 @@ import { Plus, Search, Package, Truck, Wrench, Settings, AlertTriangle, X, Chevr
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCurrency } from '@/hooks/useCurrency'
+import { fetchAssetCategories } from '@/components/assets/asset-category-field'
 
 interface Asset {
   id: string
+  equipmentId?: string | null
+  category?: string | null
   name: string
   type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
   serialNumber?: string
@@ -23,6 +26,8 @@ interface Asset {
     color?: string | null
   } | null
   currentLocation?: string
+  currentProject?: { title: string } | null
+  currentYard?: { name: string } | null
   currentAssignee?: {
     id: string
     firstName: string
@@ -37,7 +42,7 @@ interface Asset {
   }
 }
 
-async function fetchAssets(type?: string, status?: string) {
+async function fetchAssets(type?: string, status?: string, category?: string): Promise<Asset[]> {
   const token = document.cookie
     .split('; ')
     .find(row => row.startsWith('auth-token='))
@@ -46,6 +51,7 @@ async function fetchAssets(type?: string, status?: string) {
   const params = new URLSearchParams()
   if (type && type !== 'all') params.append('type', type)
   if (status && status !== 'all') params.append('status', status)
+  if (category) params.append('category', category)
 
   const response = await fetch(`/api/assets?${params.toString()}`, {
     headers: {
@@ -99,18 +105,25 @@ export default function AssetsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [sortField, setSortField] = useState<string>('name')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [sortField, setSortField] = useState<string>('equipmentId')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
   const { format: formatCurrency } = useCurrency()
 
-  const { data: assets = [], isLoading } = useQuery({
-    queryKey: ['assets', filterType, filterStatus],
-    queryFn: () => fetchAssets(filterType, filterStatus)
+  const { data: assets = [], isLoading, isError, refetch } = useQuery({
+    queryKey: ['assets', filterType, filterStatus, filterCategory],
+    queryFn: () => fetchAssets(filterType, filterStatus, filterCategory)
+  })
+  const { data: categories = [], isError: categoriesError } = useQuery({
+    queryKey: ['asset-categories', filterType],
+    queryFn: () => fetchAssetCategories(filterType)
   })
 
   const filteredAssets = assets.filter((asset: Asset) => {
     const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (asset.equipmentId?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (asset.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (asset.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (asset.make?.toLowerCase().includes(searchTerm.toLowerCase())) ||
                          (asset.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -123,6 +136,14 @@ export default function AssetsPage() {
     let bVal: string | number = ''
 
     switch (sortField) {
+      case 'equipmentId':
+        aVal = (a.equipmentId || a.name).toLowerCase()
+        bVal = (b.equipmentId || b.name).toLowerCase()
+        break
+      case 'category':
+        aVal = a.category?.toLowerCase() || ''
+        bVal = b.category?.toLowerCase() || ''
+        break
       case 'name':
         aVal = a.name.toLowerCase()
         bVal = b.name.toLowerCase()
@@ -161,7 +182,7 @@ export default function AssetsPage() {
     return 0
   })
 
-  const activeFilterCount = [filterType !== 'all', filterStatus !== 'all'].filter(Boolean).length
+  const activeFilterCount = [filterType !== 'all', filterStatus !== 'all', !!filterCategory].filter(Boolean).length
 
   const handleSort = (field: string) => {
     if (sortField === field) {
@@ -198,6 +219,7 @@ export default function AssetsPage() {
   const clearAllFilters = () => {
     setFilterType('all')
     setFilterStatus('all')
+    setFilterCategory('')
   }
 
   // Calculate stats
@@ -224,7 +246,21 @@ export default function AssetsPage() {
             <p className="text-sm text-gray-600">Manage equipment, vehicles, tools, and service history</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/dashboard/assets/issues"
+            className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <span>Equipment Issues</span>
+          </Link>
+          <Link
+            href="/dashboard/assets/work-orders"
+            className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2"
+          >
+            <Wrench className="h-4 w-4" />
+            <span>Work Orders</span>
+          </Link>
           <Link
             href="/dashboard/assets/requests"
             className="bg-white text-gray-700 px-4 py-2 rounded-md border hover:bg-gray-50 flex items-center space-x-2"
@@ -244,21 +280,23 @@ export default function AssetsPage() {
 
       <div className="bg-white rounded-lg shadow border p-6">
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search ID, name..."
+                  aria-label="Search assets"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-7 pr-2 py-1 w-40 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <select
+                aria-label="Filter by asset type"
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => { setFilterType(e.target.value); setFilterCategory('') }}
                 className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
               >
                 <option value="all">All Types</option>
@@ -267,6 +305,17 @@ export default function AssetsPage() {
                 <option value="TOOL">Tools</option>
               </select>
               <select
+                aria-label="Filter by category"
+                value={filterCategory}
+                onChange={event => setFilterCategory(event.target.value)}
+                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
+              >
+                <option value="">All Categories</option>
+                {filterCategory && !categories.includes(filterCategory) && <option value={filterCategory}>{filterCategory}</option>}
+                {categories.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
+              <select
+                aria-label="Filter by status"
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
@@ -301,6 +350,9 @@ export default function AssetsPage() {
             </div>
           </div>
 
+          {categoriesError && <p role="alert" className="text-xs text-red-600">Category filters could not be loaded.</p>}
+          {isError && <p role="alert" className="text-sm text-red-600">Could not load assets. <button onClick={() => refetch()} className="underline">Retry</button></p>}
+
           <div className="border border-gray-300 rounded overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
@@ -315,6 +367,9 @@ export default function AssetsPage() {
                       />
                     </th>
                     <th className="w-6 px-1 py-1.5 border-r border-gray-200 text-center text-gray-500">#</th>
+                    <th onClick={() => handleSort('equipmentId')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[110px]">
+                      <div className="flex items-center gap-1">Equipment ID <SortIcon field="equipmentId" /></div>
+                    </th>
                     <th onClick={() => handleSort('name')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[190px]">
                       <div className="flex items-center gap-1">Asset <SortIcon field="name" /></div>
                     </th>
@@ -324,6 +379,9 @@ export default function AssetsPage() {
                     <th onClick={() => handleSort('type')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-24">
                       <div className="flex items-center gap-1">Type <SortIcon field="type" /></div>
                     </th>
+                    <th onClick={() => handleSort('category')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[110px]">
+                      <div className="flex items-center gap-1">Category <SortIcon field="category" /></div>
+                    </th>
                     <th onClick={() => handleSort('status')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-28">
                       <div className="flex items-center gap-1">Status <SortIcon field="status" /></div>
                     </th>
@@ -331,7 +389,7 @@ export default function AssetsPage() {
                       <div className="flex items-center gap-1">Location <SortIcon field="location" /></div>
                     </th>
                     <th onClick={() => handleSort('assignee')} className="px-2 py-1.5 border-r border-gray-200 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 min-w-[120px]">
-                      <div className="flex items-center gap-1">Assigned <SortIcon field="assignee" /></div>
+                      <div className="flex items-center gap-1">Assignment <SortIcon field="assignee" /></div>
                     </th>
                     <th onClick={() => handleSort('cost')} className="px-2 py-1.5 text-right font-semibold text-gray-700 cursor-pointer hover:bg-gray-200 w-24">
                       <div className="flex items-center justify-end gap-1">Cost <SortIcon field="cost" /></div>
@@ -341,7 +399,7 @@ export default function AssetsPage() {
                 <tbody>
                   {sortedAssets.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                      <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                         <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                         <p className="font-medium">No assets found</p>
                         <p className="text-[10px]">{activeFilterCount > 0 || searchTerm ? 'Try adjusting filters' : 'Add your first asset'}</p>
@@ -365,6 +423,7 @@ export default function AssetsPage() {
                           />
                         </td>
                         <td className="px-1 py-1 border-r border-gray-200 text-center text-gray-400">{index + 1}</td>
+                        <td className="px-2 py-1 border-r border-gray-200 font-semibold text-gray-900">{asset.equipmentId || <span className="font-normal text-gray-400">—</span>}</td>
                         <td className="px-2 py-1 border-r border-gray-200">
                           <div className="flex items-center gap-1.5">
                             <div className="w-5 h-5 rounded bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">
@@ -380,8 +439,9 @@ export default function AssetsPage() {
                           {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || <span className="text-gray-400">-</span>}
                         </td>
                         <td className="px-2 py-1 border-r border-gray-200 text-gray-600">{getAssetTypeLabel(asset.type)}</td>
+                        <td className="px-2 py-1 border-r border-gray-200 text-gray-600">{asset.category || <span className="text-gray-400">—</span>}</td>
                         <td className="px-2 py-1 border-r border-gray-200">{getStatusBadge(asset.status, asset.statusDefinition)}</td>
-                        <td className="px-2 py-1 border-r border-gray-200 text-gray-600 truncate">{asset.currentLocation || <span className="text-gray-400">-</span>}</td>
+                        <td className="px-2 py-1 border-r border-gray-200 text-gray-600 truncate">{asset.currentProject?.title || asset.currentYard?.name || asset.currentLocation || <span className="text-gray-400">-</span>}</td>
                         <td className="px-2 py-1 border-r border-gray-200 text-gray-600">
                           {asset.currentAssignee ? `${asset.currentAssignee.firstName} ${asset.currentAssignee.lastName}` : <span className="text-gray-400">-</span>}
                         </td>

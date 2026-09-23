@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { meterContext } from '@/lib/assets/context'
 
 const VALID_URGENCIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 const VALID_METER_TYPES = ['HOURS', 'MILES']
@@ -110,15 +111,16 @@ export async function POST(
 
     let meterReadingId: string | undefined
     if (meterReadingType) {
-      const meterReading = await prisma.assetMeterReading.create({
+      const meterReading = await prisma.$transaction(async tx => tx.assetMeterReading.create({
         data: {
+          ...await meterContext(tx, id, user.companyId),
           assetId: id,
           readingType: meterReadingType,
           value: Number(meterReadingValue),
           recordedById: user.id,
           notes: 'Recorded automatically when issue was logged'
         }
-      })
+      }))
       meterReadingId = meterReading.id
     }
 

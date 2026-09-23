@@ -34,6 +34,7 @@ interface AssetRequest {
   }
   asset: {
     id: string
+    equipmentId?: string | null
     name: string
     type: string
   }
@@ -292,7 +293,7 @@ export default function AssetRequestsPage() {
                         href={`/dashboard/assets/${request.asset.id}`}
                         className="text-sm font-medium text-primary-600 hover:text-primary-900"
                       >
-                        {request.asset.name}
+                        {request.asset.equipmentId ? `${request.asset.equipmentId} · ` : ''}{request.asset.name}
                       </Link>
                       <div className="text-sm text-gray-500">{request.asset.type}</div>
                     </td>

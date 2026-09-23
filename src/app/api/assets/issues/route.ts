@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const issues = await prisma.assetIssue.findMany({
       where: whereClause,
       include: {
-        asset: { select: { id: true, name: true, type: true } },
+        asset: { select: { id: true, name: true, type: true, equipmentId: true } },
         reportedBy: { select: { id: true, firstName: true, lastName: true } },
         _count: { select: { comments: true } }
       },

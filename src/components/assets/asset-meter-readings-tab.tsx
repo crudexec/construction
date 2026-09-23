@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Gauge, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AssetLocationSelect, AssetPersonSelect, locationValue, locationFields } from './asset-context-fields'
 
 interface MeterReading {
   id: string
@@ -11,7 +12,11 @@ interface MeterReading {
   value: number
   recordedAt: string
   notes: string | null
-  recordedBy: { id: string; firstName: string; lastName: string }
+  recordedBy: { id: string; firstName: string; lastName: string } | null
+  contextRecorded?: boolean
+  assignedPersonName?: string | null
+  locationName?: string | null
+  event?: 'READING' | 'ARRIVAL' | 'DEPARTURE'
 }
 
 function getToken() {
@@ -21,7 +26,7 @@ function getToken() {
     ?.split('=')[1]
 }
 
-async function fetchReadings(assetId: string): Promise<MeterReading[]> {
+export async function fetchReadings(assetId: string): Promise<MeterReading[]> {
   const response = await fetch(`/api/assets/${assetId}/meter-readings`, {
     headers: { 'Authorization': `Bearer ${getToken()}` }
   })
@@ -29,15 +34,27 @@ async function fetchReadings(assetId: string): Promise<MeterReading[]> {
   return response.json()
 }
 
-export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
+interface CurrentContext {
+  currentProjectId?: string | null
+  currentYardId?: string | null
+  currentLocation?: string | null
+  currentAssignee?: { id: string; firstName: string; lastName: string } | null
+}
+
+export function AssetMeterReadingsTab({ assetId, initialShowForm = false, currentContext = {} }: { assetId: string; initialShowForm?: boolean; currentContext?: CurrentContext }) {
   const queryClient = useQueryClient()
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({
+  const [showForm, setShowForm] = useState(initialShowForm)
+  const newForm = () => ({
     readingType: 'HOURS' as 'HOURS' | 'MILES',
     value: '',
     recordedAt: new Date().toISOString().split('T')[0],
-    notes: ''
+    notes: '',
+    assigneeId: currentContext.currentAssignee?.id || '',
+    locationSelection: locationValue(currentContext),
+    event: 'READING',
+    updateAssetContext: false,
   })
+  const [form, setForm] = useState(newForm)
 
   const { data: readings = [], isLoading } = useQuery({
     queryKey: ['asset-meter-readings', assetId],
@@ -50,6 +67,10 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
         body: JSON.stringify({
+          assigneeId: data.assigneeId || null,
+          ...(data.locationSelection === 'legacy' ? {} : { projectId: locationFields(data.locationSelection).currentProjectId, yardId: locationFields(data.locationSelection).currentYardId }),
+          event: data.event,
+          updateAssetContext: data.updateAssetContext,
           readingType: data.readingType,
           value: parseFloat(data.value),
           recordedAt: data.recordedAt,
@@ -67,8 +88,12 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
         toast.success('Meter reading logged')
       }
       queryClient.invalidateQueries({ queryKey: ['asset-meter-readings', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['asset-job-assignments', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-person-assignments', assetId] })
       setShowForm(false)
-      setForm({ readingType: 'HOURS', value: '', recordedAt: new Date().toISOString().split('T')[0], notes: '' })
+      setForm(newForm())
     },
     onError: (error: Error) => toast.error(error.message)
   })
@@ -95,7 +120,7 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-medium text-gray-900">Meter Reads</h3>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => { setForm(newForm()); setShowForm(true) }}
           className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
@@ -109,12 +134,15 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
           <p>No meter readings logged yet</p>
         </div>
       ) : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
             <tr className="border-b text-left text-xs text-gray-500 uppercase">
               <th className="py-2">Type</th>
               <th className="py-2">Value</th>
               <th className="py-2">Date</th>
+              <th className="py-2">Event</th>
+              <th className="py-2">Assignment (person)</th>
+              <th className="py-2">Location</th>
               <th className="py-2">Recorded By</th>
               <th className="py-2">Notes</th>
             </tr>
@@ -129,17 +157,22 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
                 </td>
                 <td className="py-2 font-medium text-gray-900">{reading.value.toLocaleString()}</td>
                 <td className="py-2 text-gray-500">{new Date(reading.recordedAt).toLocaleDateString()}</td>
-                <td className="py-2 text-gray-500">{reading.recordedBy.firstName} {reading.recordedBy.lastName}</td>
+                <td className="py-2 text-gray-500">{reading.event === 'ARRIVAL' ? 'Arrival' : reading.event === 'DEPARTURE' ? 'Departure' : 'Reading'}</td>
+                <td className="py-2 text-gray-500">{reading.contextRecorded ? reading.assignedPersonName || 'Unassigned' : 'Not recorded'}</td>
+                <td className="py-2 text-gray-500">{reading.contextRecorded ? reading.locationName || 'No location' : 'Not recorded'}</td>
+                <td className="py-2 text-gray-500">
+                  {reading.recordedBy ? `${reading.recordedBy.firstName} ${reading.recordedBy.lastName}` : 'QR report'}
+                </td>
                 <td className="py-2 text-gray-500">{reading.notes || '-'}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
 
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">Log Meter Reading</h3>
               <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-500">
@@ -147,6 +180,14 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
               </button>
             </div>
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <p className="text-xs text-gray-500">Assignment and location default to the asset's current details. Adjust them for the reading date; they are saved with this reading.</p>
+              <AssetPersonSelect value={form.assigneeId} onChange={assigneeId => setForm(prev => ({ ...prev, assigneeId }))} currentLabel={currentContext.currentAssignee ? `${currentContext.currentAssignee.firstName} ${currentContext.currentAssignee.lastName}` : undefined} />
+              <AssetLocationSelect value={form.locationSelection} onChange={locationSelection => setForm(prev => ({ ...prev, locationSelection }))} currentLabel={currentContext.currentLocation} />
+              <label className="block text-sm font-medium text-gray-700">Reading event
+                <select value={form.event} onChange={event => setForm(prev => ({ ...prev, event: event.target.value }))} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2">
+                  <option value="READING">Routine reading</option><option value="ARRIVAL">Arrival at location</option><option value="DEPARTURE">Departure from location</option>
+                </select>
+              </label>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Meter Type (Hours or Miles)</label>
                 <select value={form.readingType} onChange={(e) => setForm({ ...form, readingType: e.target.value as 'HOURS' | 'MILES' })} className="w-full border border-gray-300 rounded-md px-3 py-2">
@@ -167,6 +208,10 @@ export function AssetMeterReadingsTab({ assetId }: { assetId: string }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
               </div>
+              <label className="flex items-start gap-2 text-sm text-gray-700">
+                <input type="checkbox" checked={form.updateAssetContext} onChange={event => setForm(prev => ({ ...prev, updateAssetContext: event.target.checked }))} className="mt-1" />
+                Also use this assignment and location as the asset's current details. This updates the asset now.
+              </label>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={createMutation.isPending} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50">

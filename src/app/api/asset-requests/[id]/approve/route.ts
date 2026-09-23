@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
 
 export async function POST(
   request: NextRequest,
@@ -61,8 +62,10 @@ export async function POST(
     }
 
     // Update request status and asset
-    const [updatedRequest] = await prisma.$transaction([
-      prisma.assetRequest.update({
+    const updatedRequest = await prisma.$transaction(async tx => {
+      await applyAssetContext(tx, assetRequest.assetId, user, { currentAssigneeId: assetRequest.requesterId, ...(assetRequest.projectId ? { currentProjectId: assetRequest.projectId, currentYardId: null } : {}) })
+      await tx.asset.update({ where: { id: assetRequest.assetId }, data: { status: 'IN_USE', statusDefinitionId: null } })
+      return tx.assetRequest.update({
         where: { id },
         data: {
           status: 'APPROVED',
@@ -93,15 +96,8 @@ export async function POST(
             }
           }
         }
-      }),
-      prisma.asset.update({
-        where: { id: assetRequest.assetId },
-        data: {
-          status: 'IN_USE',
-          currentAssigneeId: assetRequest.requesterId
-        }
       })
-    ])
+    })
 
     // Create notification for requester
     await prisma.notification.create({
@@ -123,6 +119,7 @@ export async function POST(
     })
 
   } catch (error) {
+    if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('Error approving asset request:', error)
     return NextResponse.json(
       { error: 'Failed to approve request' },

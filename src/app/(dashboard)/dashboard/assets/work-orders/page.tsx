@@ -24,7 +24,7 @@ interface OpenIssue {
   id: string
   title: string
   urgency: string
-  asset: { id: string; name: string }
+  asset: { id: string; name: string; equipmentId?: string | null }
 }
 
 interface UserOption { id: string; firstName: string; lastName: string }
@@ -226,7 +226,7 @@ export default function WorkOrdersPage() {
                       <label key={issue.id} className="flex items-center gap-2 text-sm py-1 cursor-pointer">
                         <input type="checkbox" checked={form.issueIds.includes(issue.id)} onChange={() => toggleIssue(issue.id)} />
                         <span className="text-gray-900">{issue.title}</span>
-                        <span className="text-xs text-gray-400">({issue.asset.name})</span>
+                        <span className="text-xs text-gray-400">({issue.asset.equipmentId ? `${issue.asset.equipmentId} · ` : ''}{issue.asset.name})</span>
                       </label>
                     ))}
                   </div>

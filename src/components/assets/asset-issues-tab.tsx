@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, X, AlertCircle, Wrench, CheckCircle, MessageSquare, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, X, AlertCircle, Wrench, CheckCircle, MessageSquare, ChevronDown, ChevronUp, Upload, FileText, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface Issue {
@@ -22,6 +22,14 @@ interface Issue {
 
 interface IssueDetail extends Issue {
   comments: { id: string; content: string; createdAt: string; author: { id: string; firstName: string; lastName: string } }[]
+  attachments: {
+    id: string
+    fileName: string
+    fileSize: number
+    url: string
+    createdAt: string
+    uploadedBy: { id: string; firstName: string; lastName: string } | null
+  }[]
 }
 
 interface NotificationSettings {
@@ -91,6 +99,12 @@ const URGENCY_STYLES: Record<string, string> = {
   URGENT: 'bg-red-100 text-red-700'
 }
 
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 export function AssetIssuesTab({ assetId }: { assetId: string }) {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -144,6 +158,8 @@ export function AssetIssuesTab({ assetId }: { assetId: string }) {
     onSuccess: () => {
       toast.success('Issue logged')
       queryClient.invalidateQueries({ queryKey: ['asset-issues', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-meter-readings', assetId] })
       setShowForm(false)
       setForm({ title: '', description: '', status: 'OPEN', urgency: 'MEDIUM', meterReadingType: 'HOURS', meterReadingValue: '' })
     },
@@ -187,6 +203,7 @@ export function AssetIssuesTab({ assetId }: { assetId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['asset-issues', assetId] })
       queryClient.invalidateQueries({ queryKey: ['asset-issue-detail', expandedId] })
+      queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
     },
     onError: (error: Error) => toast.error(error.message)
   })
@@ -206,6 +223,46 @@ export function AssetIssuesTab({ assetId }: { assetId: string }) {
       queryClient.invalidateQueries({ queryKey: ['asset-issue-detail', expandedId] })
       queryClient.invalidateQueries({ queryKey: ['asset-issues', assetId] })
       setCommentDraft('')
+    },
+    onError: (error: Error) => toast.error(error.message)
+  })
+
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async ({ issueId, file }: { issueId: string; file: File }) => {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetch(`/api/assets/issues/${issueId}/attachments`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${getToken()}` },
+        body: formData
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to upload attachment')
+      return result
+    },
+    onSuccess: (_, variables) => {
+      toast.success('Attachment uploaded')
+      queryClient.invalidateQueries({ queryKey: ['asset-issue-detail', variables.issueId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-issues', assetId] })
+    },
+    onError: (error: Error) => toast.error(error.message)
+  })
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async ({ issueId, attachmentId }: { issueId: string; attachmentId: string }) => {
+      const response = await fetch(`/api/assets/issues/${issueId}/attachments?attachmentId=${attachmentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error || 'Failed to delete attachment')
+      return result
+    },
+    onSuccess: (_, variables) => {
+      toast.success('Attachment deleted')
+      queryClient.invalidateQueries({ queryKey: ['asset-issue-detail', variables.issueId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-issues', assetId] })
     },
     onError: (error: Error) => toast.error(error.message)
   })
@@ -339,6 +396,49 @@ export function AssetIssuesTab({ assetId }: { assetId: string }) {
                           Post
                         </button>
                       </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase">Attachments</h4>
+                        <label className="inline-flex items-center gap-1 text-xs bg-white border border-gray-300 text-gray-700 px-2 py-1 rounded-md hover:bg-gray-100 cursor-pointer">
+                          <Upload className="h-3 w-3" />
+                          Upload
+                          <input
+                            type="file"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) uploadAttachmentMutation.mutate({ issueId: issue.id, file })
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {detail?.id === issue.id && detail.attachments.length > 0 ? (
+                        <div className="space-y-1">
+                          {detail.attachments.map((attachment) => (
+                            <div key={attachment.id} className="flex items-center justify-between bg-white rounded-md border px-2 py-1.5 text-sm">
+                              <a href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-primary-600 hover:text-primary-800 min-w-0">
+                                <FileText className="h-4 w-4 flex-shrink-0" />
+                                <span className="truncate">{attachment.fileName}</span>
+                              </a>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="text-xs text-gray-400">{formatFileSize(attachment.fileSize)}</span>
+                                <button
+                                  onClick={() => deleteAttachmentMutation.mutate({ issueId: issue.id, attachmentId: attachment.id })}
+                                  disabled={deleteAttachmentMutation.isPending}
+                                  className="text-gray-400 hover:text-red-600"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-gray-400">No attachments yet</p>
+                      )}
                     </div>
                   </div>
                 )}

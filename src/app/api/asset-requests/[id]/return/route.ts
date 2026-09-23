@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
 
 export async function POST(
   request: NextRequest,
@@ -56,8 +57,10 @@ export async function POST(
     const { condition, notes } = body
 
     // Update request status and asset
-    const [updatedRequest] = await prisma.$transaction([
-      prisma.assetRequest.update({
+    const updatedRequest = await prisma.$transaction(async tx => {
+      await applyAssetContext(tx, assetRequest.assetId, user, { currentAssigneeId: null, currentProjectId: body.currentProjectId, currentYardId: body.currentYardId, ...(body.location ? { currentLocation: body.location } : {}) })
+      await tx.asset.update({ where: { id: assetRequest.assetId }, data: { status: condition === 'DAMAGED' ? 'LOST_DAMAGED' : 'AVAILABLE', statusDefinitionId: null } })
+      return tx.assetRequest.update({
         where: { id },
         data: {
           status: 'RETURNED',
@@ -88,16 +91,8 @@ export async function POST(
             }
           }
         }
-      }),
-      prisma.asset.update({
-        where: { id: assetRequest.assetId },
-        data: {
-          status: condition === 'DAMAGED' ? 'LOST_DAMAGED' : 'AVAILABLE',
-          currentAssigneeId: null,
-          currentLocation: body.location || assetRequest.asset.currentLocation
-        }
       })
-    ])
+    })
 
     // If asset was returned damaged, create notification for admins
     if (condition === 'DAMAGED') {
@@ -132,6 +127,7 @@ export async function POST(
     })
 
   } catch (error) {
+    if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('Error returning asset:', error)
     return NextResponse.json(
       { error: 'Failed to return asset' },

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { meterContext } from '@/lib/assets/context'
 
 export async function GET(
   request: NextRequest,
@@ -24,6 +25,7 @@ export async function GET(
             reporterName: true,
             createdAt: true,
             resolvedAt: true,
+            meterReading: { select: { readingType: true, value: true, recordedAt: true } },
             reportedBy: { select: { firstName: true, lastName: true } }
           }
         }
@@ -69,21 +71,43 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { title, description, reporterName, urgency } = body
+    const { title, description, reporterName, urgency, meterReadingType, meterReadingValue } = body
 
     if (!title || !title.trim()) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 })
     }
 
+    if (!meterReadingType || !['HOURS', 'MILES'].includes(meterReadingType)) {
+      return NextResponse.json({ error: 'A valid meter reading type is required' }, { status: 400 })
+    }
+
+    if (meterReadingValue === undefined || meterReadingValue === null || meterReadingValue === '' || Number(meterReadingValue) < 0) {
+      return NextResponse.json({ error: 'A non-negative meter reading value is required' }, { status: 400 })
+    }
+
     const VALID_URGENCIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
-    const issue = await prisma.assetIssue.create({
-      data: {
-        assetId: asset.id,
-        title: title.trim(),
-        description: description?.trim() || null,
-        reporterName: reporterName?.trim() || 'Anonymous (QR report)',
-        urgency: urgency && VALID_URGENCIES.includes(urgency) ? urgency : 'MEDIUM'
-      }
+    const issue = await prisma.$transaction(async (tx) => {
+      const meterReading = await tx.assetMeterReading.create({
+        data: {
+          ...await meterContext(tx, asset.id, asset.companyId),
+          assetId: asset.id,
+          readingType: meterReadingType,
+          value: Number(meterReadingValue),
+          recordedById: null,
+          notes: `Recorded from QR issue report${reporterName?.trim() ? ` by ${reporterName.trim()}` : ''}`
+        }
+      })
+
+      return tx.assetIssue.create({
+        data: {
+          assetId: asset.id,
+          title: title.trim(),
+          description: description?.trim() || null,
+          reporterName: reporterName?.trim() || 'Anonymous (QR report)',
+          urgency: urgency && VALID_URGENCIES.includes(urgency) ? urgency : 'MEDIUM',
+          meterReadingId: meterReading.id
+        }
+      })
     })
 
     const notificationSetting = await prisma.assetIssueNotificationSetting.upsert({

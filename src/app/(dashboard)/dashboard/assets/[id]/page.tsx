@@ -34,10 +34,16 @@ import toast from 'react-hot-toast'
 import { AssetRentalPricingTab } from '@/components/assets/asset-rental-pricing-tab'
 import { AssetMeterReadingsTab } from '@/components/assets/asset-meter-readings-tab'
 import { AssetAssignmentsTab } from '@/components/assets/asset-assignments-tab'
+import { AssetPersonAssignmentsTab } from '@/components/assets/asset-person-assignments-tab'
 import { AssetMaintenanceTab } from '@/components/assets/asset-maintenance-tab'
 import { AssetAttachmentsTab } from '@/components/assets/asset-attachments-tab'
 import { AssetIssuesTab } from '@/components/assets/asset-issues-tab'
+import { AssetHistoryTab } from '@/components/assets/asset-history-tab'
 import { AssetQrShareModal } from '@/components/assets/asset-qr-share-modal'
+import { AssetOverviewTiles } from '@/components/assets/asset-overview-tiles'
+import { AssetStatusSelect } from '@/components/assets/asset-status-select'
+import { AssetCategoryField } from '@/components/assets/asset-category-field'
+import { AssetLocationSelect, locationValue, locationFields } from '@/components/assets/asset-context-fields'
 
 interface AssetRequest {
   id: string
@@ -76,6 +82,8 @@ interface Attachment {
 
 interface Asset {
   id: string
+  equipmentId?: string | null
+  category?: string | null
   name: string
   description?: string
   type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
@@ -85,6 +93,10 @@ interface Asset {
   statusDefinition?: AssetStatusDefinition | null
   customStatusNote?: string | null
   currentLocation?: string
+  currentProjectId?: string | null
+  currentYardId?: string | null
+  currentProject?: { id: string; title: string } | null
+  currentYard?: { id: string; name: string } | null
   make?: string | null
   model?: string | null
   year?: number | null
@@ -250,6 +262,8 @@ const getRequestStatusBadge = (status: string) => {
 }
 
 const emptyEditForm = {
+  locationSelection: '',
+  equipmentId: '', category: '',
   name: '', description: '', type: 'EQUIPMENT' as Asset['type'], serialNumber: '',
   status: 'AVAILABLE' as Asset['status'], statusDefinitionId: '', customStatusNote: '', currentLocation: '',
   currentAssigneeId: '', make: '', model: '', year: '', vin: '', licensePlate: '',
@@ -268,6 +282,7 @@ export default function AssetDetailPage() {
   const assetId = params.id as string
   const { format: formatCurrency } = useCurrency()
   const [activeTab, setActiveTab] = useState('overview')
+  const [openMeterForm, setOpenMeterForm] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -387,6 +402,9 @@ export default function AssetDetailPage() {
   useEffect(() => {
     if (!asset) return
     setEditForm({
+      locationSelection: locationValue(asset),
+      equipmentId: asset.equipmentId || '',
+      category: asset.category || '',
       name: asset.name || '',
       description: asset.description || '',
       type: asset.type,
@@ -427,6 +445,8 @@ export default function AssetDetailPage() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       const patchBody: Record<string, unknown> = {
+        equipmentId: editForm.equipmentId.trim() || null,
+        category: editForm.category.trim() || null,
         name: editForm.name,
         description: editForm.description,
         type: editForm.type,
@@ -434,7 +454,7 @@ export default function AssetDetailPage() {
         status: editForm.status,
         statusDefinitionId: editForm.statusDefinitionId || null,
         customStatusNote: editForm.customStatusNote,
-        currentLocation: editForm.currentLocation,
+        ...locationFields(editForm.locationSelection),
         currentAssigneeId: editForm.currentAssigneeId || null,
         make: editForm.make,
         model: editForm.model,
@@ -483,6 +503,10 @@ export default function AssetDetailPage() {
     },
     onSuccess: () => {
       toast.success('Asset updated')
+      queryClient.invalidateQueries({ queryKey: ['assets'] })
+      queryClient.invalidateQueries({ queryKey: ['asset-categories'] })
+      queryClient.invalidateQueries({ queryKey: ['asset-job-assignments', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-person-assignments', assetId] })
       refetch()
       setIsEditing(false)
     },
@@ -577,6 +601,8 @@ export default function AssetDetailPage() {
     if (asset) {
       // Re-trigger the effect by forcing a state reset via refetch data already held
       setEditForm({
+        locationSelection: locationValue(asset),
+        equipmentId: asset.equipmentId || '', category: asset.category || '',
         name: asset.name || '', description: asset.description || '', type: asset.type,
         serialNumber: asset.serialNumber || '', status: asset.status, statusDefinitionId: asset.statusDefinitionId || '', customStatusNote: asset.customStatusNote || '',
         currentLocation: asset.currentLocation || '', currentAssigneeId: asset.currentAssignee?.id || '',
@@ -634,10 +660,12 @@ export default function AssetDetailPage() {
 
   const tabs = [
     { id: 'overview', label: 'Overview' },
+    { id: 'history', label: 'History' },
     { id: 'purchase', label: 'Purchase' },
     { id: 'rental', label: 'Rental Pricing' },
     { id: 'meter', label: 'Meter Reads' },
-    { id: 'assignments', label: 'Assignments' },
+    { id: 'assignments', label: 'Locations' },
+    { id: 'people', label: 'Assignments' },
     { id: 'requests', label: `Requests (${asset.requests.length})` },
     { id: 'maintenance', label: 'Maintenance & Service' },
     { id: 'issues', label: asset._count?.issues ? `Issues (${asset._count.issues})` : 'Issues' },
@@ -658,7 +686,7 @@ export default function AssetDetailPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-gray-900">{asset.name}</h1>
+                <h1 className="text-lg font-semibold text-gray-900">{asset.equipmentId ? `${asset.equipmentId} · ${asset.name}` : asset.name}</h1>
                 {getStatusBadge(asset.status, asset.statusDefinition)}
               </div>
               <p className="text-xs text-gray-500">
@@ -754,7 +782,7 @@ export default function AssetDetailPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => { setOpenMeterForm(false); setActiveTab(tab.id) }}
               className={`py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-b-2 border-primary-500 text-primary-600'
@@ -770,10 +798,22 @@ export default function AssetDetailPage() {
       {/* Overview */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AssetOverviewTiles
+            assetId={assetId}
+            openIssueCount={asset._count?.issues || 0}
+            onViewIssues={() => setActiveTab('issues')}
+            onViewReadings={() => { setOpenMeterForm(false); setActiveTab('meter') }}
+            onAddReading={() => { setOpenMeterForm(true); setActiveTab('meter') }}
+          />
           <div className="bg-white rounded-lg shadow border p-6">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Asset Information</h3>
             {isEditing ? (
               <div className="space-y-4">
+                <div>
+                  <label htmlFor="equipmentId" className="block text-sm font-medium text-gray-700 mb-1">Equipment ID</label>
+                  <input id="equipmentId" value={editForm.equipmentId} onChange={event => setEditForm(prev => ({ ...prev, equipmentId: event.target.value }))} maxLength={100} placeholder="e.g., EX-001" className="w-full border border-gray-300 rounded-md px-3 py-2" />
+                  <p className="mt-1 text-xs text-gray-500">Your fleet identifier. Optional; must be unique within your company.</p>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
@@ -781,13 +821,14 @@ export default function AssetDetailPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-                    <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as Asset['type'] })} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                    <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as Asset['type'], category: '' })} className="w-full border border-gray-300 rounded-md px-3 py-2">
                       <option value="VEHICLE">Vehicle</option>
                       <option value="EQUIPMENT">Equipment</option>
                       <option value="TOOL">Tool</option>
                     </select>
                   </div>
                 </div>
+                <AssetCategoryField type={editForm.type} value={editForm.category} onChange={category => setEditForm(prev => ({ ...prev, category }))} />
                 <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
@@ -822,61 +863,32 @@ export default function AssetDetailPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Base Status *</label>
-                    <select
-                      value={editForm.status}
-                      onChange={(e) => setEditForm({ ...editForm, status: e.target.value as Asset['status'], statusDefinitionId: '' })}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2"
-                    >
-                      <option value="AVAILABLE">Available</option>
-                      <option value="IN_USE">In Use</option>
-                      <option value="UNDER_MAINTENANCE">Under Maintenance</option>
-                      <option value="RETIRED">Retired</option>
-                      <option value="LOST_DAMAGED">Lost/Damaged</option>
-                    </select>
+                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
+                      <label htmlFor="asset-status" className="block text-sm font-medium text-gray-700">Status *</label>
+                      {isAdmin && (
+                        <button type="button" onClick={() => setShowStatusModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
+                          New Custom Status
+                        </button>
+                      )}
+                    </div>
+                    <AssetStatusSelect
+                      id="asset-status"
+                      status={editForm.status}
+                      statusDefinitionId={editForm.statusDefinitionId}
+                      definitions={assetStatuses}
+                      currentDefinition={asset.statusDefinition}
+                      onChange={(value) => setEditForm(prev => ({ ...prev, ...value }))}
+                    />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <input type="text" value={editForm.currentLocation} onChange={(e) => setEditForm({ ...editForm, currentLocation: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">Custom Status</label>
-                    {isAdmin && (
-                      <button type="button" onClick={() => setShowStatusModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
-                        New Custom Status
-                      </button>
-                    )}
-                  </div>
-                  <select
-                    value={editForm.statusDefinitionId}
-                    onChange={(e) => {
-                      const selected = assetStatuses.find((status) => status.id === e.target.value)
-                      setEditForm({
-                        ...editForm,
-                        statusDefinitionId: e.target.value,
-                        ...(selected && { status: selected.baseStatus })
-                      })
-                    }}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  >
-                    <option value="">No custom status</option>
-                    {assetStatuses.map((status) => (
-                      <option key={status.id} value={status.id}>
-                        {status.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="mt-1 text-xs text-gray-500">Create and reuse company-specific dropdown statuses for equipment and vehicles.</p>
+                  <AssetLocationSelect value={editForm.locationSelection} onChange={locationSelection => setEditForm(prev => ({ ...prev, locationSelection }))} currentLabel={asset.currentLocation} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Status Note <span className="text-gray-400 font-normal">(optional)</span></label>
                   <input type="text" value={editForm.customStatusNote} onChange={(e) => setEditForm({ ...editForm, customStatusNote: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Extra detail alongside the status above" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
-                  <select value={editForm.currentAssigneeId} onChange={(e) => setEditForm({ ...editForm, currentAssigneeId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                  <label htmlFor="asset-assignment" className="block text-sm font-medium text-gray-700 mb-1">Assignment (person)</label>
+                  <select id="asset-assignment" value={editForm.currentAssigneeId} onChange={(e) => setEditForm({ ...editForm, currentAssigneeId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
                     <option value="">Unassigned</option>
                     {users.map((u: UserOption) => (
                       <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
@@ -932,8 +944,13 @@ export default function AssetDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">Equipment ID:</span>
+                  <p className="text-gray-900 mt-1">{asset.equipmentId || 'Not assigned'}</p>
+                </div>
                 <div className="flex items-center space-x-3">
                   <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">{asset.type}</span>
+                  {asset.category && <span className="text-sm text-gray-700">{asset.category}</span>}
                   {asset.customStatusNote && <span className="text-xs text-gray-500">{asset.customStatusNote}</span>}
                 </div>
                 {(asset.make || asset.model || asset.year) && (
@@ -951,7 +968,7 @@ export default function AssetDetailPage() {
                 {asset.currentLocation && (
                   <div className="flex items-center space-x-3">
                     <MapPin className="h-5 w-5 text-gray-400" />
-                    <span className="text-gray-900">{asset.currentLocation}</span>
+                    <span className="text-gray-900">Location: {asset.currentProject?.title || asset.currentYard?.name || asset.currentLocation}</span>
                   </div>
                 )}
                 {asset.currentAssignee && (
@@ -1119,8 +1136,10 @@ export default function AssetDetailPage() {
       )}
 
       {activeTab === 'rental' && <AssetRentalPricingTab assetId={assetId} />}
-      {activeTab === 'meter' && <AssetMeterReadingsTab assetId={assetId} />}
+      {activeTab === 'history' && <AssetHistoryTab assetId={assetId} />}
+      {activeTab === 'meter' && <AssetMeterReadingsTab assetId={assetId} initialShowForm={openMeterForm} currentContext={asset} />}
       {activeTab === 'assignments' && <AssetAssignmentsTab assetId={assetId} />}
+      {activeTab === 'people' && <AssetPersonAssignmentsTab assetId={assetId} />}
       {activeTab === 'maintenance' && <AssetMaintenanceTab assetId={assetId} />}
       {activeTab === 'issues' && <AssetIssuesTab assetId={assetId} />}
       {activeTab === 'attachments' && <AssetAttachmentsTab assetId={assetId} attachments={asset.attachments} />}

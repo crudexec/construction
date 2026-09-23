@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
-import { applyAssetContext, resolveLocation, lockAsset, AssetContextError } from '@/lib/assets/context'
+import { applyAssetContext, lockAsset, AssetContextError } from '@/lib/assets/context'
 
 export async function GET(
   request: NextRequest,
@@ -30,12 +30,11 @@ export async function GET(
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
-    const assignments = await prisma.assetJobAssignment.findMany({
+    const assignments = await prisma.assetPersonAssignment.findMany({
       where: { assetId: id },
       include: {
-        yard: { select: { id: true, name: true } },
-        project: {
-          select: { id: true, title: true, status: true, projectNumber: true }
+        assignee: {
+          select: { id: true, firstName: true, lastName: true, email: true }
         },
         createdBy: {
           select: { id: true, firstName: true, lastName: true }
@@ -45,13 +44,9 @@ export async function GET(
     })
 
     return NextResponse.json(assignments)
-
   } catch (error) {
-    console.error('Error fetching job assignments:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch job assignments' },
-      { status: 500 }
-    )
+    console.error('Error fetching person assignments:', error)
+    return NextResponse.json({ error: 'Failed to fetch person assignments' }, { status: 500 })
   }
 }
 
@@ -83,10 +78,18 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { projectId, yardId, assignedAt, removedAt, notes } = body
+    const { assigneeId, assignedAt, removedAt, notes } = body
 
-    if (!projectId && !yardId) {
-      return NextResponse.json({ error: 'A job or yard is required' }, { status: 400 })
+    if (!assigneeId) {
+      return NextResponse.json({ error: 'assigneeId is required' }, { status: 400 })
+    }
+
+    const assignee = await prisma.user.findFirst({
+      where: { id: assigneeId, companyId: user.companyId, isActive: true }
+    })
+
+    if (!assignee) {
+      return NextResponse.json({ error: 'Assignee not found' }, { status: 404 })
     }
 
     const assignedDate = assignedAt ? new Date(assignedAt) : new Date()
@@ -104,46 +107,41 @@ export async function POST(
       return NextResponse.json({ error: 'Removed date cannot be before assigned date' }, { status: 400 })
     }
 
-    if (!removedDate && assignedDate > new Date()) return NextResponse.json({ error: 'Current location date cannot be in the future' }, { status: 400 })
-    const assignment = await prisma.$transaction(async tx => {
-    await lockAsset(tx, id, user.companyId)
-    const location = await resolveLocation(tx, user.companyId, projectId, yardId)
-    if (!removedDate) {
-      await applyAssetContext(tx, id, user, location, assignedDate)
-      const current = await tx.assetJobAssignment.findFirst({ where: { assetId: id, removedAt: null }, orderBy: { assignedAt: 'desc' } })
-      if (current) return tx.assetJobAssignment.update({ where: { id: current.id }, data: { notes: notes || null }, include: { project: true, yard: true, createdBy: { select: { id: true, firstName: true, lastName: true } } } })
-    }
-    return tx.assetJobAssignment.create({
-      data: {
-        assetId: id,
-        projectId: location.currentProjectId,
-        yardId: location.currentYardId,
-        locationName: location.currentLocation,
-        assignedAt: assignedDate,
-        removedAt: removedDate,
-        notes: notes || null,
-        createdById: user.id
-      },
-      include: {
-        yard: { select: { id: true, name: true } },
-        project: {
-          select: { id: true, title: true, status: true, projectNumber: true }
-        },
-        createdBy: {
-          select: { id: true, firstName: true, lastName: true }
-        }
+    if (!removedDate && assignedDate > new Date()) return NextResponse.json({ error: 'Current assignment date cannot be in the future' }, { status: 400 })
+    const assignment = await prisma.$transaction(async (tx) => {
+      await lockAsset(tx, id, user.companyId)
+      if (!removedDate) {
+        await applyAssetContext(tx, id, user, { currentAssigneeId: assigneeId }, assignedDate)
+        const current = await tx.assetPersonAssignment.findFirst({ where: { assetId: id, removedAt: null }, orderBy: { assignedAt: 'desc' } })
+        if (current) return tx.assetPersonAssignment.update({ where: { id: current.id }, data: { notes: notes || null }, include: { assignee: { select: { id: true, firstName: true, lastName: true, email: true } }, createdBy: { select: { id: true, firstName: true, lastName: true } } } })
       }
-    })
+
+      const created = await tx.assetPersonAssignment.create({
+        data: {
+          assetId: id,
+          assigneeId,
+          assignedAt: assignedDate,
+          removedAt: removedDate,
+          notes: notes || null,
+          createdById: user.id
+        },
+        include: {
+          assignee: {
+            select: { id: true, firstName: true, lastName: true, email: true }
+          },
+          createdBy: {
+            select: { id: true, firstName: true, lastName: true }
+          }
+        }
+      })
+
+      return created
     })
 
     return NextResponse.json(assignment, { status: 201 })
-
   } catch (error) {
     if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
-    console.error('Error creating job assignment:', error)
-    return NextResponse.json(
-      { error: 'Failed to create job assignment' },
-      { status: 500 }
-    )
+    console.error('Error creating person assignment:', error)
+    return NextResponse.json({ error: 'Failed to create person assignment' }, { status: 500 })
   }
 }
