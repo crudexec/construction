@@ -485,8 +485,8 @@ test('creates an asset and edits identity, assignment, purchase, status, and cus
   await page.waitForURL('**/dashboard/assets/**')
   await expect(page.getByRole('heading', { name: 'E2E UI Loader 544' })).toBeVisible()
   await expect(page.getByText('SN: E2E-UI-SN-544')).toBeVisible()
-  await expect(page.getByText('E2E UI Ready')).toBeVisible()
-  await expect(page.getByText('$135,000')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Asset information', exact: true }).getByText('E2E UI Ready')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Asset information', exact: true }).getByText('$135,000')).toBeVisible()
 
   const assetUrl = page.url()
   const assetId = assetUrl.split('/').filter(Boolean).pop()
@@ -516,7 +516,7 @@ test('creates an asset and edits identity, assignment, purchase, status, and cus
   await page.getByRole('button', { name: 'Save Changes' }).click()
 
   await expect(page.getByRole('heading', { name: 'E2E UI Loader 544 Updated' })).toBeVisible()
-  await expect(page.getByText('E2E UI Awaiting Parts')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Asset information', exact: true }).getByText('E2E UI Awaiting Parts')).toBeVisible()
   await expect(page.getByText('Ready for ACA dispatch')).toBeVisible()
   await expect(page.getByText(`(${fixture.user.email})`)).toBeVisible()
   await expect(page.getByText('E2E UI Fleet Category')).toBeVisible()

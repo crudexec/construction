@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createProfileData, AssetProfileError } from '@/lib/assets/create-profile'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { Prisma } from '@prisma/client'
@@ -174,8 +175,10 @@ export async function POST(request: NextRequest) {
     }
 
     const asset = await prisma.$transaction(async tx => {
+    const profile = await createProfileData(tx, user.companyId, body)
     const created = await tx.asset.create({
       data: {
+        ...profile,
         ...identity,
         name,
         description,
@@ -220,6 +223,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(asset, { status: 201 })
 
   } catch (error) {
+    if (error instanceof AssetProfileError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetIdentityValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })

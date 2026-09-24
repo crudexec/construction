@@ -45,3 +45,6 @@ next-env.d.ts
 *.db-journal
 prisma/dev.db
 /generated/prisma
+
+# Private import plans, account snapshots, and commit receipts
+/.import-reports/

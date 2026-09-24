@@ -56,7 +56,19 @@ No database migration or remote data change is required for this batch. Applicat
 
 **Validation:** TypeScript and whitespace checks passed. All 20 focused Playwright tests passed against the disposable local PostgreSQL database and mocked APIs: six new history tests plus fourteen earlier asset regressions. Coverage includes all six event types, company isolation, unknown actors, deleted-job snapshot preservation, work-order deduplication, date sorting, filters, pagination, CSV downloads across pages, formula escaping/multiline round-trips, related-record navigation, refresh after changes, error/retry handling, and empty states. Desktop and mobile screenshots were inspected.
 
-Remaining asset work: configurable field placement (A9), role/access documentation (R1), and release/acceptance verification. Project/vendor work remains as listed below.
+### Fifth batch — company-wide asset field ordering (A9)
+
+Implemented locally: admins can open **Arrange fields** from asset creation, Overview, or Purchase; move standard and custom fields up/down; save the company-wide order; or reset to defaults. The create/edit forms and overview use the same ordered field registry, so custom fields can appear between standard fields. The Purchase tab follows the same order for its subset of fields. Overview skips empty values. This is one company-wide layout, not personal or per-role layouts.
+
+New definitions append automatically; deleted definitions are ignored. Inactive definitions retain their position and existing values remain visible read-only. Moving, cancelling, or resetting the layout does not modify asset values or discard in-progress form values. API writes require an admin and an exact list of that company's fields. Version checks reject stale saves/resets, with an explicit reload/retry workflow rather than silently overwriting another admin's changes.
+
+The shared create form now supports the existing purchase/financing fields and active custom-field inputs. These additional create values are validated and saved with the asset in a single transaction; invalid custom fields or foreign-company references do not leave partially created assets. Existing custom-status behavior, assignments/locations, purchase editing, and field values are preserved.
+
+**Remote migration result:** `20260922160000_asset_field_layout` applied successfully. It adds only the per-company layout settings table; no existing asset fields were backfilled or rewritten. Prisma reports the remote schema is up to date. The private pre-migration snapshot is at `/private/tmp/buildflo-asset-test.jjAziC/remote-layout-snapshot.json`. Comparison verified existing rows were unchanged: 10 assets, one custom-field definition, four meter readings, and one job/location assignment (the custom-value and person-assignment tables were empty). No test fixtures were written remotely. Application deployment and client acceptance remain outstanding.
+
+**Validation:** Prisma generation/validation, local schema comparison, TypeScript, and whitespace checks passed. The final 26-test asset regression run passed, plus two existing full asset-management browser workflows in targeted runs (28 distinct tests total). New coverage verifies tenant/admin restrictions, exact field lists, concurrent/stale saves, reset, new/inactive/deleted definitions, atomic custom-value creation, mixed-field ordering across create/edit/overview, preserved drafts, staff visibility, loading-error recovery, and conflict reload. Desktop overview and mobile editor screenshots were inspected.
+
+Remaining asset work: role/access documentation (R1) and release/acceptance verification. Project/vendor work remains as listed below.
 
 ## 1. Milestones and priorities
 

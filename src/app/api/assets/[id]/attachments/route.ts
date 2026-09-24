@@ -68,6 +68,16 @@ export async function POST(
     const buffer = Buffer.from(bytes)
     await writeFile(filePath, buffer)
 
+    // Also save to standalone public directory if it exists (for standalone builds)
+    const standaloneDir = path.join(process.cwd(), '.next', 'standalone', 'public', 'uploads', 'assets', id)
+    try {
+      await mkdir(standaloneDir, { recursive: true })
+      await writeFile(path.join(standaloneDir, filename), buffer)
+    } catch (error) {
+      // Standalone directory doesn't exist, which is fine in dev mode
+      console.log('Skipping standalone directory upload (dev mode)')
+    }
+
     const url = `/uploads/assets/${id}/${filename}`
 
     const attachment = await prisma.assetAttachment.create({
@@ -138,11 +148,20 @@ export async function DELETE(
       where: { id: attachmentId }
     })
 
+    // Delete from root public directory
     try {
       const filePath = path.join(process.cwd(), 'public', attachment.url)
       await unlink(filePath)
     } catch (fileError) {
-      console.warn('Could not delete file from filesystem:', fileError)
+      console.warn('Could not delete file from root public directory:', fileError)
+    }
+
+    // Also delete from standalone public directory if it exists
+    try {
+      const standaloneFilePath = path.join(process.cwd(), '.next', 'standalone', 'public', attachment.url)
+      await unlink(standaloneFilePath)
+    } catch (fileError) {
+      console.warn('Could not delete file from standalone directory:', fileError)
     }
 
     return NextResponse.json({ message: 'Attachment deleted successfully' })

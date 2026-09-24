@@ -1,0 +1,7 @@
+Last Used,Fleetio ID,Part,Location,Description,UPC,Category,Last Used,Manufacturer,Manufacturer Part Number,Reorder Point,Total Quantity,Total Quantity on Active Purchase Orders,Total Quantity Allocated to Work Orders,Measurement Unit,Aisle/Row/Bin,Aisle,Row,Bin,Track Inventory,Unit Cost (USD),Tire Size,Associated Vehicles,Linked Service Tasks,Compatible with X Machine,Created On (Pacific Time (US & Canada)),Updated On (Pacific Time (US & Canada))
+,2711880,111545,Farm,Air Filter,,Filters,,NAPA,,5.000,25.000,0.000,,Each,1 / 2 / 4,1,2,4,TRUE,150.00,,0,0,"",11/16/2022 09:33:23 AM,11/16/2022 09:33:23 AM
+,2711851,1548978,Farm,Battery,,Electrical,,Optima,,,13.000,0.000,,,"",,,,TRUE,150.00,,0,0,"",11/16/2022 09:22:10 AM,11/16/2022 09:33:58 AM
+,6400950,bolts,,,,,,,,,,0,,,"",,,,FALSE,,,0,0,"",05/08/2025 02:51:41 PM,05/08/2025 02:51:41 PM
+,2858413,FIL 600451,Farm,Fuel Filter,,Filters,,NAPA,WF10451,1.000,0.000,0.000,,Each,6 / 2 / 5,6,2,5,TRUE,69.99,,0,0,Compatible with PU2,01/13/2023 02:07:20 PM,01/13/2023 02:20:05 PM
+,2858413,FIL 600451,Kris' Shop,Fuel Filter,,Filters,,NAPA,WF10451,2.000,2.000,0.000,,Each,5 / 1 / 2,5,1,2,TRUE,69.99,,0,0,Compatible with PU2,01/13/2023 02:07:20 PM,01/13/2023 02:20:05 PM
+,2982513,Welding Materials,,,,,,,,,,0,,,"",,,,FALSE,350.00,,0,0,"",02/23/2023 02:16:46 PM,02/23/2023 02:16:46 PM

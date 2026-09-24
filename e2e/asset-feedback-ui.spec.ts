@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { defaultAssetFieldOrder } from '../src/lib/assets/field-layout'
 
 // These UI checks intercept every API request and never use the configured database.
 async function mockAssetApi(page: Page, baseURL: string) {
@@ -26,13 +27,14 @@ async function mockAssetApi(page: Page, baseURL: string) {
     const path = new URL(request.url()).pathname
     const method = request.method()
     let response: unknown = []
+    if (path === '/api/asset-field-layout') response = { order: defaultAssetFieldOrder([]), version: 0, customFields: [] }
     if (path === '/api/asset-statuses') response = [companyStatus]
     if (path === '/api/assets') {
       response = [asset]
       if (method === 'POST') {
         const data = request.postDataJSON()
         savedPayloads.push(data)
-        Object.assign(asset, data, { statusDefinition: data.statusDefinitionId ? companyStatus : null })
+        Object.assign(asset, data, { customFieldValues: asset.customFieldValues, statusDefinition: data.statusDefinitionId ? companyStatus : null })
         response = asset
       }
     }
@@ -98,7 +100,7 @@ test('uses one status selector and clears the company status when switching to a
   await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible()
   expect(savedPayloads[1]).toMatchObject({ status: 'AVAILABLE', statusDefinitionId: null })
   await page.reload()
-  await expect(page.getByText('Available', { exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Asset information', exact: true }).getByText('Available', { exact: true })).toBeVisible()
 })
 
 test('shows latest readings, opens the add form, and refreshes readings and issue counts', async ({ page, baseURL }, testInfo) => {

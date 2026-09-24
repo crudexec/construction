@@ -39,11 +39,12 @@ import { AssetMaintenanceTab } from '@/components/assets/asset-maintenance-tab'
 import { AssetAttachmentsTab } from '@/components/assets/asset-attachments-tab'
 import { AssetIssuesTab } from '@/components/assets/asset-issues-tab'
 import { AssetHistoryTab } from '@/components/assets/asset-history-tab'
+import { AssetFieldLayoutControl, useAssetFieldLayout } from '@/components/assets/asset-field-layout'
+import { AssetProfileFields, AssetProfileOverview } from '@/components/assets/asset-profile-fields'
+import { emptyAssetProfile } from '@/lib/assets/field-layout'
 import { AssetQrShareModal } from '@/components/assets/asset-qr-share-modal'
 import { AssetOverviewTiles } from '@/components/assets/asset-overview-tiles'
-import { AssetStatusSelect } from '@/components/assets/asset-status-select'
-import { AssetCategoryField } from '@/components/assets/asset-category-field'
-import { AssetLocationSelect, locationValue, locationFields } from '@/components/assets/asset-context-fields'
+import { locationValue, locationFields } from '@/components/assets/asset-context-fields'
 
 interface AssetRequest {
   id: string
@@ -134,19 +135,6 @@ interface Project {
   title: string
 }
 
-interface VendorOption {
-  id: string
-  name: string
-  companyName: string
-}
-
-interface UserOption {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-}
-
 interface CustomFieldDefinition {
   id: string
   name: string
@@ -185,30 +173,6 @@ async function fetchProjects(): Promise<Project[]> {
   if (!response.ok) return []
   const data = await response.json()
   return Array.isArray(data) ? data : data.projects || []
-}
-
-async function fetchVendors(): Promise<VendorOption[]> {
-  const response = await fetch('/api/vendors', {
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  })
-  if (!response.ok) return []
-  return response.json()
-}
-
-async function fetchUsers(): Promise<UserOption[]> {
-  const response = await fetch('/api/users', {
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  })
-  if (!response.ok) return []
-  return response.json()
-}
-
-async function fetchCustomFieldDefinitions(): Promise<CustomFieldDefinition[]> {
-  const response = await fetch('/api/asset-custom-fields', {
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  })
-  if (!response.ok) return []
-  return response.json()
 }
 
 async function fetchAssetStatuses(): Promise<AssetStatusDefinition[]> {
@@ -261,17 +225,7 @@ const getRequestStatusBadge = (status: string) => {
   )
 }
 
-const emptyEditForm = {
-  locationSelection: '',
-  equipmentId: '', category: '',
-  name: '', description: '', type: 'EQUIPMENT' as Asset['type'], serialNumber: '',
-  status: 'AVAILABLE' as Asset['status'], statusDefinitionId: '', customStatusNote: '', currentLocation: '',
-  currentAssigneeId: '', make: '', model: '', year: '', vin: '', licensePlate: '',
-  purchaseCost: '', purchaseDate: '', warrantyExpiry: '', purchasedFromVendorId: '',
-  poNumber: '', invoiceNumber: '', financingType: '' as '' | Asset['financingType'],
-  financedAmount: '', lender: '', loanTermMonths: '', depreciationMethod: '',
-  usefulLifeYears: '', salvageValue: '', notes: ''
-}
+const emptyEditForm = emptyAssetProfile()
 
 export default function AssetDetailPage() {
   const params = useParams()
@@ -312,6 +266,7 @@ export default function AssetDetailPage() {
   })
 
   const isAdmin = currentUser?.role === 'ADMIN'
+  const fieldLayout = useAssetFieldLayout()
 
   const { data: asset, isLoading, error, refetch } = useQuery({
     queryKey: ['asset', assetId],
@@ -323,23 +278,6 @@ export default function AssetDetailPage() {
     queryKey: ['projects'],
     queryFn: fetchProjects,
     enabled: isRequestModalOpen
-  })
-
-  const { data: vendors = [] } = useQuery({
-    queryKey: ['vendors'],
-    queryFn: fetchVendors,
-    enabled: isEditing
-  })
-
-  const { data: users = [] } = useQuery({
-    queryKey: ['company-users'],
-    queryFn: fetchUsers,
-    enabled: isEditing
-  })
-
-  const { data: customFieldDefinitions = [] } = useQuery({
-    queryKey: ['asset-custom-fields'],
-    queryFn: fetchCustomFieldDefinitions
   })
 
   const { data: assetStatuses = [] } = useQuery({
@@ -371,6 +309,7 @@ export default function AssetDetailPage() {
     onSuccess: (definition) => {
       toast.success('Custom field created')
       queryClient.invalidateQueries({ queryKey: ['asset-custom-fields'] })
+      queryClient.invalidateQueries({ queryKey: ['asset-field-layout'] })
       setCustomFieldEdits((prev) => ({ ...prev, [definition.id]: '' }))
       setShowCustomFieldModal(false)
       setCustomFieldForm({ name: '', fieldType: 'TEXT', selectOptions: '' })
@@ -444,6 +383,8 @@ export default function AssetDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      if (!editForm.name.trim()) throw new Error('Asset name is required')
+      if (!fieldLayout.data || fieldLayout.isError) throw new Error('Reload the field layout before saving')
       const patchBody: Record<string, unknown> = {
         equipmentId: editForm.equipmentId.trim() || null,
         category: editForm.category.trim() || null,
@@ -671,7 +612,35 @@ export default function AssetDetailPage() {
     { id: 'issues', label: asset._count?.issues ? `Issues (${asset._count.issues})` : 'Issues' },
     { id: 'attachments', label: 'Photos & Documents' }
   ]
-  const activeCustomFieldDefinitions = customFieldDefinitions.filter(f => f.isActive)
+  const profileFormProps = {
+    values: editForm,
+    onChange: (patch: Partial<typeof editForm>) => setEditForm(prev => ({ ...prev, ...patch })),
+    customValues: customFieldEdits,
+    onCustomChange: (id: string, value: string) => setCustomFieldEdits(prev => ({ ...prev, [id]: value })),
+    layout: fieldLayout.data || { order: [], version: 0, customFields: [] },
+    statuses: assetStatuses,
+    currentStatus: asset.statusDefinition,
+    currentLocation: asset.currentLocation,
+    currentPerson: asset.currentAssignee ? asset.currentAssignee.firstName + ' ' + asset.currentAssignee.lastName : null,
+    onNewStatus: isAdmin ? () => setShowStatusModal(true) : undefined,
+  }
+  const profileSummary = {
+    equipmentId: asset.equipmentId || 'Not assigned', name: asset.name, type: asset.type, category: asset.category,
+    status: getStatusBadge(asset.status, asset.statusDefinition), customStatusNote: asset.customStatusNote,
+    serialNumber: asset.serialNumber, make: asset.make, model: asset.model, year: asset.year, vin: asset.vin,
+    licensePlate: asset.licensePlate, description: asset.description,
+    locationSelection: asset.currentProject?.title || asset.currentYard?.name || asset.currentLocation,
+    currentAssigneeId: asset.currentAssignee ? <><span>{asset.currentAssignee.firstName} {asset.currentAssignee.lastName}</span><span className="text-sm text-gray-500 ml-2">({asset.currentAssignee.email})</span></> : null,
+    purchaseCost: asset.purchaseCost != null ? formatCurrency(asset.purchaseCost) : null,
+    purchaseDate: asset.purchaseDate?.split('T')[0],
+    warrantyExpiry: asset.warrantyExpiry ? <span className={new Date(asset.warrantyExpiry) < new Date() ? 'text-red-600' : ''}>{asset.warrantyExpiry.split('T')[0]}{new Date(asset.warrantyExpiry) < new Date() && ' (Expired)'}</span> : null,
+    purchasedFromVendorId: asset.purchasedFromVendor?.companyName || asset.purchasedFromVendor?.name,
+    poNumber: asset.poNumber, invoiceNumber: asset.invoiceNumber, financingType: asset.financingType,
+    financedAmount: asset.financedAmount != null ? formatCurrency(asset.financedAmount) : null,
+    lender: asset.lender, loanTermMonths: asset.loanTermMonths != null ? asset.loanTermMonths + ' months' : null, depreciationMethod: asset.depreciationMethod,
+    usefulLifeYears: asset.usefulLifeYears != null ? asset.usefulLifeYears + ' years' : null, salvageValue: asset.salvageValue != null ? formatCurrency(asset.salvageValue) : null,
+    notes: asset.notes,
+  }
 
   return (
     <div className="space-y-3">
@@ -726,7 +695,7 @@ export default function AssetDetailPage() {
               </button>
               <button
                 onClick={() => updateMutation.mutate()}
-                disabled={updateMutation.isPending}
+                disabled={updateMutation.isPending || !fieldLayout.data || fieldLayout.isError}
                 className="text-primary-700 hover:text-primary-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-primary-50 rounded disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" />
@@ -805,209 +774,18 @@ export default function AssetDetailPage() {
             onViewReadings={() => { setOpenMeterForm(false); setActiveTab('meter') }}
             onAddReading={() => { setOpenMeterForm(true); setActiveTab('meter') }}
           />
-          <div className="bg-white rounded-lg shadow border p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Asset Information</h3>
-            {isEditing ? (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="equipmentId" className="block text-sm font-medium text-gray-700 mb-1">Equipment ID</label>
-                  <input id="equipmentId" value={editForm.equipmentId} onChange={event => setEditForm(prev => ({ ...prev, equipmentId: event.target.value }))} maxLength={100} placeholder="e.g., EX-001" className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  <p className="mt-1 text-xs text-gray-500">Your fleet identifier. Optional; must be unique within your company.</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                    <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-                    <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as Asset['type'], category: '' })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                      <option value="VEHICLE">Vehicle</option>
-                      <option value="EQUIPMENT">Equipment</option>
-                      <option value="TOOL">Tool</option>
-                    </select>
-                  </div>
-                </div>
-                <AssetCategoryField type={editForm.type} value={editForm.category} onChange={category => setEditForm(prev => ({ ...prev, category }))} />
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Make</label>
-                    <input type="text" value={editForm.make} onChange={(e) => setEditForm({ ...editForm, make: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-                    <input type="text" value={editForm.model} onChange={(e) => setEditForm({ ...editForm, model: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                    <input type="number" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">VIN</label>
-                    <input type="text" value={editForm.vin} onChange={(e) => setEditForm({ ...editForm, vin: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">License Plate</label>
-                    <input type="text" value={editForm.licensePlate} onChange={(e) => setEditForm({ ...editForm, licensePlate: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
-                  <input type="text" value={editForm.serialNumber} onChange={(e) => setEditForm({ ...editForm, serialNumber: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                  <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
-                      <label htmlFor="asset-status" className="block text-sm font-medium text-gray-700">Status *</label>
-                      {isAdmin && (
-                        <button type="button" onClick={() => setShowStatusModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
-                          New Custom Status
-                        </button>
-                      )}
-                    </div>
-                    <AssetStatusSelect
-                      id="asset-status"
-                      status={editForm.status}
-                      statusDefinitionId={editForm.statusDefinitionId}
-                      definitions={assetStatuses}
-                      currentDefinition={asset.statusDefinition}
-                      onChange={(value) => setEditForm(prev => ({ ...prev, ...value }))}
-                    />
-                  </div>
-                  <AssetLocationSelect value={editForm.locationSelection} onChange={locationSelection => setEditForm(prev => ({ ...prev, locationSelection }))} currentLabel={asset.currentLocation} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status Note <span className="text-gray-400 font-normal">(optional)</span></label>
-                  <input type="text" value={editForm.customStatusNote} onChange={(e) => setEditForm({ ...editForm, customStatusNote: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="Extra detail alongside the status above" />
-                </div>
-                <div>
-                  <label htmlFor="asset-assignment" className="block text-sm font-medium text-gray-700 mb-1">Assignment (person)</label>
-                  <select id="asset-assignment" value={editForm.currentAssigneeId} onChange={(e) => setEditForm({ ...editForm, currentAssigneeId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                    <option value="">Unassigned</option>
-                    {users.map((u: UserOption) => (
-                      <option key={u.id} value={u.id}>{u.firstName} {u.lastName}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                  <textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-                </div>
-
-                <div className="border-t pt-4 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-700">Custom Fields</h4>
-                      <p className="text-xs text-gray-500">Add asset-specific fields for identifiers, compliance data, or internal tracking.</p>
-                    </div>
-                    {isAdmin && (
-                      <button type="button" onClick={() => setShowCustomFieldModal(true)} className="text-xs font-medium text-primary-600 hover:text-primary-800">
-                        Add Custom Field
-                      </button>
-                    )}
-                  </div>
-                  {activeCustomFieldDefinitions.length === 0 ? (
-                    <p className="rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500">No custom fields have been configured yet.</p>
-                  ) : (
-                    activeCustomFieldDefinitions.map((field) => (
-                      <div key={field.id}>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{field.name}</label>
-                        {field.fieldType === 'SELECT' ? (
-                          <select value={customFieldEdits[field.id] || ''} onChange={(e) => setCustomFieldEdits({ ...customFieldEdits, [field.id]: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                            <option value="">—</option>
-                            {field.selectOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                          </select>
-                        ) : field.fieldType === 'BOOLEAN' ? (
-                          <select value={customFieldEdits[field.id] || ''} onChange={(e) => setCustomFieldEdits({ ...customFieldEdits, [field.id]: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                            <option value="">—</option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                          </select>
-                        ) : (
-                          <input
-                            type={field.fieldType === 'NUMBER' ? 'number' : field.fieldType === 'DATE' ? 'date' : 'text'}
-                            value={customFieldEdits[field.id] || ''}
-                            onChange={(e) => setCustomFieldEdits({ ...customFieldEdits, [field.id]: e.target.value })}
-                            className="w-full border border-gray-300 rounded-md px-3 py-2"
-                          />
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div>
-                  <span className="text-sm font-medium text-gray-500">Equipment ID:</span>
-                  <p className="text-gray-900 mt-1">{asset.equipmentId || 'Not assigned'}</p>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">{asset.type}</span>
-                  {asset.category && <span className="text-sm text-gray-700">{asset.category}</span>}
-                  {asset.customStatusNote && <span className="text-xs text-gray-500">{asset.customStatusNote}</span>}
-                </div>
-                {(asset.make || asset.model || asset.year) && (
-                  <p className="text-gray-900">{[asset.make, asset.model, asset.year].filter(Boolean).join(' ')}</p>
-                )}
-                {(asset.vin || asset.licensePlate) && (
-                  <p className="text-sm text-gray-500">{asset.vin ? `VIN: ${asset.vin}` : ''}{asset.vin && asset.licensePlate ? ' · ' : ''}{asset.licensePlate ? `Plate: ${asset.licensePlate}` : ''}</p>
-                )}
-                {asset.description && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Description:</span>
-                    <p className="text-gray-900 mt-1">{asset.description}</p>
-                  </div>
-                )}
-                {asset.currentLocation && (
-                  <div className="flex items-center space-x-3">
-                    <MapPin className="h-5 w-5 text-gray-400" />
-                    <span className="text-gray-900">Location: {asset.currentProject?.title || asset.currentYard?.name || asset.currentLocation}</span>
-                  </div>
-                )}
-                {asset.currentAssignee && (
-                  <div className="flex items-center space-x-3">
-                    <User className="h-5 w-5 text-gray-400" />
-                    <div>
-                      <span className="text-gray-900">{asset.currentAssignee.firstName} {asset.currentAssignee.lastName}</span>
-                      <span className="text-sm text-gray-500 ml-2">({asset.currentAssignee.email})</span>
-                    </div>
-                  </div>
-                )}
-                {asset.warrantyExpiry && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Warranty Expires:</span>
-                    <p className={`text-gray-900 mt-1 ${new Date(asset.warrantyExpiry) < new Date() ? 'text-red-600' : ''}`}>
-                      {new Date(asset.warrantyExpiry).toLocaleDateString()}{new Date(asset.warrantyExpiry) < new Date() && ' (Expired)'}
-                    </p>
-                  </div>
-                )}
-                {asset.notes && (
-                  <div>
-                    <span className="text-sm font-medium text-gray-500">Notes:</span>
-                    <p className="text-gray-900 mt-1 whitespace-pre-wrap">{asset.notes}</p>
-                  </div>
-                )}
-                {asset.customFieldValues.length > 0 && (
-                  <div className="border-t pt-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-gray-700">Custom Fields</h4>
-                    {asset.customFieldValues.filter(v => v.value).map((cfv) => (
-                      <div key={cfv.id} className="flex justify-between text-sm">
-                        <span className="text-gray-500">{cfv.definition.name}</span>
-                        <span className="text-gray-900">{cfv.definition.fieldType === 'BOOLEAN' ? (cfv.value === 'true' ? 'Yes' : 'No') : cfv.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <section className="bg-white rounded-lg shadow border p-6" aria-label="Asset information">
+            <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Asset Information</h3>
+              <AssetFieldLayoutControl />
+            </div>
+            {fieldLayout.isError && <p role="alert" className="text-sm text-red-700 mb-3">Unable to refresh field layout. Showing the last available order; saving is unavailable until retry succeeds. <button type="button" className="underline" onClick={() => fieldLayout.refetch()}>Retry layout</button></p>}
+            {isEditing ? <>
+              {fieldLayout.data && <AssetProfileFields {...profileFormProps} />}
+              {fieldLayout.isPending && <p role="status">Loading field layout…</p>}
+              {isAdmin && <button type="button" onClick={() => setShowCustomFieldModal(true)} className="mt-4 text-sm font-medium text-primary-600">Add Custom Field</button>}
+            </> : <AssetProfileOverview layout={fieldLayout.data || { order: [], version: 0, customFields: [] }} values={profileSummary} customValues={asset.customFieldValues} />}
+          </section>
 
           <div className="bg-white rounded-lg shadow border p-6">
             <div className="flex justify-between items-center mb-4">
@@ -1050,89 +828,11 @@ export default function AssetDetailPage() {
 
       {/* Purchase */}
       {activeTab === 'purchase' && (
-        <div className="bg-white rounded-lg shadow border p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Purchase Information</h3>
-          {isEditing ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Cost</label>
-                <input type="number" step="0.01" value={editForm.purchaseCost} onChange={(e) => setEditForm({ ...editForm, purchaseCost: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Date</label>
-                <DatePicker value={editForm.purchaseDate} onChange={(date) => setEditForm({ ...editForm, purchaseDate: date })} placeholder="Select date" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Warranty Expiry</label>
-                <DatePicker value={editForm.warrantyExpiry} onChange={(date) => setEditForm({ ...editForm, warrantyExpiry: date })} placeholder="Select date" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purchased From (Vendor)</label>
-                <select value={editForm.purchasedFromVendorId} onChange={(e) => setEditForm({ ...editForm, purchasedFromVendorId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                  <option value="">—</option>
-                  {vendors.map((v: VendorOption) => <option key={v.id} value={v.id}>{v.companyName}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">PO Number</label>
-                <input type="text" value={editForm.poNumber} onChange={(e) => setEditForm({ ...editForm, poNumber: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
-                <input type="text" value={editForm.invoiceNumber} onChange={(e) => setEditForm({ ...editForm, invoiceNumber: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Financing Type</label>
-                <select value={editForm.financingType || ''} onChange={(e) => setEditForm({ ...editForm, financingType: e.target.value as Asset['financingType'] })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                  <option value="">—</option>
-                  <option value="CASH">Cash</option>
-                  <option value="FINANCED">Financed</option>
-                  <option value="LEASED">Leased</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Financed Amount</label>
-                <input type="number" step="0.01" value={editForm.financedAmount} onChange={(e) => setEditForm({ ...editForm, financedAmount: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lender</label>
-                <input type="text" value={editForm.lender} onChange={(e) => setEditForm({ ...editForm, lender: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Loan Term (months)</label>
-                <input type="number" value={editForm.loanTermMonths} onChange={(e) => setEditForm({ ...editForm, loanTermMonths: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Depreciation Method</label>
-                <input type="text" value={editForm.depreciationMethod} onChange={(e) => setEditForm({ ...editForm, depreciationMethod: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" placeholder="e.g., Straight-line" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Useful Life (years)</label>
-                <input type="number" value={editForm.usefulLifeYears} onChange={(e) => setEditForm({ ...editForm, usefulLifeYears: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Salvage Value</label>
-                <input type="number" step="0.01" value={editForm.salvageValue} onChange={(e) => setEditForm({ ...editForm, salvageValue: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Purchase Cost</span><span className="text-gray-900">{asset.purchaseCost ? formatCurrency(asset.purchaseCost) : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Purchase Date</span><span className="text-gray-900">{asset.purchaseDate ? new Date(asset.purchaseDate).toLocaleDateString() : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Warranty Expiry</span><span className="text-gray-900">{asset.warrantyExpiry ? new Date(asset.warrantyExpiry).toLocaleDateString() : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Purchased From</span><span className="text-gray-900">{asset.purchasedFromVendor?.companyName || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">PO Number</span><span className="text-gray-900">{asset.poNumber || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Invoice Number</span><span className="text-gray-900">{asset.invoiceNumber || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Financing</span><span className="text-gray-900">{asset.financingType || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Financed Amount</span><span className="text-gray-900">{asset.financedAmount != null ? formatCurrency(asset.financedAmount) : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Lender</span><span className="text-gray-900">{asset.lender || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Loan Term</span><span className="text-gray-900">{asset.loanTermMonths ? `${asset.loanTermMonths} months` : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Depreciation Method</span><span className="text-gray-900">{asset.depreciationMethod || '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Useful Life</span><span className="text-gray-900">{asset.usefulLifeYears ? `${asset.usefulLifeYears} years` : '—'}</span></div>
-              <div className="flex justify-between border-b border-gray-100 py-2"><span className="text-gray-500">Salvage Value</span><span className="text-gray-900">{asset.salvageValue != null ? formatCurrency(asset.salvageValue) : '—'}</span></div>
-            </div>
-          )}
-        </div>
+        <section className="bg-white rounded-lg shadow border p-6">
+          <div className="flex justify-between gap-3 mb-4"><h3 className="text-lg font-medium text-gray-900">Purchase Information</h3><AssetFieldLayoutControl /></div>
+          {fieldLayout.isError && <p role="alert" className="text-red-700 mb-3">Unable to load field layout. <button type="button" onClick={() => fieldLayout.refetch()} className="underline">Retry layout</button></p>}
+          {isEditing ? fieldLayout.data && <AssetProfileFields {...profileFormProps} purchaseOnly /> : <AssetProfileOverview layout={fieldLayout.data || { order: [], version: 0, customFields: [] }} values={profileSummary} customValues={[]} purchaseOnly />}
+        </section>
       )}
 
       {activeTab === 'rental' && <AssetRentalPricingTab assetId={assetId} />}

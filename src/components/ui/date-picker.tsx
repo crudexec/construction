@@ -7,6 +7,7 @@ import { Calendar, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import 'react-day-picker/style.css'
 
 interface DatePickerProps {
+  id?: string
   value: string | Date | null | undefined
   onChange: (date: string) => void
   placeholder?: string
@@ -19,6 +20,7 @@ interface DatePickerProps {
 }
 
 export function DatePicker({
+  id,
   value,
   onChange,
   placeholder = 'Select date...',
@@ -130,6 +132,7 @@ export function DatePicker({
     <div ref={containerRef} className={`relative ${className}`}>
       <div className="relative">
         <input
+          id={id}
           ref={inputRef}
           type="text"
           value={inputValue}

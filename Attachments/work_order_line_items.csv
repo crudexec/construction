@@ -1,0 +1,275 @@
+work_order_number,type,summary,labor_cost,parts_cost,description
+10,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+13,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+17,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+17,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+17,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+17,ServiceTask,oil pan and seal replacement,0.0,0.0,
+17,ServiceTask,Front Crankshaft Seal Replacement,0.0,0.0,
+17,ServiceTask,Cylinder Head Gasket Replacement,0.0,0.0,
+17,ServiceTask,Power Steering Line Replacement,0.0,0.0,
+17,ServiceTask,Turbocharger Assembly Inspect,0.0,0.0,
+17,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,
+18,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+19,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+19,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+19,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+19,ServiceTask,Tires (Miscellaneous),0.0,0.0,replace front tires due to outer edge wear
+20,ServiceTask,Heater Core Replacement,0.0,0.0,
+20,ServiceTask,Engine Leak Inspection,0.0,0.0,
+20,ServiceTask,Front Brakes & Drums,0.0,0.0,
+20,ServiceTask,Windshield Washer System Inspect,0.0,0.0,
+20,ServiceTask,Exterior Bulb Replacement,0.0,0.0,
+21,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+22,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+23,ServiceTask,Vehicle Multi-Point Inspection,0.0,0.0,
+23,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+23,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+24,ServiceTask,Fuel System Service,0.0,0.0,
+24,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+24,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+25,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+25,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+25,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+24,ServiceTask,OIl Pan drain valve,0.0,0.0,
+24,ServiceTask,Engine Drive Belt Replacement,0.0,0.0,
+26,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+26,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+26,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+27,ServiceTask,Exterior Lighting Inspect,0.0,0.0,Install work lights and service beacon
+27,ServiceTask,Body (Miscellaneous),0.0,0.0,Add roof rack and paint white
+27,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,"Replace the RV plug for towing
+
+Install inverter for small tool chargers"
+28,ServiceTask,Suspension Leaf Spring Inspect,0.0,0.0,"replace broken leaf spring on driver's front
+also replace the pins and u-bolts"
+28,ServiceTask,Body (Miscellaneous),0.0,0.0,Welded the tailgate cracks and installed patch panel over hole in bottom edge of the tailgate
+28,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,tac welded small plate over the opening at the top of the doghouse in the dump box
+28,ServiceTask,Body (Miscellaneous),0.0,0.0,mud flap installation on passenger side
+28,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Repair the crack in the bash board on driver's side of the dump box
+29,ServiceTask,Brake Pads Replacement,0.0,0.0,Replace front and rear brake pads
+29,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+29,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+29,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+29,ServiceTask,Body (Miscellaneous),0.0,0.0,Removed roof rack
+29,ServiceTask,Windshield Wiper Blade Replacement,0.0,0.0,
+29,ServiceTask,Tires (Miscellaneous),0.0,0.0,All tires spin balanced
+31,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+31,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+32,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+32,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+32,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+37,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+37,ServiceTask,Fuel Filter Inspect,0.0,0.0,
+,ServiceTask,Engine Oil Level Inspect,0.0,0.0,
+,ServiceTask,ABS Control Module Replacement,0.0,0.0,
+,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+40,ServiceTask,Electrical diagnostics,0.0,0.0,
+40,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,
+41,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+41,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+42,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+42,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+,ServiceTask,Brake Pads Replacement,0.0,0.0,
+44,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+44,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+44,ServiceTask,Hydraulic filter change,0.0,0.0,
+45,ServiceTask,hydraulic hose replacement,0.0,0.0,
+45,ServiceTask,hydraulic hose replacement,0.0,0.0,
+51,ServiceTask,Drive Belt Tensioner Replacement,0.0,0.0,
+51,ServiceTask,Fan Pulley and Belts Inspection,0.0,0.0,
+52,ServiceTask,boom cables,0.0,0.0,
+53,ServiceTask,Alternator Replacement,0.0,0.0,
+53,ServiceTask,Alternator Test,0.0,0.0,
+54,ServiceTask,Battery Replacement,0.0,0.0,
+56,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+56,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+56,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+57,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+57,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+57,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+58,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+58,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+58,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+58,ServiceTask,Tires (Miscellaneous),0.0,0.0,replaced all rear tires
+58,ServiceTask,Body (Miscellaneous),0.0,0.0,welded in D rings and a plate of angle iron for storage 
+58,ServiceTask,HVAC Blower Motor Replacement,0.0,0.0,diagnosed and replaced the blower motor resistor 
+59,ServiceTask,hydraulic hose replacement,0.0,0.0,Had two lines made with threaded quick releases for the hoe pack from the Takeuchi to the new mini
+60,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,
+60,ServiceTask,Neutral Safety Switch Test,0.0,0.0,
+62,ServiceTask,Engine Coolant Drain & Refill,0.0,0.0,
+62,ServiceTask,Radiator Hose Replacement,0.0,0.0,
+62,ServiceTask,Rear Brakes & Drums,0.0,0.0,
+62,ServiceTask,Exterior Lighting Inspect,0.0,0.0,
+62,ServiceTask,Wheel Alignment,0.0,0.0,
+62,ServiceTask,HVAC (Miscellaneous),0.0,0.0,
+64,ServiceTask,Cylinder Head Gasket Replacement,0.0,0.0,head gasket leaks combustion pressure into the cooling system
+64,ServiceTask,Engine Coolant Drain & Refill,0.0,0.0,Drain cooling system to replace head gasket
+64,ServiceTask,Engine Coolant Thermostat Replacement,0.0,0.0,Replaced the thermostat from a preventative maintenance standpoint
+65,ServiceTask,HVAC (Miscellaneous),0.0,0.0,"A/C compressor clutch has failed and locked up
+Recover refrigerant removed and replaced compressor and charge system"
+65,ServiceTask,Engine Drive Belt Replacement,0.0,0.0,replace worn drive belt from failed A/C compressor 
+66,ServiceTask,Headlamp Bulb Replacement,0.0,0.0,lights out on stick
+66,ServiceTask,Admin/Misc Charges,0.0,0.0,clean in and outside of equipment
+67,ServiceTask,Air Brake Camshaft Inspect,0.0,0.0,inspect and adjust brakes
+67,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+67,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+67,ServiceTask,Air Brake Slack Adjuster Lubricate,0.0,0.0,replace worn slack adjusters and lubricate
+65,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Repair broken grab handle and straighten out stairs
+68,ServiceTask,Replaced Track Chains and Sprockets,0.0,0.0,""
+69,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,extend the breather tube to the bottom of the front axle
+69,ServiceTask,Engine Wiring Harness Inspect,0.0,0.0,Replace bad engine harness
+69,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+69,ServiceTask,Engine Drive Belt Replacement,0.0,0.0,
+69,ServiceTask,Front Suspension (Miscellaneous),0.0,0.0,Driver side leaf pack has shifted causing misalignment 
+69,ServiceTask,Engine Crankcase Breather Tube Inspect,0.0,0.0,
+68,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,"pins and bushings on the quick change and thumb
+also straighten out bent thumb"
+71,ServiceTask,Throttle Linkage Inspect,0.0,0.0,"Throttle climbs up on its own
+Replace throttle potentiometer"
+68,ServiceTask,air seat (Miscellaneous),0.0,0.0,Operators chair air adjuster is inoperable 
+68,ServiceTask,Body (Miscellaneous),0.0,0.0,Blade cylinder protector plate is bent and damaged
+67,ServiceTask,Brake Shoes Replacement,0.0,0.0,Replace Passenger side rear brake shoes and roller and springs
+62,ServiceTask,Front Brakes & Drums,0.0,0.0,
+72,ServiceTask,Shock or Strut Replacement,0.0,0.0,front struts are bad
+72,ServiceTask,Wheel Bearing Replacement,0.0,0.0,Driver's front wheel bearing is bad
+72,ServiceTask,Spark Plugs Replacement,0.0,0.0,""
+72,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+72,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+73,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+73,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+73,ServiceTask,Fuel System Service,0.0,0.0,
+73,ServiceTask,Underbody Clean,0.0,0.0,Full detail
+74,ServiceTask,Underbody Clean,0.0,0.0,full detail
+75,ServiceTask,Exhaust/Emissions (Miscellaneous),0.0,0.0,bank 2 sensor 2 is out of range 
+76,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+76,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+76,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+76,ServiceTask,Drive Axle Assembly Drain & Refill,0.0,0.0,"Drained diff and found one of the fill plugs was stripped out and needs to be replaced. Diff breather and overfill was missing and leaking all over the to the housing.
+Order new plug for the fill port on the rear diff"
+76,ServiceTask,Automatic Transmission Leak Inspection,0.0,0.0,Transmission has a bad leak coating the case with fluid and dirt. clean and locate the leak to make repairs needed.
+74,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+74,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+74,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+77,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+77,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+77,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+77,ServiceTask,"Body Latches, Locks & Hinges Lubricate",0.0,0.0,inspect body for damage and make repairs
+77,ServiceTask,Fuel System Inspect,0.0,0.0,"Found rust in the fuel filter housing and inspected the fuel tank to find rust at the filler neck. Needs further diag for repairs to be made.
+Equipment is able to return to work"
+78,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,
+79,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+79,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+79,ServiceTask,Brake Inspection,0.0,0.0,
+80,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+80,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+80,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+81,ServiceTask,Front Drive Axle Assembly Drain & Refill,0.0,0.0,
+81,ServiceTask,Front Drive Axle Assembly Inspect,0.0,0.0,Swap front axle out with known working axle 
+76,ServiceTask,Front Drive Axle Assembly Inspect,0.0,0.0,
+81,ServiceTask,Tire Replacement,0.0,0.0,Swap all four wheels and tires around
+81,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Replace forks suited for the size of the lift
+82,ServiceTask,Engine Assembly Replacement,0.0,0.0,swap new motor into unit and test operation
+82,ServiceTask,Fan Pulley and Belts Inspection,0.0,0.0,
+83,ServiceTask,Fuel System Inspect,0.0,0.0,"No start, no fuel shut operation"
+83,ServiceTask,Tires (Miscellaneous),0.0,0.0,Front right tire flat
+84,ServiceTask,wiper motor replacement,0.0,0.0,
+84,ServiceTask,Replace Broken Rock Guards,0.0,0.0,
+85,ServiceTask,fuel shut off solenoid,0.0,0.0,
+85,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,No Start issue
+86,ServiceTask,Drive Axle Assembly Inspect,0.0,0.0,Center axle right side wheel seal leaking. Removed wheel hub drum assembly and inspect brakes. Replaced the bad wheel seal and cleaned the brake shoes and the drum. installed and torqued the hub. filled diff and test drove to verify the repairs made. pressure washed the wheels and tires after service. 
+87,ServiceTask,Hyd Lift Cylinder,0.0,0.0,"Right side lift cylinder is leaking from a pin hole in the weld
+Replaced cylinder and filled hyd fluid"
+85,ServiceTask,Battery Service,0.0,0.0,Charge batteries and clean up battery box. new tie downs and terminals
+87,ServiceTask,HVAC (Miscellaneous),0.0,0.0,"No blower motor or heat
+Replaced the relay inside of the main distribution center "
+85,ServiceTask,windshield reseal,0.0,0.0,windshield sealant has failed and the windshield is loose in the frame  
+88,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,engine oil fuel filter air filter
+88,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+88,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+89,ServiceTask,Engine Air Filter Element Inspect,0.0,0.0,
+89,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+89,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+87,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Replaced the parking brake switch and the rheostat for the tilt speed
+90,ServiceTask,Hyd Lift Cylinder,0.0,0.0,Bucket cylinder is leaking from chrome rod damage
+91,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+91,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+91,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+82,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,wire cat ignition and kill switch along with rectifier
+92,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+92,ServiceTask,Fuel Filter Replacement,0.0,0.0,Replaced the fuel filter 
+92,ServiceTask,Fuel System Service,0.0,0.0,"CP4 inspection and research of options for the fuel issue.
+Replaced the fuel filter and added diesel additive to the tank as a preventative militance for the pump  
+Replaced the fuel inlet metering valve with updated screen to prevent fuel system damage"
+92,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Light bar switch relocation to just in front of the center console cupholders 
+92,ServiceTask,Vehicle Multi-Point Inspection,0.0,0.0,
+92,ServiceTask,Front Drive Axle Assembly Drain & Refill,0.0,0.0,
+92,ServiceTask,Drive Axle Assembly Drain & Refill,0.0,0.0,
+92,ServiceTask,Transfer Gear Oil Replacement,0.0,0.0,
+92,ServiceTask,HVAC (Miscellaneous),0.0,0.0,"Blend door (no A/C on driver's side) 
+Completed the HVAC system reset and tested operation of the blend door. 
+Replaced the Cabin Air filter and cleaned the airbox  "
+92,ServiceTask,Headlamp Bulb Replacement,0.0,0.0,"TSB for headlight... installing LED headlights and fog lights
+Install new LED fog lights and reverse lights "
+93,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Diag. no power to fuse panel on start up
+94,ServiceTask,Windshield Washer System Inspect,0.0,0.0,
+94,ServiceTask,Oxygen Sensor Replacement,0.0,0.0,
+94,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+92,ServiceTask,Brake Fluid Fill,0.0,0.0,Drain and fill the brake fluid reservoir and complete a brake flush of the lines 
+92,ServiceTask,Engine Coolant Drain & Refill,0.0,0.0,
+95,ServiceTask,Body (Miscellaneous),0.0,0.0,Replace lock cylinders for doors and ignition 
+96,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+96,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+97,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+97,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+97,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+94,ServiceTask,Engine (Miscellaneous),0.0,0.0,check engine light is on
+92,ServiceTask,Rear Brakes & Drums,0.0,0.0,replaced rear brake pads and rotors
+98,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Replaced the outrigger rocker switch for the right side
+99,ServiceTask,Hyd Lift Cylinder,0.0,0.0,Attachment Cylinder is broken removed and ready to be rebuilt 
+100,ServiceTask,Windshield Washer System Inspect,0.0,0.0,Windshield washer hoses are old and cracked. Replace hose from washer pump to both wiper nozzles  
+100,ServiceTask,Windshield Wiper Blade Replacement,0.0,0.0,Replace wipers blades
+100,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,"Wipers don't operate. Diag of wiper system
+Replace the wiper motor relay"
+100,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Weld on new hinge on rear storage box and clean up with new paint
+100,ServiceTask,Nitrogen Oxide Sensor Replacement,0.0,0.0,Replace the leaking pressure sensor on top of the air compressor 
+100,ServiceTask,Body (Miscellaneous),0.0,0.0,Remove and redesign the fire hose attachment with new ball valve to repair the leak.
+101,ServiceTask,boom cables,0.0,0.0,Replace the boom cables from the control center to the valve 
+101,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Replace the outrigger switch 
+102,ServiceTask,DOT Inspection,0.0,0.0,
+103,ServiceTask,DOT Inspection,0.0,0.0,
+99,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Ear on quick change is broken off. Needs to be welded back on to be able to lock the pin to the stick.
+104,ServiceTask,Throttle Linkage Inspect,0.0,0.0,Replace the Rear throttle lever and cable assy and test operation to verify the repairs made
+104,ServiceTask,hydraulic hose replacement,0.0,0.0,Replace worn hyd lines to the hoepack 
+105,ServiceTask,Battery Cable Inspect,0.0,0.0,Inspect and Replace the battery shutoff switch and test operation
+104,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,"No Start!
+Battery is not the correct one for the factory cable location. Tightened battery cable and tested operation to verify the repairs made"
+104,ServiceTask,Battery Inspect,0.0,0.0,Battery Box Door is pinned closed from the stairs that are bent into the box
+106,ServiceTask,Rear Brakes & Drums,0.0,0.0,Left rear brakes are locked up
+106,ServiceTask,"Battery Cable Inspect, Battery to Starter ",0.0,0.0,Install battery cut off switch
+107,ServiceTask,Battery Cable Inspect,0.0,0.0,Install battery cut off switch and replace battery cable to starter
+108,ServiceTask,Body & Frame (Miscellaneous),0.0,0.0,Replace the cutting edge for the bucket
+109,ServiceTask,hydraulic hose replacement,0.0,0.0,leaking hose from under cab by feet
+111,ServiceTask,Coolant Test,0.0,0.0,pressure test the cooling system and check for leaks
+111,ServiceTask,Engine Coolant Thermostat Replacement,0.0,0.0,"Replace the thermostat and reseal the housing
+also replace the leaking coolant temp sensor on the thermostat housing
+Replaced multiple cooler hoses and tested cooling system to verify the repairs made."
+111,ServiceTask,Intake Manifold Replacement,0.0,0.0,
+111,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+111,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+111,ServiceTask,Cabin Air Filter Replacement,0.0,0.0,
+111,ServiceTask,Full vehical detail,0.0,0.0,
+111,ServiceTask,HVAC (Miscellaneous),0.0,0.0,Hooked up gauges and tested pressures. Found no pressure in the system and a code for pressure switch out of range. Completed a rechage with a small amount of refrigerant to locate a leak. The compressor has failed. Replaced A/C Compressor and recharged the system. Tested operation to verify the repairs. Vent blow cold at 50 degrees.  
+111,ServiceTask,Engine Coolant Drain & Refill,0.0,0.0,
+111,ServiceTask,Engine Drive Belt Replacement,0.0,0.0,
+112,ServiceTask,hydraulic hose replacement,0.0,0.0,Major Hyd Leak when rotating the basket. Looks like the long hyd lines throughout the mast. 
+113,ServiceTask,Electrical System (Miscellaneous),0.0,0.0,Tailgate dogs will not function
+114,ServiceTask,Brake Master Cylinder Replacement,0.0,0.0,
+115,ServiceTask,Engine Oil Pump Replacement,0.0,0.0,
+117,ServiceTask,HVAC (Miscellaneous),0.0,0.0,High and Low pressure lines have burnt through on the hot side of the turbo.  
+117,ServiceTask,Rear Suspension (Miscellaneous),0.0,0.0,Replace all Brace Rod Bushings in the rear end
+117,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+117,ServiceTask,Fuel Filter Replacement,0.0,0.0,
+118,ServiceTask,Engine Oil & Filter Replacement,0.0,0.0,
+118,ServiceTask,Engine Air Filter Replacement,0.0,0.0,
+118,ServiceTask,Fuel Filter Replacement,0.0,0.0,
