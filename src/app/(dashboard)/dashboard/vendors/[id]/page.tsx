@@ -1,5 +1,7 @@
 'use client'
 
+import { VendorContractList } from '@/components/vendors/vendor-contract-list'
+
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -42,6 +44,7 @@ import Link from 'next/link'
 import AddReviewModal from '@/components/vendors/add-review-modal'
 import { VendorScoreDisplay } from '@/components/vendors/vendor-score-display'
 import AddContactModal from '@/components/vendors/add-contact-modal'
+import { VendorContacts } from '@/components/vendors/vendor-contacts'
 import EditContactModal from '@/components/vendors/edit-contact-modal'
 import { VendorTagSelector } from '@/components/vendors/vendor-tag-selector'
 import { VendorPurchaseOrdersTab } from '@/components/vendors/vendor-purchase-orders-tab'
@@ -141,6 +144,10 @@ interface ContractPayment {
 }
 
 interface VendorContract {
+  title?: string | null
+  estimateReference?: string | null
+  estimateAmount?: number | null
+  changeOrders?: { totalAmount: number; status?: string }[]
   id: string
   contractNumber: string
   type: 'LUMP_SUM' | 'REMEASURABLE' | 'ADDENDUM'
@@ -1266,6 +1273,7 @@ export default function VendorDetailPage() {
         <nav className="-mb-px flex space-x-1 overflow-x-auto">
           {[
             { id: 'overview', label: 'Overview' },
+            { id: 'contacts', label: 'Contacts' },
             { id: 'files', label: 'Files' },
             { id: 'milestones', label: 'Milestones' },
             { id: 'contracts', label: 'Contracts' },
@@ -1289,6 +1297,7 @@ export default function VendorDetailPage() {
       </div>
 
       {/* Tab Content */}
+      {activeTab === 'contacts' && <VendorContacts vendorId={vendorId} />}
       {activeTab === 'overview' && (
         <VendorOverview
           vendor={vendor}
@@ -1576,46 +1585,7 @@ export default function VendorDetailPage() {
           ) : contracts.length === 0 ? (
             <div className="px-3 py-4 text-center text-[10px] text-gray-500">No contracts</div>
           ) : (
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Contract #</th>
-                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 w-24">Type</th>
-                  <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-28">Amount</th>
-                  <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 w-36">Duration</th>
-                  <th className="px-3 py-1 text-center text-[10px] font-semibold text-gray-600 w-20">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contracts.map((contract, idx) => (
-                  <tr
-                    key={contract.id}
-                    className={`border-b border-gray-100 hover:bg-blue-50 cursor-pointer ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                    onClick={() => router.push(`/dashboard/vendors/${vendorId}/contracts/${contract.id}`)}
-                  >
-                    <td className="px-3 py-1.5">
-                      <span className="text-xs font-medium text-gray-900">{contract.contractNumber}</span>
-                    </td>
-                    <td className="px-3 py-1.5">
-                      <span className="text-[10px] text-gray-600">{getContractTypeLabel(contract.type)}</span>
-                    </td>
-                    <td className="px-3 py-1.5 text-right">
-                      <span className="text-xs font-medium text-gray-900">{formatCurrency(contract.totalSum)}</span>
-                      {contract.retentionPercent && contract.retentionPercent > 0 && (
-                        <span className="text-[10px] text-gray-500 ml-1">({contract.retentionPercent}%)</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-1.5 text-[10px] text-gray-500">
-                      {new Date(contract.startDate).toLocaleDateString()}
-                      {contract.endDate ? ` - ${new Date(contract.endDate).toLocaleDateString()}` : ' - Ongoing'}
-                    </td>
-                    <td className="px-3 py-1.5 text-center">
-                      {getContractStatusBadge(contract.status)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <VendorContractList vendorId={vendorId} contracts={contracts} />
           )}
         </div>
       )}

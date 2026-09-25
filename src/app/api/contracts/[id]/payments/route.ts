@@ -2,6 +2,7 @@ import { ContractPaymentAPStatus, ContractPaymentPMStatus, Prisma } from '@prism
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { getContractMaxPayment } from '@/lib/contracts/payment-limit'
 
 const PM_STATUSES = new Set<ContractPaymentPMStatus>(['PENDING', 'APPROVED', 'REJECTED'])
 const AP_STATUSES = new Set<ContractPaymentAPStatus>(['PROCESSING', 'WAITING_ON_LIEN_RELEASES', 'PAID', 'VOID'])
@@ -195,7 +196,8 @@ function buildPaymentData(body: Record<string, unknown>) {
       currentRetention: parseOptionalNumber(body.currentRetention),
       paidToDateOverride: parseOptionalNumber(body.paidToDateOverride),
       paidToDateAdjustment: parseOptionalNumber(body.paidToDateAdjustment),
-      maxPayment: parseOptionalNumber(body.maxPayment),
+      // Computed server-side inside the write transaction; never trust a submitted override.
+      maxPayment: undefined,
       amountApproved,
       pmStatus,
       apStatus,
@@ -252,6 +254,7 @@ export async function POST(
         contractId,
         createdById: user.id,
         ...result.data,
+        maxPayment: await getContractMaxPayment(prisma, contractId),
         ...(allocationResult.allocations !== undefined && {
           costAllocations: {
             create: allocationResult.allocations.map((allocation) => ({

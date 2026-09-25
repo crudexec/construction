@@ -42,9 +42,9 @@ export async function getAssetHistory(db: Prisma.TransactionClient, assetId: str
   // A work order can have multiple issues on this asset. Fetch orders once,
   // explicitly scoped to the company, rather than emitting one per issue link.
   const workOrders = await db.workOrder.findMany({
-    where: { companyId, issues: { some: { issue: { assetId } } } },
+    where: { companyId, OR: [{ assetId }, { issues: { some: { issue: { assetId } } } }] },
     select: {
-      id: true, title: true, description: true, createdAt: true, completedAt: true,
+      id: true, title: true, description: true, createdAt: true, completedAt: true, sourceData: true, sourceCreatedByName: true,
       createdBy: { select: personSelect },
     },
   })
@@ -115,7 +115,7 @@ export async function getAssetHistory(db: Prisma.TransactionClient, assetId: str
       type: 'WORK_ORDER' as const, details: details(order.title, order.description),
       reference: { id: order.id, label: order.title, href: `/dashboard/assets/work-orders/${encodeURIComponent(order.id)}` },
     }
-    events.push({ ...common, id: `work-order:${order.id}:created`, occurredAt: order.createdAt.toISOString(), action: 'Work order created', actor: personName(order.createdBy) })
+    events.push({ ...common, id: `work-order:${order.id}:created`, occurredAt: order.createdAt.toISOString(), action: 'Work order created', actor: order.sourceData ? order.sourceCreatedByName : personName(order.createdBy) })
     if (order.completedAt) {
       // No completedBy is stored; neither creator nor assignee proves who finished it.
       events.push({ ...common, id: `work-order:${order.id}:completed`, occurredAt: order.completedAt.toISOString(), action: 'Work order completed', actor: null })
@@ -123,7 +123,7 @@ export async function getAssetHistory(db: Prisma.TransactionClient, assetId: str
   }
 
   const notices = [
-    'History is assembled from retained records, not a complete audit log. Deleted records, past edits, reopened issue resolutions, and removed work-order links may be unavailable. Work orders are included through their currently linked issues.',
+    'History is assembled from retained records, not a complete audit log. Deleted records, past edits, reopened issue resolutions, and removed work-order links may be unavailable. Work orders are included through direct asset links or currently linked issues.',
     'Meter-reading context and saved location labels are snapshots. Other names, descriptions, and purchase details reflect current records. Actors are shown only where recorded.',
   ]
   if (!asset.purchaseDate) notices.push('No purchase date is recorded, so no purchase event is shown.')

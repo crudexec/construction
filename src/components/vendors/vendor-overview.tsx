@@ -1,5 +1,7 @@
 'use client'
 
+import { VendorContractList } from '@/components/vendors/vendor-contract-list'
+import { SupplierCompanyDialog } from '@/components/vendors/supplier-company-dialog'
 import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,7 +10,6 @@ import {
   Star,
   Briefcase,
   FileText,
-  Users,
   Target,
   DollarSign,
   Calendar,
@@ -25,8 +26,6 @@ import {
   Shield,
   Activity,
   Upload,
-  Truck,
-  Trash2,
   Plus
 } from 'lucide-react'
 import { useCurrency } from '@/hooks/useCurrency'
@@ -50,29 +49,6 @@ async function uploadFile(vendorId: string, file: File) {
     body: formData
   })
   if (!response.ok) throw new Error('Failed to upload file')
-  return response.json()
-}
-
-async function createSupplier(vendorId: string, payload: { name: string; phone?: string; notes?: string }) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-
-  const response = await fetch(`/api/vendors/${vendorId}/suppliers`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.error || 'Failed to create supplier')
-  }
-
   return response.json()
 }
 
@@ -123,15 +99,6 @@ const getStatusBadge = (status: string) => {
   )
 }
 
-const getContractTypeLabel = (type: string) => {
-  const labels: Record<string, string> = {
-    'LUMP_SUM': 'Lump Sum',
-    'REMEASURABLE': 'Remeasurable',
-    'ADDENDUM': 'Addendum'
-  }
-  return labels[type] || type
-}
-
 export function VendorOverview({
   vendor,
   contracts = [],
@@ -143,12 +110,7 @@ export function VendorOverview({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
   const [isAddSupplierModalOpen, setIsAddSupplierModalOpen] = useState(false)
-  const [supplierForm, setSupplierForm] = useState({
-    name: '',
-    phone: '',
-    notes: ''
-  })
-
+  const [legacySupplier, setLegacySupplier] = useState<{ id: string; name: string; phone?: string | null; notes?: string | null } | undefined>()
   const uploadMutation = useMutation({
     mutationFn: (file: File) => uploadFile(vendor.id, file),
     onSuccess: () => {
@@ -158,19 +120,6 @@ export function VendorOverview({
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to upload file')
-    }
-  })
-
-  const createSupplierMutation = useMutation({
-    mutationFn: (payload: { name: string; phone?: string; notes?: string }) => createSupplier(vendor.id, payload),
-    onSuccess: () => {
-      toast.success('Supplier added')
-      queryClient.invalidateQueries({ queryKey: ['vendor', vendor.id] })
-      setSupplierForm({ name: '', phone: '', notes: '' })
-      setIsAddSupplierModalOpen(false)
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to add supplier')
     }
   })
 
@@ -216,20 +165,6 @@ export function VendorOverview({
       'INSTALLATION': 'Installation Only'
     }
     return labels[type] || type
-  }
-
-  const handleSupplierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!supplierForm.name.trim()) {
-      toast.error('Supplier name is required')
-      return
-    }
-
-    createSupplierMutation.mutate({
-      name: supplierForm.name.trim(),
-      phone: supplierForm.phone.trim() || undefined,
-      notes: supplierForm.notes.trim() || undefined,
-    })
   }
 
   return (
@@ -339,117 +274,26 @@ export function VendorOverview({
               </button>
             </div>
             {contracts.length > 0 ? (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200">
-                    <th className="px-3 py-1.5 text-left font-medium text-gray-600">Contract</th>
-                    <th className="px-3 py-1.5 text-right font-medium text-gray-600 w-24">Value</th>
-                    <th className="px-3 py-1.5 text-center font-medium text-gray-600 w-16">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {contracts.slice(0, 4).map((contract, idx) => (
-                    <tr key={contract.id} className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                      <td className="px-3 py-1.5">
-                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
-                          <div className="truncate max-w-[150px]">{contract.contractNumber}</div>
-                          <div className="text-[10px] text-gray-500">{getContractTypeLabel(contract.type)}</div>
-                        </Link>
-                      </td>
-                      <td className="px-3 py-1.5 text-right font-medium">
-                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
-                          {formatCurrency(contract.totalSum)}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-1.5 text-center">
-                        <Link href={`/dashboard/vendors/${vendor.id}/contracts/${contract.id}`} className="block">
-                          {getStatusBadge(contract.status)}
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <VendorContractList vendorId={vendor.id} contracts={contracts.slice(0, 4)} />
             ) : (
               <div className="p-4 text-center text-xs text-gray-500">No contracts yet</div>
             )}
           </div>
 
-          {/* Contacts */}
-          {vendor.contacts?.length > 0 && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-600" />
-                <span className="text-xs font-semibold text-gray-700">Contacts</span>
-                <span className="text-[10px] text-gray-500">{vendor.contacts.length}</span>
-              </div>
-              <div className="p-2 flex flex-wrap gap-1">
-                {vendor.contacts.slice(0, 6).map((contact: any) => (
-                  <div key={contact.id} className="inline-flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded text-xs">
-                    <div className="w-5 h-5 rounded-full bg-slate-600 text-white flex items-center justify-center text-[10px] font-medium">
-                      {contact.firstName?.[0]}{contact.lastName?.[0]}
-                    </div>
-                    <div>
-                      <span className="text-gray-700">{contact.firstName} {contact.lastName?.[0]}.</span>
-                      {contact.isPrimary && <span className="text-[9px] text-blue-600 ml-1">Primary</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="px-3 py-2 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Truck className="h-4 w-4 text-indigo-600" />
-                <span className="text-xs font-semibold text-gray-700">Suppliers</span>
-                <span className="text-[10px] text-gray-500">{vendor.suppliers?.length || 0}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddSupplierModalOpen(true)}
-                className="inline-flex items-center gap-1 text-[10px] text-primary-600 hover:text-primary-800"
-              >
-                <Plus className="h-3 w-3" />
-                Add Supplier
-              </button>
-            </div>
-            {vendor.suppliers?.length ? (
-              <div className="divide-y divide-gray-100">
-                {vendor.suppliers.map((supplier: any, idx: number) => (
-                  <div key={supplier.id} className={`px-3 py-2 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-gray-900">{supplier.name}</p>
-                        {supplier.phone ? (
-                          <p className="mt-0.5 text-[11px] text-gray-600">{supplier.phone}</p>
-                        ) : null}
-                        {supplier.notes ? (
-                          <p className="mt-1 text-[11px] text-gray-500 whitespace-pre-wrap">{supplier.notes}</p>
-                        ) : null}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`Remove supplier "${supplier.name}"?`)) {
-                            deleteSupplierMutation.mutate(supplier.id)
-                          }
-                        }}
-                        disabled={deleteSupplierMutation.isPending}
-                        className="rounded p-1 text-gray-400 hover:text-red-600 disabled:opacity-50"
-                        title="Remove supplier"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-4 text-center text-xs text-gray-500">No suppliers added yet</div>
-            )}
+          <div className="border rounded p-3">
+            <div className="flex justify-between"><h3 className="font-semibold text-sm">Contacts ({vendor.contacts?.length || 0})</h3><button className="text-sm text-primary-700" onClick={() => onTabChange?.('contacts')}>Manage Contacts</button></div>
+            <ul>{vendor.contacts?.map((contact: { id: string; firstName: string; lastName: string; isPrimary: boolean }) => <li key={contact.id} className="py-1"><Link href={`/dashboard/vendors/${vendor.id}/contacts/${contact.id}`} className="text-sm text-primary-700 hover:underline">{contact.firstName} {contact.lastName}</Link>{contact.isPrimary && <span className="text-xs ml-2">Primary</span>}</li>)}</ul>
           </div>
+
+          <section className="border rounded p-3" aria-label="Suppliers and subtiers">
+            <div className="flex justify-between"><h3 className="font-semibold text-sm">Suppliers / Subtiers</h3><button className="text-primary-700 text-sm" onClick={() => { setLegacySupplier(undefined); setIsAddSupplierModalOpen(true) }}>Add Supplier</button></div>
+            {!vendor.suppliers?.length ? <p className="text-sm text-gray-500 mt-2">No suppliers added yet.</p> : <ul className="divide-y">{vendor.suppliers.map((supplier: { id: string; name: string; linkedVendorId?: string | null; phone?: string | null; notes?: string | null }) => <li key={supplier.id} className="py-2 flex justify-between gap-2">
+              <div>{supplier.linkedVendorId ? <Link href={`/dashboard/vendors/${supplier.linkedVendorId}`} className="font-medium text-primary-700 hover:underline">{supplier.name}</Link> : <><p className="font-medium">{supplier.name}</p><button className="text-xs text-primary-700" onClick={() => { setLegacySupplier(supplier); setIsAddSupplierModalOpen(true) }}>Link vendor company</button></>}
+                {supplier.phone && <p className="text-sm text-gray-500">{supplier.phone}</p>}{supplier.notes && <p className="text-sm whitespace-pre-wrap">{supplier.notes}</p>}
+              </div>
+              <button className="text-sm text-red-700" disabled={deleteSupplierMutation.isPending} onClick={() => { if (confirm(`Remove supplier "${supplier.name}"? The linked vendor company will not be deleted.`)) deleteSupplierMutation.mutate(supplier.id) }}>Remove</button>
+            </li>)}</ul>}
+          </section>
         </div>
 
         {/* Right Column */}
@@ -652,74 +496,10 @@ export function VendorOverview({
         </div>
       )}
 
-      {isAddSupplierModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-              <div>
-                <h3 className="text-sm font-medium text-gray-900">Add Supplier</h3>
-                <p className="text-[11px] text-gray-500">Capture a supplier contact for this vendor.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsAddSupplierModalOpen(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <span className="text-lg leading-none">&times;</span>
-              </button>
-            </div>
-            <form onSubmit={handleSupplierSubmit} className="space-y-3 p-4">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  value={supplierForm.name}
-                  onChange={(e) => setSupplierForm((current) => ({ ...current, name: e.target.value }))}
-                  placeholder="Supplier name"
-                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Phone Number</label>
-                <input
-                  type="text"
-                  value={supplierForm.phone}
-                  onChange={(e) => setSupplierForm((current) => ({ ...current, phone: e.target.value }))}
-                  placeholder="Optional"
-                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">Notes</label>
-                <textarea
-                  value={supplierForm.notes}
-                  onChange={(e) => setSupplierForm((current) => ({ ...current, notes: e.target.value }))}
-                  placeholder="Notes"
-                  rows={3}
-                  className="w-full rounded border border-gray-300 px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddSupplierModalOpen(false)}
-                  className="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={createSupplierMutation.isPending}
-                  className="inline-flex items-center gap-1 rounded bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
-                >
-                  <Plus className="h-3 w-3" />
-                  {createSupplierMutation.isPending ? 'Adding...' : 'Add Supplier'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {isAddSupplierModalOpen && <SupplierCompanyDialog vendorId={vendor.id} supplier={legacySupplier}
+        onClose={() => { setIsAddSupplierModalOpen(false); setLegacySupplier(undefined) }}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ['vendor', vendor.id] })} />}
+
     </div>
   )
 }

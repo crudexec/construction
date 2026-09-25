@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { saveSupplierCompany, removeSupplier, RelationshipError } from '@/lib/vendors/relationships'
 
 async function validateVendor(vendorId: string, companyId: string) {
   return prisma.vendor.findFirst({
@@ -72,26 +73,12 @@ export async function POST(
     }
 
     const body = await request.json()
-    const name = typeof body.name === 'string' ? body.name.trim() : ''
-    const phone = typeof body.phone === 'string' ? body.phone.trim() : ''
-    const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
-
-    if (!name) {
-      return NextResponse.json({ error: 'Supplier name is required' }, { status: 400 })
-    }
-
-    const supplier = await prisma.vendorSupplier.create({
-      data: {
-        vendorId,
-        name,
-        phone: phone || null,
-        notes: notes || null,
-      },
-    })
+    const supplier = await saveSupplierCompany(user.companyId, vendorId, body)
 
     return NextResponse.json(supplier, { status: 201 })
   } catch (error) {
     console.error('Error creating vendor supplier:', error)
+    if (error instanceof RelationshipError) return NextResponse.json({ error: error.message, candidates: error.candidates }, { status: error.status })
     return NextResponse.json({ error: 'Failed to create supplier' }, { status: 500 })
   }
 }
@@ -136,13 +123,12 @@ export async function DELETE(
       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 })
     }
 
-    await prisma.vendorSupplier.delete({
-      where: { id: supplierId },
-    })
+    await removeSupplier(user.companyId, vendorId, supplierId)
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting vendor supplier:', error)
+    if (error instanceof RelationshipError) return NextResponse.json({ error: error.message }, { status: error.status })
     return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 })
   }
 }

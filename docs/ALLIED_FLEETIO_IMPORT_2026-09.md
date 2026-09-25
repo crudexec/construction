@@ -2,6 +2,8 @@
 
 ## Status
 
+September 24: the **maintenance/parts batch is committed and verified**. See [Maintenance and parts import](ALLIED_FLEETIO_MAINTENANCE_2026-09-24.md) for 99 work orders, 204 service-history records, three stocked parts, remaining exceptions, and deployment requirements. Earlier batch tables below remain historical audit information.
+
 September 23 follow-up: the tools/BL1 batch below is now committed. The first-batch tables and hold list below are retained as historical audit information; see **Follow-up batch** for the current changes and remaining exceptions.
 
 First validated batch committed to the remote database on September 23, 2026 at 09:36 UTC. This is a **partial import**, not completion of every supplied export.

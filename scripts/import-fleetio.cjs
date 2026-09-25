@@ -4,13 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const Papa = require('papaparse');
 const { Client } = require('pg');
+const { isDeepStrictEqual } = require('node:util');
 const { buildPlan, hash } = require('./imports/fleetio-plan.cjs');
 const root = path.resolve(__dirname, '..');
 require('dotenv').config({ path: path.join(root, '.env'), quiet: true });
 const FILES = ['contacts', 'fuel_entries', 'issues', 'meter_entries', 'parts', 'purchase_orders', 'service_entries', 'vehicle_assignments', 'vehicles', 'vendors', 'work_order_line_items', 'work_order_sub_line_items', 'work_orders'];
 const DIRECT = ['Asset', 'Vendor', 'Contact', 'AssetYard'];
 const ASSET_CHILDREN = ['AssetRentalRate', 'AssetMeterReading', 'AssetIssue', 'AssetJobAssignment', 'AssetPersonAssignment'];
-const WRITABLE = new Set(['Vendor', 'Contact', 'AssetYard', 'Asset', 'VendorContact', ...ASSET_CHILDREN]);
+const WRITABLE = new Set(['Vendor', 'Contact', 'AssetYard', 'Asset', 'VendorContact', ...ASSET_CHILDREN, 'WorkOrder', 'WorkOrderIssue', 'AssetServiceEntry', 'InventoryCategory', 'InventoryMaterial', 'InventoryTransaction']);
 const COMPANY_ID = 'cmlerq90j000js6relyc2aetj';
 const EMAIL = 'bdeller@alliedconstruction.net';
 
@@ -20,6 +21,12 @@ function readSources(directory, toolsFile) {
   if (toolsFile) sourcePaths.tools = path.resolve(toolsFile);
   const expectedHeaders = { vehicles: ['Fleetio ID', 'Name', 'Type', 'Status', 'VIN/SN'], vendors: ['Fleetio ID', 'Name'], contacts: ['Fleetio ID', 'Full Name'], meter_entries: ['Fleetio ID', 'Vehicle Name', 'Meter Value', 'Void', 'Date'], issues: ['Fleetio ID', 'Asset Name', 'Issue Status'], vehicle_assignments: ['fleetio_id (do not edit)', 'vehicle_name', 'contact_name', 'started_at', 'ended_at'] };
   expectedHeaders.tools = ['Fleetio ID', 'Name', 'Brand', 'Model', 'Serial Number', 'Status', 'Type', 'Purchase Date'];
+  Object.assign(expectedHeaders, {
+    work_orders: ['Fleetio ID', 'Number', 'Vehicle Name', 'Status', 'Total Cost (USD)'],
+    service_entries: ['Fleetio ID', 'Vehicle Name', 'Work Order Number', 'Completed At', 'Total Cost (USD)'],
+    parts: ['Fleetio ID', 'Part', 'Track Inventory', 'Location', 'Total Quantity', 'Unit Cost (USD)'],
+    work_order_line_items: ['work_order_number'], work_order_sub_line_items: ['work_order_number'],
+  });
   for (const [file, sourcePath] of Object.entries(sourcePaths)) {
     const input = fs.readFileSync(sourcePath, 'utf8');
     const parsed = Papa.parse(input, { header: true, skipEmptyLines: 'greedy' });
@@ -30,7 +37,7 @@ function readSources(directory, toolsFile) {
   return { data, fingerprints, sourcePaths };
 }
 
-async function snapshot(db) {
+async function snapshot(db, maintenance = false) {
   const accounts = (await db.query('SELECT u.id,u.email,u.role,u."isActive",u."companyId",c.name AS "companyName" FROM "User" u JOIN "Company" c ON c.id=u."companyId" WHERE lower(u.email)=lower($1)', [EMAIL])).rows;
   if (accounts.length !== 1 || accounts[0].companyId !== COMPANY_ID) throw new Error('Target company identity mismatch');
   const account = accounts[0], tables = {};
@@ -42,6 +49,10 @@ async function snapshot(db) {
   for (const table of ASSET_CHILDREN) tables[table] = (await db.query(`SELECT to_jsonb(t) AS row FROM "${table}" t JOIN "Asset" a ON a.id=t."assetId" WHERE a."companyId"=$1 ORDER BY t.id`, [COMPANY_ID])).rows.map(r => r.row);
   tables.VendorContact = (await db.query('SELECT to_jsonb(t) AS row FROM "VendorContact" t JOIN "Vendor" v ON v.id=t."vendorId" WHERE v."companyId"=$1 ORDER BY t.id', [COMPANY_ID])).rows.map(r => r.row);
   tables.User = (await db.query('SELECT id,email,"firstName","lastName",role,"isActive" FROM "User" WHERE "companyId"=$1 ORDER BY id', [COMPANY_ID])).rows;
+  if (maintenance) {
+    for (const table of ['WorkOrder', 'InventoryCategory', 'InventoryMaterial']) tables[table] = (await db.query(`SELECT to_jsonb(t) AS row FROM "${table}" t WHERE "companyId"=$1 ORDER BY id`, [COMPANY_ID])).rows.map(r => r.row);
+    for (const [table, parent, foreignKey] of [['WorkOrderIssue','WorkOrder','workOrderId'],['AssetServiceEntry','Asset','assetId'],['InventoryTransaction','InventoryMaterial','materialId']]) tables[table] = (await db.query(`SELECT to_jsonb(t) AS row FROM "${table}" t JOIN "${parent}" p ON p.id=t."${foreignKey}" WHERE p."companyId"=$1 ORDER BY t.id`, [COMPANY_ID])).rows.map(r => r.row);
+  }
   return { account, tables };
 }
 
@@ -92,7 +103,7 @@ function verify(before, after, plan) {
         const got = actual[key];
         // Prisma stores UTC in PostgreSQL timestamp-without-time-zone columns.
         const storedDate = typeof got === 'string' && !/(?:Z|[+-]\d{2}:?\d{2})$/.test(got) ? `${got}Z` : got;
-        const same = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(storedDate).getTime() === new Date(value).getTime() : got === value;
+        const same = value !== null && typeof value === 'object' ? isDeepStrictEqual(got, value) : typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value) ? new Date(storedDate).getTime() === new Date(value).getTime() : got === value;
         if (!same) throw new Error(`Value reconciliation failed: ${table}.${key}`);
       }
     }
@@ -105,13 +116,13 @@ async function main() {
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (Object.hasOwn(parsed, flag)) throw new Error('Duplicate argument');
-    if (['--apply', '--client-followup'].includes(flag)) parsed[flag] = true;
+    if (['--apply', '--client-followup', '--maintenance'].includes(flag)) parsed[flag] = true;
     else if (['--expect-plan', '--tools'].includes(flag) && args[i + 1] && !args[i + 1].startsWith('--')) parsed[flag] = args[++i];
     else throw new Error('Unknown argument or missing value');
   }
   const apply = !!parsed['--apply'], expectedDigest = parsed['--expect-plan'];
   if (parsed['--tools'] && !parsed['--client-followup']) throw new Error('Tools require the reviewed --client-followup mapping');
-  const options = parsed['--client-followup'] ? require('./imports/allied-followup-2026-09-23.cjs') : {};
+  const options = { ...(parsed['--client-followup'] ? require('./imports/allied-followup-2026-09-23.cjs') : {}), ...(parsed['--maintenance'] ? { maintenance: true } : {}) };
   if (apply && !/^[a-f0-9]{64}$/.test(expectedDigest || '')) throw new Error('--apply requires --expect-plan <dry-run digest>');
   const url = new URL(process.env.DATABASE_URL);
   if (url.hostname !== '89.116.44.96' || url.pathname !== '/postgres') throw new Error('Unexpected database endpoint');
@@ -126,7 +137,7 @@ async function main() {
     await db.query(apply ? 'BEGIN ISOLATION LEVEL SERIALIZABLE' : 'BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     transaction = true;
     if (apply) await db.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`fleetio:${COMPANY_ID}`]);
-    const before = await snapshot(db);
+    const before = await snapshot(db, options.maintenance);
     const plan = buildPlan(data, before, options);
     const columns = (await db.query('SELECT table_name,column_name,is_nullable,column_default FROM information_schema.columns WHERE table_schema=current_schema() AND table_name=ANY($1::text[])', [[...WRITABLE]])).rows;
     validateSchema(plan.operations, columns);
@@ -144,7 +155,7 @@ async function main() {
       fs.writeFileSync(path.join(archiveDirectory, `${file}.csv`), input, { mode: 0o600, flag: 'wx' });
     }
     await insertOperations(db, plan.operations);
-    const after = await snapshot(db);
+    const after = await snapshot(db, options.maintenance);
     verify(before, after, plan);
     // Must be a no-op when rerun against the resulting state.
     if (buildPlan(data, after, options).operations.length !== 0) throw new Error('Import is not idempotent');
@@ -153,7 +164,7 @@ async function main() {
     report('committed.json', { digest, committedAt: new Date().toISOString(), inserted: plan.summary.byTable });
     // Separate read verifies persisted state, not just the in-transaction image.
     await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY'); transaction = true;
-    const persisted = await snapshot(db);
+    const persisted = await snapshot(db, options.maintenance);
     verify(before, persisted, plan);
     await db.query('ROLLBACK'); transaction = false;
     report('verified-after-commit.json', { digest, verifiedAt: new Date().toISOString(), unchangedExistingRows: true, idempotent: true });
@@ -167,4 +178,4 @@ if (require.main === module) {
   fs.mkdirSync(path.join(root, '.import-reports'), { recursive: true, mode: 0o700 });
   main().catch(error => { console.error('Import stopped:', error.code || error.message); if (error.code === '42703') console.error(error.message); process.exitCode = 1; });
 }
-module.exports = { readSources, verify, insertOperations, validateSchema };
+module.exports = { readSources, verify, insertOperations, validateSchema, snapshot };

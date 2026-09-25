@@ -247,7 +247,8 @@ function buildPlan(data, snapshot, options = {}) {
   }
   // These require data-model support or choices. Do not invent performers, issue links,
   // project stock allocations, quantities, or collapse cost-bearing service records.
-  const heldReasons = { work_orders: 'Needs direct asset link and original-actor preservation', work_order_line_items: 'Needs work-order line-item support', work_order_sub_line_items: 'Needs work-order sub-line-item support', service_entries: 'Needs original performer support and reconciliation with work orders', parts: 'Needs per-location inventory mapping; blank quantities must remain unknown' };
+  const maintenance = options.maintenance ? require('./fleetio-maintenance.cjs').buildMaintenance(data, { account, existing, add, hold, record, disposition, uniqueSource, warnings, categoryIds: new Map(), resolveVehicle: row => resolveAsset(assets.get(norm(row['Vehicle Name'])), { kind: 'Vehicle', serial: row['Vehicle VIN/SN'], year: row['Vehicle Year'], make: row['Vehicle Make'], model: row['Vehicle Model'] }) }) : null;
+  const heldReasons = options.maintenance ? {} : { work_orders: 'Needs direct asset link and original-actor preservation', work_order_line_items: 'Needs work-order line-item support', work_order_sub_line_items: 'Needs work-order sub-line-item support', service_entries: 'Needs original performer support and reconciliation with work orders', parts: 'Needs per-location inventory mapping; blank quantities must remain unknown' };
   for (const [file, reason] of Object.entries(heldReasons)) for (const row of data[file] || []) hold(file, row, !row.work_order_number && file.startsWith('work_order_') ? 'Missing work-order number' : reason);
   for (const file of ['fuel_entries', 'purchase_orders']) {
     if (data[file]?.length) throw new Error(`Unexpected nonempty ${file}; import mapping required`);
@@ -258,7 +259,7 @@ function buildPlan(data, snapshot, options = {}) {
   }
   const byTable = Object.fromEntries([...groups(operations, op => op.table)].map(([table, rows]) => [table, rows.length]));
   const byFile = Object.fromEntries([...groups(dispositions, d => d.file)].map(([file, rows]) => [file, Object.fromEntries([...groups(rows, r => r.status)].map(([status, values]) => [status, values.length]))]));
-  return { operations, dispositions, warnings, summary: { sourceCounts, byTable, byFile } };
+  return { operations, dispositions, warnings, summary: { sourceCounts, byTable, byFile, ...(maintenance ? { reconciliation: maintenance } : {}) } };
 }
 
 module.exports = { buildPlan, date, number, idFor, hash, norm, resolveAsset };

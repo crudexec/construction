@@ -34,7 +34,8 @@ export async function GET(
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
-    const [schedules, records] = await Promise.all([
+    const [importedRecords, schedules, records] = await Promise.all([
+      prisma.assetServiceEntry.findMany({ where: { assetId: id }, include: { workOrder: { select: { id: true, title: true } } }, orderBy: [{ performedDate: 'desc' }, { id: 'asc' }] }),
       prisma.maintenanceSchedule.findMany({
         where: { assetId: id },
         orderBy: { nextDueDate: 'asc' }
@@ -61,7 +62,7 @@ export async function GET(
       })
     ])
 
-    return NextResponse.json({ schedules, records })
+    return NextResponse.json({ schedules, records, importedRecords })
 
   } catch (error) {
     console.error('Error fetching maintenance data:', error)

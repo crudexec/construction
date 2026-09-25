@@ -108,6 +108,12 @@ const toTime = (value?: string | Date | null) => (value ? new Date(value).getTim
 
 const roundCurrency = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100
 
+// Contract-wide ceiling, not the remaining balance or this application's allowance.
+export function contractMaxPayment(contractValue: number, approvedChanges = 0, retentionPercent = 0) {
+  const currentValue = roundCurrency(contractValue + approvedChanges)
+  return roundCurrency(currentValue - roundCurrency(currentValue * retentionPercent / 100))
+}
+
 function firstPositiveAmount(...values: Array<number | null | undefined>) {
   return values.find((value) => value !== null && value !== undefined && value > 0) ?? 0
 }
@@ -135,7 +141,7 @@ export function computeContractPayments(
   const sortedPayments = [...payments].sort((a, b) => {
     const paymentDateDiff = toTime(a.paymentDate) - toTime(b.paymentDate)
     if (paymentDateDiff !== 0) return paymentDateDiff
-    return toTime(a.createdAt) - toTime(b.createdAt)
+    return toTime(a.createdAt) - toTime(b.createdAt) || a.id.localeCompare(b.id)
   })
 
   let runningApprovedPaid = 0
@@ -178,9 +184,7 @@ export function computeContractPayments(
     const currentRetentionHeld = roundCurrency(
       payment.apStatus === 'PAID' ? paidRetentionHeld : previouslyWithheldRetention
     )
-    const retentionCap = roundCurrency(revisedContract * ((retentionPercent || 0) / 100))
-    const maxEarnedLessRetention = roundCurrency(revisedContract - retentionCap)
-    const maxPayment = roundCurrency(Math.min(subtotal, maxEarnedLessRetention) - previouslyBilledApproved)
+    const maxPayment = contractMaxPayment(originalContractAmount, modifications, retentionPercent)
     const grossPaidFallback = roundCurrency(netPaidToDate + currentRetentionHeld)
     const calculatedAcaDiscrepancy = payment.amountApproved !== null &&
       payment.amountApproved !== undefined &&
@@ -236,6 +240,6 @@ export function computeContractPayments(
   return computed.sort((a, b) => {
     const paymentDateDiff = toTime(b.paymentDate) - toTime(a.paymentDate)
     if (paymentDateDiff !== 0) return paymentDateDiff
-    return toTime(b.createdAt) - toTime(a.createdAt)
+    return toTime(b.createdAt) - toTime(a.createdAt) || b.id.localeCompare(a.id)
   })
 }

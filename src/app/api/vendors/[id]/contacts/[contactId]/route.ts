@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { saveVendorContact, RelationshipError } from '@/lib/vendors/relationships'
 
 export async function GET(
   request: NextRequest,
@@ -112,38 +113,13 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { firstName, lastName, email, phone, position, isPrimary, isBilling } = body
-
-    // If setting as primary, unset other primary contacts
-    if (isPrimary && !existingContact.isPrimary) {
-      await prisma.vendorContact.updateMany({
-        where: {
-          vendorId: vendorId,
-          isPrimary: true
-        },
-        data: {
-          isPrimary: false
-        }
-      })
-    }
-
-    const contact = await prisma.vendorContact.update({
-      where: { id: contactId },
-      data: {
-        firstName,
-        lastName,
-        email,
-        phone,
-        position,
-        isPrimary,
-        isBilling
-      }
-    })
+    const contact = await saveVendorContact(user.companyId, vendorId, contactId, body)
 
     return NextResponse.json(contact)
 
   } catch (error) {
     console.error('Error updating contact:', error)
+    if (error instanceof RelationshipError) return NextResponse.json({ error: error.message, candidates: error.candidates }, { status: error.status })
     return NextResponse.json(
       { error: 'Failed to update contact' },
       { status: 500 }

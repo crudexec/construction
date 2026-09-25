@@ -66,7 +66,7 @@ export function ContractSummaryCard({ contractId }: ContractSummaryCardProps) {
       </h4>
 
       {/* Main Value Display */}
-      <div className={`grid gap-4 ${financials.estimateAmount ? 'grid-cols-4' : 'grid-cols-3'}`}>
+      <div className={`grid grid-cols-2 gap-4 ${financials.estimateAmount != null ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
         {financials.estimateAmount != null && (
           <div className="text-center border-r border-gray-200">
             <p className="text-xs text-gray-500 mb-1">Contract Estimate</p>
@@ -96,6 +96,11 @@ export function ContractSummaryCard({ contractId }: ContractSummaryCardProps) {
       </div>
 
       {/* Change Indicator */}
+      <div className="border-t pt-3 text-sm flex flex-wrap gap-4">
+        <p>Contract retention: <span className="font-semibold">{financials.retentionPercent ?? 0}% · {formatCurrency(financials.contractRetentionAmount ?? 0)}</span></p>
+        <p>Estimate reference: {financials.estimateReference || 'Not supplied'}</p>
+        <p className="text-xs text-gray-500 w-full">Contract retention is calculated on current value, not the amount already held on paid applications.</p>
+      </div>
       {hasChange && (
         <div className={`flex items-center justify-center gap-2 py-2 rounded ${
           percentChange > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'

@@ -252,11 +252,11 @@ test('uses the computed max payment consistently in the grid and modal', async (
 
   const payments = page.getByTestId('contract-payments')
   const row = payments.locator('tr', { hasText: 'E2E Max Check' }).first()
-  await expect(row.locator('td').nth(17)).toHaveText('$18,000.00')
+  await expect(row.locator('td').nth(17)).toHaveText('$90,000.00')
 
   await row.locator('button[title="Edit payment row"]').click()
   const dialog = page.getByRole('dialog', { name: 'Edit Payment Row' })
-  await expect(dialog.locator('div').filter({ hasText: /^Max Payment\$18,000\.00$/ }).first()).toBeVisible()
+  await expect(dialog.locator('div').filter({ hasText: /^Max Payment\$90,000\.00$/ }).first()).toBeVisible()
 })
 
 test('shows ACA workflow fields in the payment grid and detail modal', async ({ page }) => {
@@ -266,7 +266,7 @@ test('shows ACA workflow fields in the payment grid and detail modal', async ({ 
   const payments = page.getByTestId('contract-payments')
   await expect(payments).toContainText('Gross PTD')
   await expect(payments).toContainText('Net PTD')
-  await expect(payments).toContainText('Current Retention Held')
+  await expect(payments).toContainText('Previously Held Retention')
   await expect(payments).toContainText('Early Pay Discount')
   await expect(payments).toContainText('ACA Amount Requesting')
   await expect(payments).toContainText('Discrepancy')

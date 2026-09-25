@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { Prisma } from '@prisma/client'
+import { parseContractDetails } from '@/lib/contracts/details'
 
 export async function GET(
   request: NextRequest,
@@ -59,6 +61,7 @@ export async function GET(
                 id: true,
                 name: true,
                 phone: true,
+                linkedVendorId: true,
                 notes: true
               }
             }
@@ -217,75 +220,29 @@ export async function PATCH(
 
     const body = await request.json()
 
-    const {
-      contractNumber,
-      type,
-      totalSum,
-      retentionPercent,
-      retentionAmount,
-      warrantyYears,
-      startDate,
-      endDate,
-      retentionBond,
-      status,
-      terms,
-      notes
-    } = body
-
-    // Validate contract type if provided
-    if (type && !['LUMP_SUM', 'REMEASURABLE', 'ADDENDUM'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid contract type' },
-        { status: 400 }
-      )
+    let changes
+    try {
+      changes = parseContractDetails(body, existingContract)
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid contract details' }, { status: 400 })
     }
-
-    // Validate contract status if provided
-    if (status && !['DRAFT', 'ACTIVE', 'COMPLETED', 'TERMINATED', 'EXPIRED'].includes(status)) {
-      return NextResponse.json(
-        { error: 'Invalid contract status' },
-        { status: 400 }
-      )
+    if (body.updatedAt !== undefined && body.updatedAt !== existingContract.updatedAt.toISOString()) {
+      return NextResponse.json({ error: 'Contract changed. Reload before saving.' }, { status: 409 })
     }
-
-    // Validate warranty years if provided
-    if (warrantyYears && (warrantyYears < 1 || warrantyYears > 10)) {
-      return NextResponse.json(
-        { error: 'Warranty years must be between 1 and 10' },
-        { status: 400 }
-      )
-    }
-
-    // Check for duplicate contract number if changed, scoped to this company
-    if (contractNumber && contractNumber !== existingContract.contractNumber) {
-      const duplicateContract = await prisma.vendorContract.findFirst({
-        where: { companyId: user.companyId, contractNumber }
+    if (typeof changes.contractNumber === 'string' && changes.contractNumber !== existingContract.contractNumber) {
+      const duplicate = await prisma.vendorContract.findFirst({
+        where: { companyId: user.companyId, contractNumber: changes.contractNumber, id: { not: id } }
       })
-
-      if (duplicateContract) {
-        return NextResponse.json(
-          { error: 'Contract number already exists' },
-          { status: 409 }
-        )
-      }
+      if (duplicate) return NextResponse.json({ error: 'Contract number already exists' }, { status: 409 })
     }
-
-    const contract = await prisma.vendorContract.update({
+    // Optimistic check is part of the write, not only a preflight read.
+    const updated = await prisma.vendorContract.updateMany({
+      where: { id, updatedAt: existingContract.updatedAt },
+      data: changes as Prisma.VendorContractUpdateManyMutationInput
+    })
+    if (!updated.count) return NextResponse.json({ error: 'Contract changed. Reload before saving.' }, { status: 409 })
+    const contract = await prisma.vendorContract.findUnique({
       where: { id },
-      data: {
-        ...(contractNumber && { contractNumber }),
-        ...(type && { type }),
-        ...(totalSum !== undefined && { totalSum }),
-        ...(retentionPercent !== undefined && { retentionPercent }),
-        ...(retentionAmount !== undefined && { retentionAmount }),
-        ...(warrantyYears && { warrantyYears }),
-        ...(startDate && { startDate: new Date(startDate) }),
-        ...(endDate && { endDate: new Date(endDate) }),
-        ...(retentionBond !== undefined && { retentionBond }),
-        ...(status && { status }),
-        ...(terms !== undefined && { terms }),
-        ...(notes !== undefined && { notes })
-      },
       include: {
         vendor: {
           select: {
@@ -312,6 +269,9 @@ export async function PATCH(
 
   } catch (error) {
     console.error('Error updating contract:', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'Contract number already exists' }, { status: 409 })
+    }
     return NextResponse.json(
       { error: 'Failed to update contract' },
       { status: 500 }

@@ -8,8 +8,12 @@ import { ArrowLeft, AlertCircle, Trash2, Upload, FileText, Link2 } from 'lucide-
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
 import { DatePicker } from '@/components/ui/date-picker'
+import { ImportSourceDetails } from '@/components/assets/import-source-details'
 
 interface WorkOrderDetail {
+  asset?: { id: string; name: string } | null
+  sourceData?: unknown
+  sourceCreatedByName?: string | null
   id: string
   title: string
   description: string | null
@@ -158,6 +162,8 @@ export default function WorkOrderDetailPage() {
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">{wo.title}</h1>
           {wo.description && <p className="text-gray-600 mt-1">{wo.description}</p>}
+          {wo.asset && <Link className="text-sm text-primary-700" href={`/dashboard/assets/${wo.asset.id}`}>{wo.asset.name}</Link>}
+          <ImportSourceDetails value={wo.sourceData} />
         </div>
         <span className={`text-sm px-3 py-1 rounded-full font-medium ${STATUS_STYLES[wo.status]}`}>{wo.status.replace('_', ' ')}</span>
       </div>
@@ -186,7 +192,7 @@ export default function WorkOrderDetailPage() {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Created By</label>
-          <p className="text-sm text-gray-900 py-1.5">{wo.createdBy.firstName} {wo.createdBy.lastName}</p>
+          <p className="text-sm text-gray-900 py-1.5">{wo.sourceData ? wo.sourceCreatedByName || 'Not recorded in source' : `${wo.createdBy.firstName} ${wo.createdBy.lastName}`}</p>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Estimated Duration</label>

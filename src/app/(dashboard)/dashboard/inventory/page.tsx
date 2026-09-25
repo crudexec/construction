@@ -17,6 +17,7 @@ import { AddMaterialModal } from '@/components/inventory/add-material-modal'
 import { StockModal } from '@/components/inventory/stock-modal'
 import { TransactionHistoryModal } from '@/components/inventory/transaction-history-modal'
 import { useCurrency } from '@/hooks/useCurrency'
+import { ImportSourceDetails } from '@/components/assets/import-source-details'
 
 interface Category {
   id: string
@@ -26,6 +27,7 @@ interface Category {
 }
 
 interface Material {
+  sourceData?: unknown
   id: string
   name: string
   sku: string | null
@@ -233,6 +235,7 @@ export default function InventoryPage() {
                     {material.description && (
                       <div className="text-[10px] text-gray-500 truncate max-w-[150px]">{material.description}</div>
                     )}
+                    <ImportSourceDetails value={material.sourceData} label="Opening stock snapshot" />
                   </td>
                   <td className="px-2 py-1.5">
                     {material.category ? (

@@ -91,8 +91,8 @@ export async function PATCH(
     })
     const newTotalSum = allLineItems.reduce((sum, item) => sum + item.totalPrice, 0)
 
-    await prisma.vendorContract.update({
-      where: { id: contractId },
+await prisma.vendorContract.updateMany({
+      where: { id: contractId, originalValueIsManual: false },
       data: { totalSum: newTotalSum }
     })
 
@@ -162,8 +162,8 @@ export async function DELETE(
     })
     const newTotalSum = allLineItems.reduce((sum, item) => sum + item.totalPrice, 0)
 
-    await prisma.vendorContract.update({
-      where: { id: contractId },
+await prisma.vendorContract.updateMany({
+      where: { id: contractId, originalValueIsManual: false },
       data: { totalSum: newTotalSum }
     })
 

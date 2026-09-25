@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Wrench, X, ClipboardCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useCurrency } from '@/hooks/useCurrency'
+import Link from 'next/link'
+import { ImportSourceDetails } from './import-source-details'
 
 interface MaintenanceSchedule {
   id: string
@@ -60,7 +62,12 @@ function getToken() {
     ?.split('=')[1]
 }
 
-async function fetchMaintenance(assetId: string): Promise<{ schedules: MaintenanceSchedule[]; records: MaintenanceRecord[] }> {
+interface ImportedServiceEntry {
+  id: string; title: string; performedDate: string; cost: number | null; recordedByName: string | null; sourceData: unknown
+  workOrder: { id: string; title: string } | null
+}
+
+async function fetchMaintenance(assetId: string): Promise<{ schedules: MaintenanceSchedule[]; records: MaintenanceRecord[]; importedRecords?: ImportedServiceEntry[] }> {
   const response = await fetch(`/api/assets/${assetId}/maintenance`, {
     headers: { 'Authorization': `Bearer ${getToken()}` }
   })
@@ -205,6 +212,18 @@ export function AssetMaintenanceTab({ assetId }: { assetId: string }) {
 
   return (
     <div className="space-y-6">
+      {!!data.importedRecords?.length && <section aria-label="Imported service history" className="bg-white rounded-lg shadow border p-6">
+        <h3 className="text-lg font-medium">Imported service history</h3>
+        <p className="text-sm text-gray-500 mt-1">Original records are read-only. Recorded by identifies the source author, not the person who performed the work. Linked work-order costs are not additional charges.</p>
+        <div className="mt-4 space-y-4">
+          {data.importedRecords.map(record => <article key={record.id} className="border-t pt-3">
+            <p className="font-medium">{record.title}</p>
+            <p className="text-sm text-gray-600">{new Date(record.performedDate).toLocaleDateString()} · Recorded by: {record.recordedByName || 'Not recorded'} · {record.cost === null ? 'Cost not recorded' : formatCurrency(record.cost)}</p>
+            {record.workOrder && <Link className="text-sm text-primary-700" href={`/dashboard/assets/work-orders/${record.workOrder.id}`}>Included in {record.workOrder.title}</Link>}
+            <ImportSourceDetails value={record.sourceData} />
+          </article>)}
+        </div>
+      </section>}
       {/* Schedules */}
       <div className="bg-white rounded-lg shadow border p-6">
         <div className="flex justify-between items-center mb-4">

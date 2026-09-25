@@ -2,6 +2,10 @@
 
 Prepared September 21, 2026, from the client's email. Dates below are proposed delivery targets, subject to effort estimates and team capacity; they are not delivery commitments. This plan covers the email's requests, with implementation and client acceptance still to come.
 
+September 25 update: the user clarified contract editing, estimate fields, Max Payment, and retention behavior. The [agreed contract/payment plan and implementation status](CONTRACT_PAYMENT_PLAN_2026-09-25.md) supersede the open questions for those items below. The core batch is implemented locally and its production migration is applied; application deployment and client acceptance are pending. Change-order revisions/history remain the next separate batch.
+
+September 25 vendor update: company contacts, supplier/vendor linking and clearer contract summaries are implemented locally, and the production relationship migration is applied and verified. See the [vendor workflow scope and rollout notes](VENDOR_WORKFLOW_PLAN_2026-09-25.md). Application deployment remains pending; legacy supplier associations are linked explicitly rather than automatically merged.
+
 ## Implementation progress — September 21
 
 First implementation batch is available locally; deployment and client acceptance remain outstanding.

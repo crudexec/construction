@@ -27,6 +27,7 @@ interface Contact {
   email: string | null
   phone: string | null
   position: string | null
+  notes: string | null
   isPrimary: boolean
   isBilling: boolean
   createdAt: string
@@ -112,6 +113,7 @@ export default function ContactDetailPage() {
     email: '',
     phone: '',
     position: '',
+    notes: '',
     isPrimary: false,
     isBilling: false
   })
@@ -154,6 +156,7 @@ export default function ContactDetailPage() {
         email: contact.email || '',
         phone: contact.phone || '',
         position: contact.position || '',
+        notes: contact.notes || '',
         isPrimary: contact.isPrimary,
         isBilling: contact.isBilling
       })
@@ -162,7 +165,7 @@ export default function ContactDetailPage() {
   }
 
   const handleSave = () => {
-    updateMutation.mutate(editForm)
+    updateMutation.mutate({ ...editForm, updatedAt: contact?.updatedAt })
   }
 
   const handleDelete = async () => {
@@ -236,6 +239,7 @@ export default function ContactDetailPage() {
         </div>
 
         <div className="flex items-center space-x-3">
+          <Link href={`/dashboard/vendors/${vendorId}?tab=contacts`} className="text-sm text-primary-700">Manage / move contacts</Link>
           {isEditing ? (
             <>
               <button
@@ -339,6 +343,7 @@ export default function ContactDetailPage() {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
+              <label className="block text-sm">Notes<textarea value={editForm.notes} onChange={e => setEditForm({ ...editForm, notes: e.target.value })} className="block w-full border rounded p-2" /></label>
               <div className="flex items-center space-x-6">
                 <label className="flex items-center">
                   <input
@@ -416,6 +421,7 @@ export default function ContactDetailPage() {
       </div>
 
       {/* Quick Actions */}
+      {!isEditing && contact.notes && <section className="bg-white border rounded p-4"><h2 className="font-medium">Notes</h2><p className="whitespace-pre-wrap">{contact.notes}</p></section>}
       {!isEditing && (contact.email || contact.phone) && (
         <div className="bg-white rounded-lg shadow border">
           <div className="px-6 py-4 border-b border-gray-200">

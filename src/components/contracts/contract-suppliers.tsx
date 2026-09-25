@@ -1,11 +1,15 @@
 'use client'
 
+import { SupplierCompanyDialog } from '@/components/vendors/supplier-company-dialog'
+
+import Link from 'next/link'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Phone, Users, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface VendorSupplierOption {
+  linkedVendorId?: string | null
   id: string
   name: string
   phone?: string | null
@@ -65,24 +69,11 @@ async function unlinkSupplier(contractId: string, supplierId: string) {
   return response.json()
 }
 
-async function createAndLinkSupplier(vendorId: string, contractId: string, data: { name: string; phone: string }) {
-  const token = getToken()
-  const createResponse = await fetch(`/api/vendors/${vendorId}/suppliers`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  })
-  const created = await createResponse.json()
-  if (!createResponse.ok) throw new Error(created.error || 'Failed to create supplier')
-
-  return linkSupplier(contractId, created.id)
-}
-
 export function ContractSuppliers({ contractId, vendorId, suppliers, onRefresh }: ContractSuppliersProps) {
   const queryClient = useQueryClient()
   const [isPicking, setIsPicking] = useState(false)
   const [isAddingNew, setIsAddingNew] = useState(false)
-  const [newSupplier, setNewSupplier] = useState({ name: '', phone: '' })
+
 
   const { data: vendorSuppliers = [] } = useQuery<VendorSupplierOption[]>({
     queryKey: ['vendor-suppliers', vendorId],
@@ -117,28 +108,6 @@ export function ContractSuppliers({ contractId, vendorId, suppliers, onRefresh }
     onError: (error: Error) => toast.error(error.message)
   })
 
-  const createMutation = useMutation({
-    mutationFn: (data: { name: string; phone: string }) => createAndLinkSupplier(vendorId, contractId, data),
-    onSuccess: () => {
-      toast.success('Supplier added')
-      refreshAll()
-      queryClient.invalidateQueries({ queryKey: ['vendor-suppliers', vendorId] })
-      setNewSupplier({ name: '', phone: '' })
-      setIsAddingNew(false)
-      setIsPicking(false)
-    },
-    onError: (error: Error) => toast.error(error.message)
-  })
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newSupplier.name.trim()) {
-      toast.error('Supplier name is required')
-      return
-    }
-    createMutation.mutate({ name: newSupplier.name.trim(), phone: newSupplier.phone.trim() })
-  }
-
   return (
     <div className="bg-white rounded border overflow-hidden">
       <div className="px-3 py-1.5 border-b bg-gray-50 flex items-center justify-between">
@@ -163,7 +132,7 @@ export function ContractSuppliers({ contractId, vendorId, suppliers, onRefresh }
           {suppliers.map(link => (
             <li key={link.id} className="px-3 py-1.5 flex items-center justify-between text-xs">
               <div className="min-w-0">
-                <p className="font-medium text-gray-900 truncate">{link.supplier.name}</p>
+                {link.supplier.linkedVendorId ? <Link href={`/dashboard/vendors/${link.supplier.linkedVendorId}`} className="font-medium text-primary-700 hover:underline">{link.supplier.name}</Link> : <p className="font-medium text-gray-900 truncate">{link.supplier.name}</p>}
                 {link.supplier.phone && (
                   <p className="text-[10px] text-gray-500 flex items-center gap-1">
                     <Phone className="h-2.5 w-2.5" />
@@ -228,33 +197,7 @@ export function ContractSuppliers({ contractId, vendorId, suppliers, onRefresh }
                   </button>
                 </>
               ) : (
-                <form onSubmit={handleCreateSubmit} className="space-y-2">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
-                    <input
-                      type="text"
-                      value={newSupplier.name}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, name: e.target.value })}
-                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
-                    <input
-                      type="text"
-                      value={newSupplier.phone}
-                      onChange={(e) => setNewSupplier({ ...newSupplier, phone: e.target.value })}
-                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs"
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2 pt-1">
-                    <button type="button" onClick={() => setIsAddingNew(false)} className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800">Back</button>
-                    <button type="submit" disabled={createMutation.isPending} className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50">
-                      {createMutation.isPending ? 'Adding...' : 'Add & Link'}
-                    </button>
-                  </div>
-                </form>
+                <SupplierCompanyDialog vendorId={vendorId} contractId={contractId} onClose={() => setIsAddingNew(false)} onSaved={() => { refreshAll(); setIsPicking(false) }} />
               )}
             </div>
           </div>

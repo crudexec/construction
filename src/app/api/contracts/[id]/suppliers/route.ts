@@ -163,6 +163,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Supplier link not found' }, { status: 404 })
     }
 
+    if (await prisma.lienRelease.count({ where: { contractId, vendorSupplierId: supplierId } })) {
+      return NextResponse.json({ error: 'Supplier has lien releases on this contract and cannot be unlinked.' }, { status: 409 })
+    }
     await prisma.contractSupplier.delete({
       where: { id: link.id }
     })

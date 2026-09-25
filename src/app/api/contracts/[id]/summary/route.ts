@@ -96,7 +96,7 @@ export async function GET(
     const rejectedChangeOrdersTotal = changeOrdersByStatus['REJECTED']?.total || 0
 
     // Current contract value = Original (totalSum or lineItemsTotal) + Approved COs
-    const originalContractValue = contract.totalSum || lineItemsTotal
+    const originalContractValue = contract.totalSum
     const currentContractValue = originalContractValue + approvedChangeOrdersTotal
     const potentialContractValue = currentContractValue + pendingChangeOrdersTotal
 
@@ -129,6 +129,9 @@ export async function GET(
       },
       financials: {
         estimateAmount: contract.estimateAmount,
+        estimateReference: contract.estimateReference,
+        retentionPercent: contract.retentionPercent ?? 0,
+        contractRetentionAmount: Math.round(currentContractValue * (contract.retentionPercent ?? 0)) / 100,
         originalContractValue,
         approvedChangeOrdersTotal,
         pendingChangeOrdersTotal,

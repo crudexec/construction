@@ -622,8 +622,8 @@ export function ContractPayments({
       if (!manualFormulaFields.has('acaAmountRequesting')) {
         assignIfNeeded('acaAmountRequesting', currencyToInput(preview.amountRequesting))
       }
-      if (!manualFormulaFields.has('currentRetention')) assignIfNeeded('currentRetention', currencyToInput(preview.currentRetention))
-      if (!manualFormulaFields.has('maxPayment')) assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
+      assignIfNeeded('currentRetention', currencyToInput(preview.currentRetention))
+      assignIfNeeded('maxPayment', currencyToInput(preview.maxPayment))
       if (!manualFormulaFields.has('amountApproved') && !current.amountApproved) assignIfNeeded('amountApproved', currencyToInput(preview.amountRequesting))
 
       return changed ? next : current
@@ -820,7 +820,7 @@ export function ContractPayments({
               <p className="font-semibold text-gray-900">{formatCurrency(approvedChangeOrderTotal)}</p>
             </div>
             <div>
-              <p className="text-gray-500 uppercase">Revised Contract</p>
+              <p className="text-gray-500 uppercase">Current Contract Value</p>
               <p className="font-semibold text-gray-900">{formatCurrency(revisedContract)}</p>
             </div>
             <div>
@@ -832,7 +832,7 @@ export function ContractPayments({
               <p className="font-semibold text-green-700">{formatCurrency(netPaidToDate)}</p>
             </div>
             <div>
-              <p className="text-gray-500 uppercase">Current Retention Held</p>
+              <p className="text-gray-500 uppercase">Total Retention Held (Paid)</p>
               <p className="font-semibold text-amber-700">{formatCurrency(currentRetentionHeld)}</p>
             </div>
           </div>
@@ -857,9 +857,9 @@ export function ContractPayments({
                   <HeaderCell>Month</HeaderCell>
                   <HeaderCell>Original Contract</HeaderCell>
                   <HeaderCell>Modifications</HeaderCell>
-                  <HeaderCell>Revised Contract</HeaderCell>
+                  <HeaderCell>Current Contract Value</HeaderCell>
                   <HeaderCell>Amount Complete</HeaderCell>
-                  <HeaderCell>Less Retention</HeaderCell>
+                  <HeaderCell>This Application’s Retention</HeaderCell>
                   <HeaderCell>Subtotal</HeaderCell>
                   <HeaderCell>Previously Billed Approved</HeaderCell>
                   <HeaderCell>Current Billing</HeaderCell>
@@ -867,7 +867,7 @@ export function ContractPayments({
                   <HeaderCell>Amount Requesting</HeaderCell>
                   <HeaderCell>ACA Amount Requesting</HeaderCell>
                   <HeaderCell>Discrepancy</HeaderCell>
-                  <HeaderCell>Current Retention</HeaderCell>
+                  <HeaderCell>Previously Held Retention</HeaderCell>
                   <HeaderCell>Net PTD</HeaderCell>
                   <HeaderCell>Max Payment</HeaderCell>
                   <HeaderCell>Amount Approved</HeaderCell>
@@ -886,17 +886,17 @@ export function ContractPayments({
                     <BodyCell>{payment.submittedBy || '-'}</BodyCell>
                     <BodyCell>{formatDate(payment.paymentDate)}</BodyCell>
                     <BodyCell>{formatDate(payment.billingPeriodDate)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.originalContractAmount)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.modifications)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.revisedContract)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.amountComplete ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.lessRetention ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.subtotal ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.previouslyBilledApproved)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.currentBilling)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.calculatedEarlyPayDiscount)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.amountRequesting ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.acaAmountRequesting ?? payment.amountRequesting ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.originalContractAmount)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.modifications)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.revisedContract)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.amountComplete ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.lessRetention ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.subtotal ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.previouslyBilledApproved)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.currentBilling)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.calculatedEarlyPayDiscount)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.amountRequesting ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.acaAmountRequesting ?? payment.amountRequesting ?? 0)}</BodyCell>
                     <BodyCell>
                       {payment.calculatedAcaDiscrepancy || payment.hasAcaDiscrepancy ? (
                         <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700">Review</span>
@@ -904,10 +904,10 @@ export function ContractPayments({
                         <span className="rounded bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">OK</span>
                       )}
                     </BodyCell>
-                    <BodyCell>{formatCurrency(payment.currentRetention ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.paidToDate)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.maxPayment ?? 0)}</BodyCell>
-                    <BodyCell>{formatCurrency(payment.amountApproved ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.previouslyWithheldRetention)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.paidToDate)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.maxPayment ?? 0)}</BodyCell>
+                    <BodyCell numeric>{formatCurrency(payment.amountApproved ?? 0)}</BodyCell>
                     <BodyCell><StatusBadge value={payment.pmStatus} /></BodyCell>
                     <BodyCell><StatusBadge value={payment.apStatus} /></BodyCell>
                     <BodyCell>
@@ -1028,12 +1028,12 @@ export function ContractPayments({
                 </FormField>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+              <SectionHeader title="Contract Totals" description="Contract-wide values, separate from this pay application." />
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
                 <SummaryCard label="Original Contract" value={formatCurrency(previewPayment.originalContractAmount)} />
                 <SummaryCard label="Modifications" value={formatCurrency(previewPayment.modifications)} />
-                <SummaryCard label="Revised Contract" value={formatCurrency(previewPayment.revisedContract)} />
+                <SummaryCard label="Current Contract Value" value={formatCurrency(previewPayment.revisedContract)} />
                 <SummaryCard label="Retention %" value={`${retentionPercent ?? 0}%`} />
-                <SummaryCard label="Current Retention Held" value={formatCurrency(previewPayment.currentRetention)} />
                 <SummaryCard label="Max Payment" value={formatCurrency(previewPayment.maxPayment ?? 0)} />
               </div>
 
@@ -1057,7 +1057,7 @@ export function ContractPayments({
                   helperText="Gross value of work completed this period. Press Enter to evaluate arithmetic."
                 />
                 <CurrencyInputField
-                  label="Less Retention"
+                  label="This Application’s Retention"
                   value={paymentForm.lessRetention}
                   onChange={(value) => handleCurrencyChange('lessRetention', value)}
                   disabled={isSelectedPaymentLocked}
@@ -1096,7 +1096,7 @@ export function ContractPayments({
                   disabled={isSelectedPaymentLocked}
                   helperText="Calculated from the percentage, or manually entered."
                 />
-                <SummaryCard label="Current Retention Held" value={formatCurrency(previewPayment.currentRetention)} />
+                <SummaryCard label="Previously Held Retention" value={formatCurrency(previewPayment.previouslyWithheldRetention)} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -1152,12 +1152,12 @@ export function ContractPayments({
 
               <SectionHeader
                 title="Payment Limits"
-                description="Review what has been paid to date and the maximum payable amount on this request."
+                description="Review paid-to-date figures. Max Payment is current contract value less contract retention; it is not this application's remaining allowance."
               />
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <SummaryCard label="Net PTD Preview" value={formatCurrency(previewPayment.paidToDate)} />
                 <SummaryCard label="Gross PTD Preview" value={formatCurrency(previewPayment.grossPaidToDate)} />
-                <SummaryCard label="Retention Held Preview" value={formatCurrency(previewPayment.currentRetentionHeld)} />
+                <SummaryCard label="This Application’s Retention" value={formatCurrency(previewPayment.lessRetention)} />
                 <SummaryCard label="Max Payment" value={formatCurrency(previewPayment.maxPayment ?? 0)} />
               </div>
 
@@ -1534,8 +1534,8 @@ function HeaderCell({ children }: { children: ReactNode }) {
   return <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600 whitespace-nowrap">{children}</th>
 }
 
-function BodyCell({ children }: { children: ReactNode }) {
-  return <td className="px-3 py-1.5 text-gray-700 whitespace-nowrap">{children}</td>
+function BodyCell({ children, numeric = false }: { children: ReactNode; numeric?: boolean }) {
+  return <td className={`px-3 py-1.5 text-gray-700 whitespace-nowrap ${numeric ? 'text-right tabular-nums' : ''}`}>{children}</td>
 }
 
 function StatusBadge({ value }: { value: string }) {
@@ -1733,24 +1733,17 @@ function getPreviewPayment(
     ? parseCurrencyInput(form.currentBilling)
     : undefined
   const paymentRowsWithoutDraft = context.payments.filter((payment) => payment.id !== context.selectedPaymentId)
-  const previousComputedPayments = computeContractPayments(
-    paymentRowsWithoutDraft,
-    context.contractTotal,
-    context.approvedChangeOrderTotal,
-    context.retentionPercent
-  )
-  const previousRetentionHeld = previousComputedPayments.find((payment) => payment.apStatus === 'PAID')?.currentRetentionHeld ?? 0
-  const draftCurrentRetention = roundCurrency(previousRetentionHeld + lessRetention)
-  const currentRetention = manualFormulaFields.has('currentRetention')
-    ? parseCurrencyInput(form.currentRetention) ?? draftCurrentRetention
-    : draftCurrentRetention
+  const originalPayment = context.payments.find(payment => payment.id === context.selectedPaymentId)
+  // Preserve legacy recorded balances when merely editing unrelated fields.
+  const unchangedRetention = originalPayment && (originalPayment.lessRetention ?? 0) === lessRetention
+    && toInputDate(originalPayment.paymentDate) === form.paymentDate
   const enteredEarlyPayDiscount = parseCurrencyInput(form.earlyPayDiscount)
 
   const draftPayment: PaymentRow = {
     id: context.selectedPaymentId || 'draft-payment-row',
     amount: parseCurrencyInput(form.amountApproved) ?? parseCurrencyInput(form.amountRequesting) ?? 0,
     paymentDate: form.paymentDate,
-    createdAt: new Date().toISOString(),
+    createdAt: context.payments.find(payment => payment.id === context.selectedPaymentId)?.createdAt || new Date().toISOString(),
     submittedBy: form.submittedBy || null,
     billingPeriodDate: form.billingPeriodDate || null,
     clientName: form.clientName || null,
@@ -1766,7 +1759,7 @@ function getPreviewPayment(
     acaAmountRequesting: parseCurrencyInput(form.acaAmountRequesting) ?? null,
     hasAcaDiscrepancy: hasAcaDiscrepancy(form),
     acaDiscrepancyNote: form.acaDiscrepancyNote || null,
-    currentRetention,
+    currentRetention: unchangedRetention ? originalPayment.currentRetention ?? null : null,
     paidToDateOverride: parseCurrencyInput(form.paidToDateOverride) ?? null,
     paidToDateAdjustment: parseCurrencyInput(form.paidToDateAdjustment) ?? null,
     maxPayment: parseCurrencyInput(form.maxPayment) ?? null,
@@ -1795,10 +1788,7 @@ function getPreviewPayment(
   )
   const preview = computed.find((payment) => payment.id === draftPayment.id)!
   const requestedDefault = roundCurrency(preview.currentBilling - preview.calculatedEarlyPayDiscount)
-  const populatedCurrentRetention = manualFormulaFields.has('currentRetention')
-    ? parseCurrencyInput(form.currentRetention) ?? draftCurrentRetention
-    : draftCurrentRetention
-  const maxPaymentDefault = preview.maxPayment ?? 0
+  const populatedCurrentRetention = preview.currentRetention ?? roundCurrency(preview.previouslyWithheldRetention + lessRetention)
 
   return {
     ...preview,
@@ -1811,9 +1801,7 @@ function getPreviewPayment(
       ? parseCurrencyInput(form.acaAmountRequesting) ?? requestedDefault
       : requestedDefault,
     currentRetention: populatedCurrentRetention,
-    maxPayment: manualFormulaFields.has('maxPayment')
-      ? parseCurrencyInput(form.maxPayment) ?? maxPaymentDefault
-      : maxPaymentDefault,
+    maxPayment: preview.maxPayment,
   }
 }
 

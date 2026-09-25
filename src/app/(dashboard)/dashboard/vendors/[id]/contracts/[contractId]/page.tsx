@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
@@ -28,6 +28,9 @@ import { ContractSummaryCard } from '@/components/contracts/contract-summary-car
 import { ContractLienReleaseCompliance } from '@/components/contracts/contract-lien-release-compliance'
 import { ContractPayments } from '@/components/contracts/contract-payments'
 import { ContractSuppliers } from '@/components/contracts/contract-suppliers'
+
+import { ContractDetailsFields, detailsValues, type ContractDetailsValues } from '@/components/contracts/contract-details-fields'
+import { contractDate, contractDuration } from '@/lib/contracts/details'
 
 interface ContractDocument {
   id: string
@@ -145,6 +148,11 @@ interface ContractSupplierLink {
 }
 
 interface VendorContract {
+  title?: string | null
+  description?: string | null
+  estimateReference?: string | null
+  originalValueIsManual: boolean
+  updatedAt: string
   id: string
   contractNumber: string
   type: 'LUMP_SUM' | 'REMEASURABLE' | 'ADDENDUM'
@@ -234,18 +242,18 @@ const formatFileSize = (bytes: number) => {
 }
 
 export default function ContractDetailPage() {
+  const queryClient = useQueryClient()
   const params = useParams()
   const contractId = params.contractId as string
   const vendorId = params.id as string
   const [isUploadingDocument, setIsUploadingDocument] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [showTermsFlyout, setShowTermsFlyout] = useState(false)
-  const [editForm, setEditForm] = useState({
-    retentionPercent: '0',
-    retentionBond: '',
-    terms: '',
-    notes: ''
+  const [editForm, setEditForm] = useState<ContractDetailsValues>({
+    contractNumber: '', title: '', description: '', estimateReference: '', estimateAmount: '', totalSum: '',
+    startDate: '', endDate: '', retentionPercent: '0', retentionBond: '', terms: '', notes: ''
   })
+  const editVersion = useRef('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data: contract, isLoading, error, refetch } = useQuery({
@@ -312,7 +320,7 @@ export default function ContractDetailPage() {
   })
 
   const updateContractMutation = useMutation({
-    mutationFn: async (data: { retentionPercent: number; retentionBond: string; terms: string; notes: string }) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('auth-token='))
@@ -337,6 +345,7 @@ export default function ContractDetailPage() {
     onSuccess: async () => {
       toast.success('Contract updated')
       await refetch()
+      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
       setIsEditing(false)
       setShowTermsFlyout(false)
     },
@@ -346,42 +355,41 @@ export default function ContractDetailPage() {
   })
 
   useEffect(() => {
+    if (contract && !isEditing) setEditForm(detailsValues(contract))
+  }, [contract, isEditing])
+
+  const handleStartEdit = () => {
     if (!contract) return
-    setEditForm({
-      retentionPercent: String(contract.retentionPercent ?? 0),
-      retentionBond: contract.retentionBond || '',
-      terms: contract.terms || '',
-      notes: contract.notes || ''
-    })
-  }, [contract])
-
-  const handleStartEdit = () => setIsEditing(true)
-
+    setEditForm(detailsValues(contract))
+    editVersion.current = contract.updatedAt
+    setIsEditing(true)
+  }
   const handleCancelEdit = () => {
-    if (contract) {
-      setEditForm({
-        retentionPercent: String(contract.retentionPercent ?? 0),
-        retentionBond: contract.retentionBond || '',
-        terms: contract.terms || '',
-        notes: contract.notes || ''
-      })
-    }
+    if (contract) setEditForm(detailsValues(contract))
     setIsEditing(false)
     setShowTermsFlyout(false)
   }
-
   const handleSaveEdit = () => {
-    const parsedRetention = Number(editForm.retentionPercent)
-    if (!Number.isFinite(parsedRetention) || parsedRetention < 0 || parsedRetention > 100) {
-      toast.error('Retention percentage must be between 0 and 100')
+    if (!contract) return
+    const retention = Number(editForm.retentionPercent)
+    const original = Number(editForm.totalSum)
+    const estimate = editForm.estimateAmount.trim() === '' ? null : Number(editForm.estimateAmount)
+    if (!editForm.contractNumber.trim() || !editForm.startDate || editForm.totalSum.trim() === '' || editForm.retentionPercent.trim() === '') {
+      toast.error('Contract number, original amount, start date and retention are required')
       return
     }
-
+    if (![retention, original, ...(estimate === null ? [] : [estimate])].every(n => Number.isFinite(n) && n >= 0) || retention > 100) {
+      toast.error('Amounts must be nonnegative and retention must be between 0 and 100')
+      return
+    }
+    if (editForm.endDate && editForm.endDate < editForm.startDate) {
+      toast.error('End date cannot be before start date')
+      return
+    }
     updateContractMutation.mutate({
-      retentionPercent: parsedRetention,
-      retentionBond: editForm.retentionBond,
-      terms: editForm.terms,
-      notes: editForm.notes
+      ...editForm, updatedAt: editVersion.current, retentionPercent: retention,
+      totalSum: original !== contract.totalSum ? original : undefined,
+      estimateAmount: estimate, endDate: editForm.endDate || null
     })
   }
 
@@ -423,7 +431,7 @@ export default function ContractDetailPage() {
   return (
     <div className="space-y-2">
       {/* Header */}
-      <div className="flex items-center justify-between bg-white border rounded px-3 py-2">
+      <div className="flex flex-wrap gap-3 items-center justify-between bg-white border rounded px-3 py-2">
         <div className="flex items-center gap-3">
           <Link
             href={`/dashboard/vendors/${vendorId}?tab=contracts`}
@@ -439,7 +447,7 @@ export default function ContractDetailPage() {
             </span>
           </div>
         </div>
-        <div className="flex items-center gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-3 text-xs">
           <Link
             href={`/dashboard/vendors/${vendorId}`}
             className="flex items-center gap-1 text-gray-600 hover:text-gray-900"
@@ -447,38 +455,16 @@ export default function ContractDetailPage() {
             <Building2 className="h-3.5 w-3.5" />
             <span>{contract.vendor.companyName}</span>
           </Link>
-          {contract.projects[0] && (
-            <Link
-              href={`/dashboard/projects/${contract.projects[0].project.id}`}
-              className="flex items-center gap-1 text-gray-600 hover:text-gray-900"
-            >
-              <Briefcase className="h-3.5 w-3.5" />
-              <span>
-                {contract.projects[0].project.title}
-                {contract.projects[0].project.projectNumber ? ` (#${contract.projects[0].project.projectNumber})` : ''}
-                {contract.projects.length > 1 ? ` +${contract.projects.length - 1} more` : ''}
-              </span>
+          {contract.projects.map(({ project }) => (
+            <Link key={project.id} href={`/dashboard/projects/${project.id}?tab=vendors`} className="flex items-center gap-1 text-primary-700 hover:underline">
+              <Briefcase className="h-3.5 w-3.5" />Back to {project.title}
             </Link>
-          )}
-          {!isEditing && contract.retentionPercent && contract.retentionPercent > 0 && (
+          ))}
+          {!isEditing && (contract.retentionPercent ?? 0) > 0 && (
             <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded">
               <Shield className="h-3 w-3" />
               {contract.retentionPercent}% retention
             </span>
-          )}
-          {isEditing && (
-            <div className="flex items-center gap-1 rounded border border-gray-200 bg-white px-2 py-1">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Retention %</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                step="0.01"
-                value={editForm.retentionPercent}
-                onChange={(e) => setEditForm({ ...editForm, retentionPercent: e.target.value })}
-                className="w-16 rounded border border-gray-300 px-2 py-1 text-right text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
           )}
           {isEditing ? (
             <>
@@ -507,12 +493,20 @@ export default function ContractDetailPage() {
               className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-[10px] font-medium text-gray-700 hover:bg-gray-50"
             >
               <Edit className="h-3 w-3" />
-              Edit
+              Edit Contract
             </button>
           )}
         </div>
       </div>
 
+      {isEditing && <ContractDetailsFields value={editForm} onChange={setEditForm}
+        approvedChanges={contract.changeOrders.filter(co => co.status === 'APPROVED').reduce((sum, co) => sum + co.totalAmount, 0)}
+        disabled={updateContractMutation.isPending} />}
+      {!isEditing && (contract.title || contract.description || contract.estimateReference) && <section className="bg-white border rounded p-3 text-sm">
+        {contract.title && <h2 className="font-semibold">{contract.title}</h2>}
+        {contract.description && <p className="whitespace-pre-wrap">{contract.description}</p>}
+        {contract.estimateReference && <p className="text-gray-500">Estimate Reference: {contract.estimateReference}</p>}
+      </section>}
       {/* Contract Summary */}
       <ContractSummaryCard contractId={contract.id} />
 
@@ -548,15 +542,16 @@ export default function ContractDetailPage() {
               <tr className="border-b border-gray-100">
                 <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50 w-20">Start</td>
                 <td className="px-3 py-1.5 font-medium text-gray-900">
-                  {new Date(contract.startDate).toLocaleDateString()}
+                  {contractDate(contract.startDate)}
                 </td>
               </tr>
               <tr className="border-b border-gray-100">
                 <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50">End</td>
                 <td className="px-3 py-1.5 font-medium text-gray-900">
-                  {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : <span className="text-gray-400 italic">TBD</span>}
+                  {contract.endDate ? contractDate(contract.endDate) : <span className="text-gray-400 italic">TBD</span>}
                 </td>
               </tr>
+              <tr><td className="px-3 py-1.5 text-gray-500">Duration</td><td className="px-3 py-1.5">{contractDuration(contract.startDate, contract.endDate) === null ? 'TBD' : `${contractDuration(contract.startDate, contract.endDate)} calendar days`}</td></tr>
               <tr>
                 <td className="px-3 py-1.5 text-gray-500 bg-gray-50/50">Warranty</td>
                 <td className="px-3 py-1.5 font-medium text-gray-900">

@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const workOrders = await prisma.workOrder.findMany({
       where: whereClause,
       include: {
+        asset: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, firstName: true, lastName: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         issues: {

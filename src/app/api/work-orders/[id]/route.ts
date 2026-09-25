@@ -26,6 +26,7 @@ export async function GET(
     const workOrder = await prisma.workOrder.findFirst({
       where: { id, companyId: user.companyId },
       include: {
+        asset: { select: { id: true, name: true } },
         assignedTo: { select: { id: true, firstName: true, lastName: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         issues: {
@@ -174,6 +175,10 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json({ error: 'Work order not found' }, { status: 404 })
+    }
+
+    if (await prisma.assetServiceEntry.count({ where: { workOrderId: id } })) {
+      return NextResponse.json({ error: 'This work order has imported service history and cannot be deleted.' }, { status: 409 })
     }
 
     await prisma.workOrder.delete({ where: { id } })

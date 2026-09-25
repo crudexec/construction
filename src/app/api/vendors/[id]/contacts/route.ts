@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
+import { saveVendorContact, RelationshipError } from '@/lib/vendors/relationships'
 
 export async function GET(
   request: NextRequest,
@@ -86,47 +87,13 @@ export async function POST(
     }
 
     const body = await request.json()
-    
-    const {
-      firstName,
-      lastName,
-      email,
-      phone,
-      position,
-      isPrimary,
-      isBilling
-    } = body
-
-    // If setting as primary, unset existing primary contact
-    if (isPrimary) {
-      await prisma.vendorContact.updateMany({
-        where: {
-          vendorId: id,
-          isPrimary: true
-        },
-        data: {
-          isPrimary: false
-        }
-      })
-    }
-
-    const contact = await prisma.vendorContact.create({
-      data: {
-        vendorId: id,
-        firstName,
-        lastName,
-        email,
-        phone,
-        position,
-        isPrimary: isPrimary || false,
-        isBilling: isBilling || false
-      }
-    })
+    const contact = await saveVendorContact(user.companyId, id, null, body)
 
     return NextResponse.json(contact, { status: 201 })
 
   } catch (error) {
     console.error('Error creating vendor contact:', error)
+    if (error instanceof RelationshipError) return NextResponse.json({ error: error.message, candidates: error.candidates }, { status: error.status })
     return NextResponse.json(
       { error: 'Failed to create vendor contact' },
       { status: 500 }

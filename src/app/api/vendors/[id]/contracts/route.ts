@@ -48,6 +48,7 @@ export async function GET(
         vendorId: id
       },
       include: {
+        changeOrders: { where: { status: 'APPROVED' }, select: { totalAmount: true } },
         projects: {
           include: {
             project: {
