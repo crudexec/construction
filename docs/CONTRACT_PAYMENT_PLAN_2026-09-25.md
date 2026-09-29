@@ -1,5 +1,7 @@
 # Agreed contract and payment changes — September 25, 2026
 
+September 29 update: item 8 is now implemented locally, including editing, notes, before/after history and approval-preserving revisions. See [change-order workflow and rollout notes](CHANGE_ORDER_WORKFLOW_2026-09-29.md). The new migration and application release have not been deployed to production. The batch descriptions below record September 25's scope.
+
 ## Decisions confirmed with the user
 
 1. Contract pages link back to the associated project's Vendors/Contracts tab, including after refresh or direct navigation. Vendor navigation remains separate. For contracts with multiple linked projects, expose each project rather than guessing the origin.

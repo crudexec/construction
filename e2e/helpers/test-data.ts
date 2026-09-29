@@ -302,6 +302,9 @@ export async function deleteFixtureCompany(companyId: string) {
     prisma.projectContract.deleteMany({
       where: { contract: { companyId } },
     }),
+    prisma.changeOrder.deleteMany({
+      where: { contract: { companyId } },
+    }),
     prisma.vendorContract.deleteMany({
       where: { companyId },
     }),

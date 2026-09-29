@@ -24,7 +24,7 @@ The preceding `20260925120000_contract_details` migration was applied at the sam
 
 Pre-migration private data/schema-column snapshot: `/private/tmp/buildflo-production-migration-VXxBnt/before.json` (directory mode 0700, file mode 0600). Post-migration comparison preserved every existing field and row across 20 contracts, 14 vendor contacts, 8 suppliers, 6 contract-supplier links, 18 lien releases, 0 contact comments and 26 project milestones. Verified all six new columns, both supplier indexes and the validated `ON DELETE RESTRICT` foreign key. This is an affected-table snapshot, not a full database backup.
 
-The separate change-order editing/revision/notes/history batch remains outstanding. See [contract/payment plan](CONTRACT_PAYMENT_PLAN_2026-09-25.md).
+September 29 update: the separate change-order editing/revision/notes/history batch is implemented locally; its migration and application deployment remain pending. See [change-order workflow](CHANGE_ORDER_WORKFLOW_2026-09-29.md).
 
 ## Verification
 

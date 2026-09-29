@@ -328,6 +328,9 @@ export async function DELETE(
 
   } catch (error) {
     console.error('Error deleting contract:', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+      return NextResponse.json({ error: 'This contract has linked records, including change orders, that must be preserved. Approved change orders cannot be deleted.' }, { status: 409 })
+    }
     return NextResponse.json(
       { error: 'Failed to delete contract' },
       { status: 500 }

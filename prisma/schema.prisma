@@ -2083,17 +2083,50 @@ model ChangeOrder {
   createdById       String
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
+  version           Int               @default(0)
+  revisionNumber    Int               @default(0)
+  proposedRevision  Json?
+  revisionStatus    ChangeOrderStatus?
 
-  contract   VendorContract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract   VendorContract        @relation(fields: [contractId], references: [id], onDelete: Restrict)
   createdBy  User                  @relation("ChangeOrderCreator", fields: [createdById], references: [id])
   approvedBy User?                 @relation("ChangeOrderApprover", fields: [approvedById], references: [id])
   rejectedBy User?                 @relation("ChangeOrderRejecter", fields: [rejectedById], references: [id])
   lineItems  ChangeOrderLineItem[]
+  notes      ChangeOrderNote[]
+  history    ChangeOrderEvent[]
 
   @@unique([contractId, changeOrderNumber])
   @@index([contractId])
   @@index([status])
   @@index([createdById])
+}
+
+// Actor names are captured at write time so history survives profile changes.
+model ChangeOrderNote {
+  id            String @id @default(cuid())
+  changeOrderId String
+  body          String
+  actorId       String
+  actorName     String
+  createdAt     DateTime @default(now())
+  changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+
+  @@index([changeOrderId, createdAt])
+}
+
+model ChangeOrderEvent {
+  id            String @id @default(cuid())
+  changeOrderId String
+  action        String
+  actorId       String
+  actorName     String
+  before        Json?
+  after         Json
+  createdAt     DateTime @default(now())
+  changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+
+  @@index([changeOrderId, createdAt])
 }
 
 // Change Order Line Items

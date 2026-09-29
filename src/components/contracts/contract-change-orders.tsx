@@ -2,525 +2,169 @@
 
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Plus, Trash2, Edit, Save, X, FileText,
-  ChevronDown, ChevronRight, Clock, Check,
-  XCircle, Send, AlertCircle, Download
-} from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { GenerateDocumentButton } from '@/components/documents/generate-document-button'
 
-interface CostCodeOption {
-  id: string
-  code: string
-  name: string
+type Status = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+type Line = { description: string; quantity: number; unit: string; unitPrice: number; notes?: string | null; costCodeId?: string | null; specSection?: string | null }
+type Content = { title: string; description?: string | null; reason?: string | null; lineItems: Line[]; totalAmount: number }
+type Event = { id: string; action: string; actorName: string; createdAt: string; before: Record<string, unknown> | null; after: Record<string, unknown> }
+type ChangeOrder = Content & {
+  id: string; changeOrderNumber: number; status: Status; version: number; revisionNumber: number;
+  proposedRevision: Content | null; revisionStatus: Status | null; createdAt: string;
+  approvedAt: string | null; approvedBy?: { firstName: string; lastName: string } | null; rejectionReason: string | null;
+  notes: { id: string; body: string; actorName: string; createdAt: string }[]; history: Event[]
+}
+type CostCode = { id: string; code: string; name: string }
+const statuses: Record<Status, string> = { DRAFT: 'Draft', PENDING_APPROVAL: 'Pending approval', APPROVED: 'Approved', REJECTED: 'Rejected' }
+const money = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+const blankLine = (): Line => ({ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' })
+const blank = (): Content => ({ title: '', description: '', reason: '', totalAmount: 0, lineItems: [blankLine()] })
+const button = 'rounded border px-3 py-1.5 text-xs disabled:opacity-50 hover:bg-gray-50'
+const input = 'w-full rounded border px-2 py-1.5 text-sm'
+
+async function requestOrder(url: string, method = 'GET', body?: unknown) {
+  const response = await fetch(url, { method, credentials: 'include', ...(body !== undefined && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }) })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Unable to load or save change order')
+  return result
 }
 
-interface ChangeOrderLineItem {
-  id: string
-  description: string
-  quantity: number
-  unit: string
-  unitPrice: number
-  totalPrice: number
-  notes?: string | null
-  order: number
-  costCodeId?: string | null
-  costCode?: CostCodeOption | null
-  specSection?: string | null
-}
-
-interface ChangeOrder {
-  id: string
-  changeOrderNumber: number
-  title: string
-  description?: string | null
-  reason?: string | null
-  totalAmount: number
-  status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
-  submittedAt?: string | null
-  approvedAt?: string | null
-  rejectedAt?: string | null
-  rejectionReason?: string | null
-  createdAt: string
-  lineItems: ChangeOrderLineItem[]
-  createdBy?: { id: string; firstName: string; lastName: string }
-  approvedBy?: { id: string; firstName: string; lastName: string } | null
-  rejectedBy?: { id: string; firstName: string; lastName: string } | null
-}
-
-interface ContractChangeOrdersProps {
-  contractId: string
-  readonly?: boolean
-}
-
-const STATUS_CONFIG = {
-  DRAFT: { label: 'Draft', color: 'bg-gray-100 text-gray-700', icon: Edit },
-  PENDING_APPROVAL: { label: 'Pending', color: 'bg-yellow-100 text-yellow-700', icon: Clock },
-  APPROVED: { label: 'Approved', color: 'bg-green-100 text-green-700', icon: Check },
-  REJECTED: { label: 'Rejected', color: 'bg-red-100 text-red-700', icon: XCircle }
-}
-
-const UNIT_OPTIONS = [
-  { value: 'EA', label: 'Each' },
-  { value: 'SF', label: 'Square Feet' },
-  { value: 'LF', label: 'Linear Feet' },
-  { value: 'HR', label: 'Hour' },
-  { value: 'DAY', label: 'Day' },
-  { value: 'LS', label: 'Lump Sum' },
-  { value: 'CY', label: 'Cubic Yard' },
-  { value: 'TON', label: 'Ton' },
-  { value: 'GAL', label: 'Gallon' },
-  { value: '%', label: 'Percent' },
-]
-
-export function ContractChangeOrders({ contractId, readonly = false }: ContractChangeOrdersProps) {
-  const queryClient = useQueryClient()
-  const [selectedCO, setSelectedCO] = useState<ChangeOrder | null>(null)
-  const [isCreating, setIsCreating] = useState(false)
-  const [newCO, setNewCO] = useState({
-    title: '',
-    description: '',
-    reason: '',
-    lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
-  })
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['contract-change-orders', contractId],
-    queryFn: async () => {
-      const response = await fetch(`/api/contracts/${contractId}/change-orders`, {
-        credentials: 'include'
-      })
-      if (!response.ok) throw new Error('Failed to fetch change orders')
-      return response.json()
-    }
-  })
-
-  const { data: costCodes = [] } = useQuery<CostCodeOption[]>({
-    queryKey: ['cost-codes'],
-    queryFn: async () => {
-      const response = await fetch('/api/cost-codes', { credentials: 'include' })
-      if (!response.ok) throw new Error('Failed to fetch cost codes')
-      return response.json()
-    },
-    enabled: !readonly
-  })
-
-  const createMutation = useMutation({
-    mutationFn: async (coData: typeof newCO) => {
-      const response = await fetch(`/api/contracts/${contractId}/change-orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(coData)
-      })
-      if (!response.ok) throw new Error('Failed to create change order')
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
-      // Approved/deleted change orders affect the contract's current value —
-      // keep the contract and summary card fresh without requiring a manual page refresh
-      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
-      setIsCreating(false)
-      setNewCO({
-        title: '',
-        description: '',
-        reason: '',
-        lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
-      })
-    }
-  })
-
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, rejectionReason }: { id: string; status: string; rejectionReason?: string }) => {
-      const response = await fetch(`/api/contracts/${contractId}/change-orders/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status, rejectionReason })
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to update status')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
-      // Approved/deleted change orders affect the contract's current value —
-      // keep the contract and summary card fresh without requiring a manual page refresh
-      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
-    }
-  })
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await fetch(`/api/contracts/${contractId}/change-orders/${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to delete')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })
-      // Approved/deleted change orders affect the contract's current value —
-      // keep the contract and summary card fresh without requiring a manual page refresh
-      queryClient.invalidateQueries({ queryKey: ['contract', contractId] })
-      queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] })
-    }
-  })
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount)
+function Editor({ initial, costCodes, busy, onSave, onCancel }: { initial: Content; costCodes: CostCode[]; busy: boolean; onSave: (value: Content) => void; onCancel: () => void }) {
+  const [value, setValue] = useState<Content>(() => ({ title: initial.title, description: initial.description, reason: initial.reason, lineItems: initial.lineItems, totalAmount: initial.totalAmount }))
+  function updateLine(index: number, fields: Partial<Line>) {
+    setValue({ ...value, lineItems: value.lineItems.map((line, i) => i === index ? { ...line, ...fields } : line) })
   }
-
-  const changeOrders: ChangeOrder[] = data?.changeOrders || []
-  const approvedTotal = data?.approvedTotal || 0
-  const pendingTotal = data?.pendingTotal || 0
-
-  const addLineItem = () => {
-    setNewCO({
-      ...newCO,
-      lineItems: [...newCO.lineItems, { description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }]
-    })
-  }
-
-  const removeLineItem = (index: number) => {
-    setNewCO({
-      ...newCO,
-      lineItems: newCO.lineItems.filter((_, i) => i !== index)
-    })
-  }
-
-  const updateLineItem = (index: number, field: string, value: any) => {
-    const updated = [...newCO.lineItems]
-    updated[index] = { ...updated[index], [field]: value }
-    setNewCO({ ...newCO, lineItems: updated })
-  }
-
-  const calculateTotal = () => {
-    return newCO.lineItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-  }
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+  return <form aria-label="Change order editor" onSubmit={e => { e.preventDefault(); onSave(value) }} className="space-y-3">
+    <fieldset disabled={busy} className="space-y-3">
+      <label className="block text-xs">Title<input required maxLength={200} className={input} value={value.title} onChange={e => setValue({ ...value, title: e.target.value })} /></label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-xs">Description<textarea className={input} value={value.description ?? ''} onChange={e => setValue({ ...value, description: e.target.value })} /></label>
+        <label className="text-xs">Reason<textarea className={input} value={value.reason ?? ''} onChange={e => setValue({ ...value, reason: e.target.value })} /></label>
       </div>
-    )
-  }
-
-  return (
-    <div>
-      {/* Header with Add Button */}
-      {!readonly && (
-        <div className="px-3 py-1.5 border-b bg-white flex items-center justify-between">
-          {changeOrders.length > 0 && (
-            <div className="flex gap-2 text-[10px]">
-              <span className="text-green-700">Approved: <span className="font-semibold">{formatCurrency(approvedTotal)}</span></span>
-              <span className="text-yellow-700">Pending: <span className="font-semibold">{formatCurrency(pendingTotal)}</span></span>
-            </div>
-          )}
-          {changeOrders.length === 0 && <div />}
-          <button
-            onClick={() => setIsCreating(true)}
-            disabled={isCreating}
-            className="inline-flex items-center gap-0.5 text-[10px] text-primary-600 hover:text-primary-800 disabled:opacity-50"
-          >
-            <Plus className="h-3 w-3" />
-            Add CO
-          </button>
+      <div className="flex items-center justify-between"><h4 className="text-sm font-medium">Line items</h4><button className={button} type="button" onClick={() => setValue({ ...value, lineItems: [...value.lineItems, blankLine()] })}>Add line item</button></div>
+      {value.lineItems.map((line, index) => <fieldset key={index} aria-label={`Line item ${index + 1}`} className="rounded border p-3 space-y-2">
+        <div className="flex gap-2 items-end"><label className="flex-1 text-xs">Description<input required className={input} value={line.description} onChange={e => updateLine(index, { description: e.target.value })} /></label><button className={button} type="button" aria-label={`Remove line item ${index + 1}`} onClick={() => setValue({ ...value, lineItems: value.lineItems.filter((_, i) => i !== index) })}>Remove</button></div>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="text-xs">Quantity<input required type="number" min="0" max="1000000000" step="any" className={input} value={Number.isFinite(line.quantity) ? line.quantity : ''} onChange={e => updateLine(index, { quantity: e.target.valueAsNumber })} /></label>
+          <label className="text-xs">Unit<input required maxLength={30} className={input} value={line.unit} onChange={e => updateLine(index, { unit: e.target.value })} /></label>
+          <label className="text-xs">Unit price<input required type="number" step="any" className={input} value={Number.isFinite(line.unitPrice) ? line.unitPrice : ''} onChange={e => updateLine(index, { unitPrice: e.target.valueAsNumber })} /></label>
         </div>
-      )}
-
-      {/* Create New CO Form */}
-      {isCreating && (
-        <div className="border-b p-3 bg-blue-50/50">
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
-              <input
-                type="text"
-                value={newCO.title}
-                onChange={(e) => setNewCO({ ...newCO, title: e.target.value })}
-                placeholder="e.g., Add electrical outlets to Room 202"
-                className="w-full border rounded px-2 py-1 text-xs"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  value={newCO.description}
-                  onChange={(e) => setNewCO({ ...newCO, description: e.target.value })}
-                  placeholder="Details..."
-                  rows={2}
-                  className="w-full border rounded px-2 py-1 text-xs"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Reason</label>
-                <textarea
-                  value={newCO.reason}
-                  onChange={(e) => setNewCO({ ...newCO, reason: e.target.value })}
-                  placeholder="Why..."
-                  rows={2}
-                  className="w-full border rounded px-2 py-1 text-xs"
-                />
-              </div>
-            </div>
-
-            {/* Line Items */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-medium text-gray-700">Line Items</label>
-                <button type="button" onClick={addLineItem} className="text-[10px] text-primary-600 hover:text-primary-800">+ Add</button>
-              </div>
-              <div className="space-y-1">
-                {newCO.lineItems.map((item, index) => (
-                  <div key={index} className="bg-white p-1.5 rounded border text-xs space-y-1">
-                    <div className="flex gap-1 items-center">
-                      <input type="text" value={item.description} onChange={(e) => updateLineItem(index, 'description', e.target.value)} placeholder="Description" className="flex-1 border rounded px-1.5 py-0.5 text-xs" />
-                      <input type="number" value={item.quantity} onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)} className="w-14 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
-                      <select value={item.unit} onChange={(e) => updateLineItem(index, 'unit', e.target.value)} className="border rounded px-1 py-0.5 text-xs">
-                        {UNIT_OPTIONS.map(opt => (<option key={opt.value} value={opt.value}>{opt.value}</option>))}
-                      </select>
-                      <input type="number" value={item.unitPrice} onChange={(e) => updateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)} className="w-18 border rounded px-1.5 py-0.5 text-xs text-right" step="0.01" />
-                      <span className="w-20 text-right text-xs">{formatCurrency(item.quantity * item.unitPrice)}</span>
-                      {newCO.lineItems.length > 1 && (
-                        <button type="button" onClick={() => removeLineItem(index)} className="p-0.5 text-gray-400 hover:text-red-600"><X className="h-3 w-3" /></button>
-                      )}
-                    </div>
-                    <div className="flex gap-1 items-center pl-0">
-                      <select value={item.costCodeId} onChange={(e) => updateLineItem(index, 'costCodeId', e.target.value)} className="border rounded px-1 py-0.5 text-[10px] flex-1">
-                        <option value="">No cost code</option>
-                        {costCodes.map(cc => (<option key={cc.id} value={cc.id}>{cc.code} — {cc.name}</option>))}
-                      </select>
-                      <input type="text" value={item.specSection} onChange={(e) => updateLineItem(index, 'specSection', e.target.value)} placeholder="Spec section" className="w-24 border rounded px-1.5 py-0.5 text-[10px]" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="text-right mt-1 text-xs font-medium">Total: {formatCurrency(calculateTotal())}</div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => { setIsCreating(false); setNewCO({ title: '', description: '', reason: '', lineItems: [{ description: '', quantity: 1, unit: 'EA', unitPrice: 0, notes: '', costCodeId: '', specSection: '' }] }) }} className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800">Cancel</button>
-              <button onClick={() => createMutation.mutate(newCO)} disabled={createMutation.isPending || !newCO.title} className="px-2 py-1 text-xs bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50">{createMutation.isPending ? 'Creating...' : 'Create'}</button>
-            </div>
-          </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="text-xs">Cost code<select className={input} value={line.costCodeId ?? ''} onChange={e => updateLine(index, { costCodeId: e.target.value })}><option value="">No cost code</option>{costCodes.map(code => <option key={code.id} value={code.id}>{code.code} — {code.name}</option>)}</select></label>
+          <label className="text-xs">Spec section<input className={input} value={line.specSection ?? ''} onChange={e => updateLine(index, { specSection: e.target.value })} /></label>
         </div>
-      )}
+        <label className="block text-xs">Line notes<textarea className={input} value={line.notes ?? ''} onChange={e => updateLine(index, { notes: e.target.value })} /></label>
+        <p className="text-right text-xs tabular-nums">{money(Math.round(line.quantity * line.unitPrice * 100) / 100 || 0)}</p>
+      </fieldset>)}
+      <p className="text-right text-sm font-semibold">Total: {money(value.lineItems.reduce((sum, line) => sum + (Math.round(line.quantity * line.unitPrice * 100) / 100 || 0), 0))}</p>
+      <p className="text-xs text-gray-500">Use a negative unit price for a credit. Saving a revision does not change the approved contract value.</p>
+      <div className="flex justify-end gap-2"><button type="button" className={button} onClick={onCancel}>Cancel editing</button><button type="submit" className={`${button} bg-primary-600 text-white hover:bg-primary-700`}>{busy ? 'Saving…' : 'Save changes'}</button></div>
+    </fieldset>
+  </form>
+}
 
-      {/* Change Orders List */}
-      {changeOrders.length === 0 && !isCreating ? (
-        <div className="px-3 py-4 text-center text-[10px] text-gray-500">No change orders</div>
-      ) : changeOrders.length > 0 && (
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">CO #</th>
-              <th className="px-3 py-1 text-left text-[10px] font-semibold text-gray-600">Title</th>
-              <th className="px-3 py-1 text-center text-[10px] font-semibold text-gray-600 w-20">Status</th>
-              <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-24">Amount</th>
-              <th className="px-3 py-1 text-right text-[10px] font-semibold text-gray-600 w-20">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {changeOrders.map((co, idx) => {
-              const StatusIcon = STATUS_CONFIG[co.status].icon
-              return (
-                <tr
-                  key={co.id}
-                  className={`border-b border-gray-100 cursor-pointer hover:bg-blue-50 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
-                  onClick={() => setSelectedCO(co)}
-                >
-                  <td className="px-3 py-1.5 font-medium text-gray-900">#{co.changeOrderNumber}</td>
-                  <td className="px-3 py-1.5 text-gray-700 truncate max-w-[150px]">{co.title}</td>
-                  <td className="px-3 py-1.5 text-center">
-                    <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_CONFIG[co.status].color}`}>
-                      <StatusIcon className="h-2.5 w-2.5" />
-                      {STATUS_CONFIG[co.status].label}
-                    </span>
-                  </td>
-                  <td className={`px-3 py-1.5 text-right font-semibold ${co.totalAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {co.totalAmount >= 0 ? '+' : ''}{formatCurrency(co.totalAmount)}
-                  </td>
-                  <td className="px-3 py-1.5 text-right text-gray-500">{new Date(co.createdAt).toLocaleDateString()}</td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      )}
+function ContentView({ value, costCodes }: { value: Content; costCodes: CostCode[] }) {
+  return <div className="space-y-2 text-sm">
+    <h4 className="font-semibold break-words">{value.title}</h4>
+    {value.description && <p className="whitespace-pre-wrap break-words">{value.description}</p>}
+    {value.reason && <p className="whitespace-pre-wrap break-words"><span className="text-gray-500">Reason: </span>{value.reason}</p>}
+    <div className="overflow-x-auto"><table className="w-full text-xs"><thead><tr className="border-b"><th className="text-left py-2">Description</th><th className="text-right p-2">Qty / unit</th><th className="text-right p-2">Unit price</th><th className="text-right p-2">Amount</th></tr></thead><tbody>
+      {value.lineItems.map((line, i) => <tr key={i} className="border-b"><td className="py-2"><p className="break-words">{line.description}</p>{(line.costCodeId || line.specSection) && <p className="text-gray-500">{costCodes.find(code => code.id === line.costCodeId)?.code} {line.specSection}</p>}{line.notes && <p className="text-gray-500 whitespace-pre-wrap break-words">{line.notes}</p>}</td><td className="text-right p-2 whitespace-nowrap">{line.quantity} {line.unit}</td><td className="text-right p-2 tabular-nums">{money(line.unitPrice)}</td><td className="text-right p-2 tabular-nums">{money(Math.round(line.quantity * line.unitPrice * 100) / 100)}</td></tr>)}
+    </tbody></table></div>
+    <p className="text-right font-semibold tabular-nums">Total: {money(value.totalAmount)}</p>
+  </div>
+}
 
-      {/* Change Order Detail Modal */}
-      {selectedCO && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-auto">
-            <div className="px-4 py-3 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-gray-900">CO #{selectedCO.changeOrderNumber}</h3>
-                <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_CONFIG[selectedCO.status].color}`}>
-                  {STATUS_CONFIG[selectedCO.status].label}
-                </span>
-              </div>
-              <button onClick={() => setSelectedCO(null)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+const fieldLabels: Record<string, string> = { title: 'Title', description: 'Description', reason: 'Reason', totalAmount: 'Amount', lineItems: 'Line items', status: 'Status', submittedAt: 'Submitted', approvedAt: 'Approved', approvedBy: 'Approved by', rejectedAt: 'Rejected', rejectedBy: 'Rejected by', rejectionReason: 'Rejection reason', revisionNumber: 'Revision number', revisionStatus: 'Revision status', proposedRevision: 'Proposed revision', note: 'Note', revisionRejectionReason: 'Revision rejection reason' }
+function display(value: unknown, key = ''): string {
+  if (value == null) return '—'
+  if (typeof value === 'number') return key === 'totalAmount' ? money(value) : String(value)
+  if (typeof value === 'string') return statuses[value as Status] || (key.endsWith('At') ? new Date(value).toLocaleString() : value)
+  if (Array.isArray(value)) return value.map((line, i) => `${i + 1}. ${line.description}: ${line.quantity} ${line.unit} × ${money(line.unitPrice)}${line.notes ? `\nNotes: ${line.notes}` : ''}${line.costCodeId ? `\nCost code: ${line.costCode?.code ?? line.costCodeId}` : ''}${line.specSection ? `\nSpec: ${line.specSection}` : ''}`).join('\n\n') || 'No line items'
+  const obj = value as Record<string, unknown>
+  if ('firstName' in obj) return `${obj.firstName} ${obj.lastName}`
+  return Object.entries(obj).filter(([field]) => fieldLabels[field]).map(([field, item]) => `${fieldLabels[field]}: ${display(item, field)}`).join('\n')
+}
+function History({ events }: { events: Event[] }) {
+  return <section aria-label="Update history" className="space-y-2 border-t pt-3"><h4 className="font-semibold text-sm">Update history</h4>
+    {!events.length && <p className="text-xs text-gray-500">History is recorded for changes made after this update. Earlier changes are not available.</p>}
+    {events.map(event => <details key={event.id} className="border rounded p-2 text-xs"><summary className="cursor-pointer"><strong>{event.action}</strong> · {event.actorName} · {new Date(event.createdAt).toLocaleString()}</summary>
+      <div className="overflow-x-auto mt-2"><table className="w-full table-fixed"><thead><tr><th className="text-left w-1/5">Field</th><th className="text-left">Before</th><th className="text-left">After</th></tr></thead><tbody>{Object.keys(event.after).filter(key => fieldLabels[key] && JSON.stringify(event.before?.[key]) !== JSON.stringify(event.after[key])).map(key => <tr key={key} className="border-t align-top"><th className="text-left py-2 pr-2">{fieldLabels[key]}</th><td className="whitespace-pre-wrap break-words p-2">{display(event.before?.[key], key)}</td><td className="whitespace-pre-wrap break-words p-2">{display(event.after[key], key)}</td></tr>)}</tbody></table></div>
+    </details>)}
+  </section>
+}
 
-            <div className="p-4 space-y-4">
-              {/* Title */}
-              <div>
-                <p className="text-[10px] text-gray-500 uppercase">Title</p>
-                <p className="text-sm font-medium text-gray-900">{selectedCO.title}</p>
-              </div>
-
-              {/* Amount */}
-              <div className="flex items-center gap-4">
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase">Amount</p>
-                  <p className={`text-lg font-bold ${selectedCO.totalAmount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {selectedCO.totalAmount >= 0 ? '+' : ''}{formatCurrency(selectedCO.totalAmount)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase">Created</p>
-                  <p className="text-xs text-gray-700">{new Date(selectedCO.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-
-              {/* Description & Reason */}
-              {(selectedCO.description || selectedCO.reason) && (
-                <div className="grid grid-cols-2 gap-3">
-                  {selectedCO.description && (
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase">Description</p>
-                      <p className="text-xs text-gray-700">{selectedCO.description}</p>
-                    </div>
-                  )}
-                  {selectedCO.reason && (
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase">Reason</p>
-                      <p className="text-xs text-gray-700">{selectedCO.reason}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Line Items */}
-              {selectedCO.lineItems.length > 0 && (
-                <div>
-                  <p className="text-[10px] text-gray-500 uppercase mb-1">Line Items</p>
-                  <table className="w-full text-xs border rounded">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="px-2 py-1 text-left text-[10px] font-semibold text-gray-600">Description</th>
-                        <th className="px-2 py-1 text-right text-[10px] font-semibold text-gray-600 w-12">Qty</th>
-                        <th className="px-2 py-1 text-left text-[10px] font-semibold text-gray-600 w-10">Unit</th>
-                        <th className="px-2 py-1 text-right text-[10px] font-semibold text-gray-600 w-16">Price</th>
-                        <th className="px-2 py-1 text-right text-[10px] font-semibold text-gray-600 w-20">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedCO.lineItems.map((item, idx) => (
-                        <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}>
-                          <td className="px-2 py-1">
-                            {item.description}
-                            {(item.costCode || item.specSection) && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                {item.costCode && (
-                                  <span className="px-1 py-0.5 bg-indigo-50 text-indigo-700 text-[9px] rounded font-mono" title={item.costCode.name}>
-                                    {item.costCode.code}
-                                  </span>
-                                )}
-                                {item.specSection && (
-                                  <span className="px-1 py-0.5 bg-gray-100 text-gray-600 text-[9px] rounded" title="Spec Section">
-                                    {item.specSection}
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-2 py-1 text-right">{item.quantity}</td>
-                          <td className="px-2 py-1">{item.unit}</td>
-                          <td className="px-2 py-1 text-right">{formatCurrency(item.unitPrice)}</td>
-                          <td className="px-2 py-1 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Status Info */}
-              {selectedCO.status === 'APPROVED' && selectedCO.approvedBy && (
-                <div className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded">
-                  Approved by {selectedCO.approvedBy.firstName} {selectedCO.approvedBy.lastName} on {selectedCO.approvedAt ? new Date(selectedCO.approvedAt).toLocaleDateString() : 'N/A'}
-                </div>
-              )}
-              {selectedCO.status === 'REJECTED' && (
-                <div className="bg-red-50 px-2 py-1.5 rounded text-xs">
-                  <span className="text-red-600">Rejected by {selectedCO.rejectedBy?.firstName} {selectedCO.rejectedBy?.lastName}</span>
-                  {selectedCO.rejectionReason && <p className="text-red-700 mt-0.5">{selectedCO.rejectionReason}</p>}
-                </div>
-              )}
-
-              {/* Generate Document */}
-              <div className="pt-2 border-t">
-                <GenerateDocumentButton recordType="change-order" recordId={selectedCO.id} templateType="CHANGE_ORDER" variant="dropdown" />
-              </div>
-
-              {/* Actions */}
-              {!readonly && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t">
-                  {selectedCO.status === 'DRAFT' && (
-                    <>
-                      <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'PENDING_APPROVAL' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-yellow-700 bg-yellow-100 rounded hover:bg-yellow-200">
-                        <Send className="h-3 w-3 mr-1" />Submit
-                      </button>
-                      <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'APPROVED' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} title="Approve without sending to the subcontractor" className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200">
-                        <Check className="h-3 w-3 mr-1" />Approve Directly
-                      </button>
-                      <button onClick={() => { if (confirm('Delete?')) { deleteMutation.mutate(selectedCO.id); setSelectedCO(null) } }} disabled={deleteMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-600 hover:text-red-800">
-                        <Trash2 className="h-3 w-3 mr-1" />Delete
-                      </button>
-                    </>
-                  )}
-                  {selectedCO.status === 'PENDING_APPROVAL' && (
-                    <>
-                      <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'APPROVED' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200">
-                        <Check className="h-3 w-3 mr-1" />Approve
-                      </button>
-                      <button onClick={() => { const reason = prompt('Reason for rejection:'); if (reason !== null) { updateStatusMutation.mutate({ id: selectedCO.id, status: 'REJECTED', rejectionReason: reason }); setSelectedCO(null) } }} disabled={updateStatusMutation.isPending} className="inline-flex items-center px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200">
-                        <XCircle className="h-3 w-3 mr-1" />Reject
-                      </button>
-                      <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'DRAFT' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} className="text-xs text-gray-600 hover:text-gray-800">
-                        Return to Draft
-                      </button>
-                    </>
-                  )}
-                  {selectedCO.status === 'REJECTED' && (
-                    <button onClick={() => { updateStatusMutation.mutate({ id: selectedCO.id, status: 'DRAFT' }); setSelectedCO(null) }} disabled={updateStatusMutation.isPending} className="text-xs text-gray-600 hover:text-gray-800">
-                      Revise (Return to Draft)
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+export function ContractChangeOrders({ contractId, readonly = false }: { contractId: string; readonly?: boolean }) {
+  const queryClient = useQueryClient()
+  const endpoint = `/api/contracts/${contractId}/change-orders`
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<{ version: number; content: Content } | null>(null)
+  const [note, setNote] = useState('')
+  const [rejection, setRejection] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+  const { data, isLoading, error } = useQuery<{ changeOrders: ChangeOrder[]; approvedTotal: number; pendingTotal: number }>({ queryKey: ['contract-change-orders', contractId], queryFn: () => requestOrder(endpoint) })
+  const { data: costCodes = [] } = useQuery<CostCode[]>({ queryKey: ['cost-codes'], queryFn: () => requestOrder('/api/cost-codes') })
+  const selected = data?.changeOrders.find(co => co.id === selectedId)
+  const mutation = useMutation({
+    mutationFn: ({ id, body, remove }: { id?: string; body?: Record<string, unknown>; remove?: boolean }) => requestOrder(id ? `${endpoint}/${id}${remove ? `?version=${body?.version}` : ''}` : endpoint, remove ? 'DELETE' : id ? 'PATCH' : 'POST', remove ? undefined : body),
+    onSuccess: async (result, variables) => {
+      setMessage(''); setEditing(null); setRejection(null)
+      if (variables.body?.action === 'note') setNote('')
+      if (!variables.id) { setCreating(false); setSelectedId(result.id) }
+      if (variables.remove) setSelectedId(null)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] }),
+        queryClient.invalidateQueries({ queryKey: ['contract', contractId] }),
+        queryClient.invalidateQueries({ queryKey: ['contract-summary', contractId] }),
+        queryClient.invalidateQueries({ queryKey: ['vendor-contracts'] }),
+        queryClient.invalidateQueries({ queryKey: ['contracts'] })
+      ])
+    },
+    onError: error => setMessage(error.message)
+  })
+  const busy = mutation.isPending
+  function act(body: Record<string, unknown>) { if (selected) mutation.mutate({ id: selected.id, body: { version: selected.version, ...body } }) }
+  function close() { setSelectedId(null); setEditing(null); setNote(''); setRejection(null); setMessage('') }
+  function decision(status: Status) { act({ action: selected?.proposedRevision ? 'revision-status' : 'status', status, rejectionReason: rejection }) }
+  if (isLoading) return <p className="p-3 text-sm">Loading change orders…</p>
+  if (error) return <div role="alert" className="p-3 text-sm text-red-700">{error.message}<button className={`${button} ml-2`} onClick={() => queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] })}>Retry</button></div>
+  const reviewStatus = selected?.proposedRevision ? selected.revisionStatus : selected?.status
+  return <div data-testid="contract-change-orders">
+    <div className="p-3 border-b flex flex-wrap items-center justify-between gap-2 text-xs"><div>Approved: <strong>{money(data?.approvedTotal ?? 0)}</strong> · Pending new orders: <strong>{money(data?.pendingTotal ?? 0)}</strong></div>{!readonly && <button className={button} disabled={creating || busy} onClick={() => { setMessage(''); setCreating(true) }}><Plus className="inline h-3 w-3 mr-1" />Add CO</button>}</div>
+    {message && !selected && <p role="alert" className="p-3 text-sm text-red-700">{message}</p>}
+    {creating && !readonly && <div className="p-3 border-b bg-gray-50"><Editor initial={blank()} costCodes={costCodes} busy={busy} onSave={content => mutation.mutate({ body: { ...content } })} onCancel={() => setCreating(false)} /></div>}
+    {!data?.changeOrders.length && <p className="p-4 text-xs text-gray-500">No change orders</p>}
+    {!!data?.changeOrders.length && <div className="overflow-x-auto"><table className="w-full text-xs"><thead className="bg-gray-50"><tr><th className="text-left p-3">Change order</th><th className="text-left p-3">Status</th><th className="text-right p-3">Amount</th></tr></thead><tbody>{data.changeOrders.map(co => <tr key={co.id} className="border-t"><td className="p-3"><button className="text-primary-700 text-left hover:underline" onClick={() => { close(); setSelectedId(co.id) }}>CO #{co.changeOrderNumber} — {co.title}</button></td><td className="p-3">{statuses[co.status]}{co.proposedRevision && <p className="text-amber-700">Revision {co.revisionNumber}: {statuses[co.revisionStatus!]}</p>}</td><td className="p-3 text-right tabular-nums">{money(co.totalAmount)}{co.proposedRevision && <p className="text-amber-700">Proposed: {money(co.proposedRevision.totalAmount)}</p>}</td></tr>)}</tbody></table></div>}
+    {selected && <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-3" onKeyDown={e => { if (e.key === 'Escape' && !busy && !editing) close() }}>
+      <div role="dialog" aria-modal="true" aria-label={`Change order ${selected.changeOrderNumber}`} className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b p-4 flex items-center justify-between z-10"><h3 className="text-sm font-semibold">CO #{selected.changeOrderNumber} · {statuses[selected.status]}</h3><button className={button} aria-label="Close change order" disabled={busy} onClick={close}><X className="h-4 w-4" /></button></div>
+        <div className="p-4 space-y-4">
+          {message && <div role="alert" className="text-sm text-red-700">{message}<button className={`${button} ml-2`} disabled={busy} onClick={async () => { await queryClient.invalidateQueries({ queryKey: ['contract-change-orders', contractId] }); setEditing(null); setMessage('') }}>Reload change order</button></div>}
+          {editing ? <Editor initial={editing.content} costCodes={costCodes} busy={busy} onSave={content => mutation.mutate({ id: selected.id, body: { ...content, action: 'edit', version: editing.version } })} onCancel={() => setEditing(null)} /> : <>
+            <ContentView value={selected} costCodes={costCodes} />
+            {selected.approvedAt && <p className="text-xs text-green-700">Approved by {selected.approvedBy?.firstName} {selected.approvedBy?.lastName} · {new Date(selected.approvedAt).toLocaleString()}</p>}
+            {selected.rejectionReason && <p className="text-xs text-red-700">Rejection reason: {selected.rejectionReason}</p>}
+            {selected.proposedRevision && <section aria-label="Proposed revision" className="rounded border border-amber-300 bg-amber-50 p-3 space-y-3"><h4 className="font-semibold text-sm">Revision {selected.revisionNumber} · {statuses[selected.revisionStatus!]}</h4><p className="text-xs">The approved {money(selected.totalAmount)} remains in contract and payment totals until this revision is approved. Approval replaces it with {money(selected.proposedRevision.totalAmount)} (difference: {money(selected.proposedRevision.totalAmount - selected.totalAmount)}).</p><ContentView value={selected.proposedRevision} costCodes={costCodes} /></section>}
+            {!readonly && <div className="flex flex-wrap gap-2 border-t pt-3">
+              {selected.status !== 'REJECTED' && <button className={button} disabled={busy} onClick={() => { setMessage(''); setEditing({ version: selected.version, content: selected.proposedRevision ?? selected }) }}>{selected.status === 'APPROVED' ? selected.proposedRevision ? 'Edit revision' : 'Create revision' : 'Edit change order'}</button>}
+              {reviewStatus === 'DRAFT' && <><button className={button} disabled={busy} onClick={() => decision('PENDING_APPROVAL')}>{selected.proposedRevision ? 'Submit revision' : 'Submit for approval'}</button>{!selected.proposedRevision && <button className={button} disabled={busy} onClick={() => decision('APPROVED')}>Approve directly</button>}</>}
+              {reviewStatus === 'PENDING_APPROVAL' && <><button className={`${button} text-green-700`} disabled={busy} onClick={() => decision('APPROVED')}>{selected.proposedRevision ? 'Approve revision' : 'Approve'}</button><button className={button} disabled={busy} onClick={() => setRejection('')}>Reject</button></>}
+              {(reviewStatus === 'REJECTED' || reviewStatus === 'PENDING_APPROVAL') && <button className={button} disabled={busy} onClick={() => decision('DRAFT')}>Return to draft</button>}
+              {selected.proposedRevision && <button className={`${button} text-red-700`} disabled={busy} onClick={() => { if (confirm('Discard this proposed revision? Its history will be kept.')) act({ action: 'discard-revision' }) }}>Discard revision</button>}
+              {selected.status === 'DRAFT' && <button className={`${button} text-red-700`} disabled={busy} onClick={() => { if (confirm('Delete this unapproved draft and its notes/history?')) mutation.mutate({ id: selected.id, remove: true, body: { version: selected.version } }) }}>Delete draft</button>}
+            </div>}
+            {rejection !== null && !readonly && <form onSubmit={e => { e.preventDefault(); decision('REJECTED') }} className="space-y-2"><label className="block text-xs">Rejection reason<textarea className={input} value={rejection} onChange={e => setRejection(e.target.value)} /></label><button className={button} disabled={busy}>Confirm rejection</button><button type="button" className={`${button} ml-2`} onClick={() => setRejection(null)}>Cancel rejection</button></form>}
+            <div className="border-t pt-3"><GenerateDocumentButton recordType="change-order" recordId={selected.id} templateType="CHANGE_ORDER" variant="dropdown" />{selected.proposedRevision && <p className="mt-1 text-xs text-gray-500">Documents use the current approved order. The proposed revision is shown above.</p>}</div>
+            <section aria-label="Change order notes" className="border-t pt-3 space-y-3"><h4 className="font-semibold text-sm">Notes</h4>
+              {!readonly && <form onSubmit={e => { e.preventDefault(); act({ action: 'note', body: note }) }} className="space-y-2"><label className="block text-xs">New note<textarea required maxLength={20000} className={input} value={note} onChange={e => setNote(e.target.value)} /></label><button className={button} disabled={busy || !note.trim()}>Add note</button></form>}
+              {!selected.notes.length && <p className="text-xs text-gray-500">No notes yet.</p>}{selected.notes.map(note => <article key={note.id} className="rounded bg-gray-50 p-3 text-xs"><p className="text-gray-500">{note.actorName} · {new Date(note.createdAt).toLocaleString()}</p><p className="mt-1 whitespace-pre-wrap break-words">{note.body}</p></article>)}
+            </section>
+            <History events={selected.history} />
+          </>}
         </div>
-      )}
-    </div>
-  )
+      </div>
+    </div>}
+  </div>
 }

@@ -1,5 +1,7 @@
 # Client feedback delivery plan — September / October 2026
 
+September 29 update: change-order editing, notes, update history and approval-preserving revisions are implemented locally. The new migration and application deployment remain pending. See [change-order workflow and verification](CHANGE_ORDER_WORKFLOW_2026-09-29.md). Earlier progress notes below remain a record of their respective batches.
+
 Prepared September 21, 2026, from the client's email. Dates below are proposed delivery targets, subject to effort estimates and team capacity; they are not delivery commitments. This plan covers the email's requests, with implementation and client acceptance still to come.
 
 September 25 update: the user clarified contract editing, estimate fields, Max Payment, and retention behavior. The [agreed contract/payment plan and implementation status](CONTRACT_PAYMENT_PLAN_2026-09-25.md) supersede the open questions for those items below. The core batch is implemented locally and its production migration is applied; application deployment and client acceptance are pending. Change-order revisions/history remain the next separate batch.
