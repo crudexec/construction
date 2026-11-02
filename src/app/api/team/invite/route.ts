@@ -39,6 +39,38 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function DELETE(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
+    const user = token ? await validateUser(token) : null
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (user.role !== 'ADMIN') return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+
+    const id = request.nextUrl.searchParams.get('id')?.trim()
+    if (!id) return NextResponse.json({ error: 'Invitation ID is required' }, { status: 400 })
+
+    const removed = await prisma.$transaction(async tx => {
+      const invite = await tx.teamInvite.findFirst({
+        where: { id, companyId: user.companyId, isAccepted: false },
+        select: { email: true },
+      })
+      if (!invite) return 0
+      // The list groups invitations by email. Revoke older pending duplicates too,
+      // so another invitation/link cannot reappear after removing the visible one.
+      const result = await tx.teamInvite.deleteMany({
+        where: { companyId: user.companyId, email: { equals: invite.email, mode: 'insensitive' }, isAccepted: false },
+      })
+      return result.count
+    })
+
+    if (!removed) return NextResponse.json({ error: 'Invitation not found or already accepted' }, { status: 404 })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error removing team invitation:', error)
+    return NextResponse.json({ error: 'Failed to remove invitation' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')

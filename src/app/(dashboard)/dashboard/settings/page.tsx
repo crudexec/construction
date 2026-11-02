@@ -195,6 +195,13 @@ async function fetchTeamInvitations(): Promise<TeamInvitation[]> {
   return response.json()
 }
 
+async function removeTeamInvitation(id: string) {
+  const response = await fetch(`/api/team/invite?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+  const data = await response.json()
+  if (!response.ok) throw new Error(data.error || 'Failed to remove invitation')
+  return data
+}
+
 async function inviteTeamMember(data: { email: string; firstName: string; lastName: string; role: string }) {
   const token = document.cookie
     .split('; ')
@@ -306,7 +313,7 @@ function SettingsContent() {
   const [selectedMemberName, setSelectedMemberName] = useState<string>('')
   const { user, updateUser } = useAuthStore()
   const queryClient = useQueryClient()
-  const { showConfirm } = useModal()
+  const { showConfirm, showModal } = useModal()
 
   const { data: companyData, isLoading: companyLoading } = useQuery({
     queryKey: ['company-settings'],
@@ -374,6 +381,18 @@ function SettingsContent() {
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to invite team member')
     }
+  })
+
+  const removeInvitationMutation = useMutation({
+    mutationFn: removeTeamInvitation,
+    onSuccess: async () => {
+      toast.success('Invitation removed. Its links can no longer be used.')
+      await queryClient.invalidateQueries({ queryKey: ['team-invitations'] })
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to remove invitation')
+      queryClient.invalidateQueries({ queryKey: ['team-invitations'] })
+    },
   })
 
   const updateTeamMutation = useMutation({
@@ -918,13 +937,33 @@ function SettingsContent() {
                               </td>
                               <td className="px-3 py-2">{new Date(invitation.expiresAt).toLocaleDateString()}</td>
                               <td className="px-3 py-2 text-right">
+                                <div className="flex flex-wrap items-center justify-end gap-3">
                                 <button
                                   className="text-primary-700 hover:underline disabled:opacity-50"
-                                  disabled={inviteMutation.isPending}
+                                  disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
                                   onClick={() => inviteMutation.mutate({ email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, role: invitation.role })}
                                 >
                                   {inviteMutation.isPending && inviteMutation.variables?.email === invitation.email ? 'Sending…' : expired ? 'Renew and resend' : 'Resend invitation'}
                                 </button>
+                                <button
+                                  type="button"
+                                  className="min-h-9 text-red-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+                                  aria-label={`Remove invitation for ${invitation.email}`}
+                                  disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
+                                  onClick={async () => {
+                                    const confirmed = await showModal({
+                                      title: 'Remove invitation?',
+                                      message: `Remove the invitation for ${invitation.email}? Their invitation links will stop working. You can invite them again later.`,
+                                      type: 'confirm',
+                                      confirmText: 'Remove invitation',
+                                      showCancel: true,
+                                    })
+                                    if (confirmed) removeInvitationMutation.mutate(invitation.id)
+                                  }}
+                                >
+                                  {removeInvitationMutation.isPending && removeInvitationMutation.variables === invitation.id ? 'Removing…' : 'Remove invitation'}
+                                </button>
+                                </div>
                               </td>
                             </tr>
                           )
