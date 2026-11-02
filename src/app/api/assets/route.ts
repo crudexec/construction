@@ -5,6 +5,7 @@ import { validateUser } from '@/lib/auth'
 import { Prisma } from '@prisma/client'
 import { AssetIdentityValidationError, parseAssetIdentity } from '@/lib/assets/identity'
 import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
+import { AssetListValidationError, listAssets, parseAssetListParams } from '@/lib/assets/list'
 
 function getRequestToken(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -32,6 +33,15 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+    // Existing request pickers still consume the unpaginated array contract.
+    if (searchParams.has('page') || searchParams.has('pageSize')) {
+      const params = parseAssetListParams(searchParams)
+      const result = await prisma.$transaction(
+        tx => listAssets(tx, user.companyId, params),
+        { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead }
+      )
+      return NextResponse.json(result)
+    }
     const type = searchParams.get('type')
     const status = searchParams.get('status')
     const category = searchParams.get('category')?.trim()
@@ -91,6 +101,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(assets)
 
   } catch (error) {
+    if (error instanceof AssetListValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     console.error('Error fetching assets:', error)
     return NextResponse.json(
       { error: 'Failed to fetch assets' },

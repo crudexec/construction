@@ -129,9 +129,14 @@ export async function POST(request: NextRequest) {
           }
         })
 
-    const host = request.headers.get('host') || 'localhost:3000'
-    const protocol = host.includes('localhost') ? 'http' : 'https'
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${invite.token}`
+    // Invitations belong to the app serving this request. A stale build-time
+    // NEXT_PUBLIC_APP_URL must not send recipients to another deployment/domain.
+    const publicUrl = new URL(request.url)
+    const forwardedHost = request.headers.get('x-forwarded-host')?.split(',')[0].trim()
+    const forwardedProtocol = request.headers.get('x-forwarded-proto')?.split(',')[0].trim()
+    const host = forwardedHost || request.headers.get('host') || publicUrl.host
+    const protocol = forwardedProtocol === 'https' || forwardedProtocol === 'http' ? `${forwardedProtocol}:` : publicUrl.protocol
+    const inviteUrl = new URL(`/invite/${invite.token}`, `${protocol}//${host}`).toString()
 
     // Create activity log for invitation creation
     try {

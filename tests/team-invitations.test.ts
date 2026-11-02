@@ -125,3 +125,26 @@ test('reports successful email submission separately from invitation creation', 
   assert.equal(body.emailSent, true)
   assert.equal(body.resent, false)
 })
+
+test('builds invitation links from the serving domain instead of a stale configured URL', async t => {
+  setup(t)
+  // NEXT_PUBLIC_APP_URL is deliberately a different host in this suite.
+  const req = new NextRequest('https://buildfloapp.com/api/team/invite', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', host: 'buildfloapp.com' },
+    body: JSON.stringify({ email: invite.email, firstName: 'New', lastName: 'Member' }),
+  })
+  const body = await (await handlers.POST(req)).json()
+  assert.equal(new URL(body.inviteUrl).origin, 'https://buildfloapp.com')
+})
+
+test('uses the public HTTPS address supplied by the deployment proxy', async t => {
+  setup(t)
+  const req = new NextRequest('http://internal-app:3000/api/team/invite', {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', host: 'internal-app:3000', 'x-forwarded-host': 'buildfloapp.com', 'x-forwarded-proto': 'https' },
+    body: JSON.stringify({ email: invite.email, firstName: 'New', lastName: 'Member' }),
+  })
+  const body = await (await handlers.POST(req)).json()
+  assert.equal(new URL(body.inviteUrl).origin, 'https://buildfloapp.com')
+})

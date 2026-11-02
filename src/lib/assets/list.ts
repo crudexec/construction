@@ -1,0 +1,120 @@
+import { AssetStatus, AssetType, Prisma } from '@prisma/client'
+
+// Only authored SQL fragments may be used as sort expressions or directions.
+const sortExpressions = {
+  equipmentId: Prisma.sql`LOWER(COALESCE(NULLIF(a."equipmentId", ''), a.name))`,
+  name: Prisma.sql`LOWER(a.name)`,
+  category: Prisma.sql`LOWER(COALESCE(a.category, ''))`,
+  makeModel: Prisma.sql`LOWER(CONCAT_WS(' ', NULLIF(a.make, ''), NULLIF(a.model, ''), a.year))`,
+  type: Prisma.sql`a.type::text`,
+  status: Prisma.sql`COALESCE(s.name, a.status::text)`,
+  location: Prisma.sql`LOWER(COALESCE(c.title, y.name, NULLIF(a."currentLocation", ''), 'zzz'))`,
+  assignee: Prisma.sql`LOWER(COALESCE(u."firstName" || ' ' || u."lastName", 'zzz'))`,
+  cost: Prisma.sql`COALESCE(a."purchaseCost", 0)`,
+}
+
+export class AssetListValidationError extends Error {}
+
+function positiveInteger(params: URLSearchParams, name: string, fallback: number, maximum: number) {
+  const value = params.get(name)
+  if (value === null) return fallback
+  if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1 || Number(value) > maximum) {
+    throw new AssetListValidationError(`${name} must be an integer between 1 and ${maximum}`)
+  }
+  return Number(value)
+}
+
+export function parseAssetListParams(params: URLSearchParams) {
+  const page = positiveInteger(params, 'page', 1, 2_147_483_647)
+  const pageSize = positiveInteger(params, 'pageSize', 25, 100)
+  const type = params.get('type') || undefined
+  const status = params.get('status') || undefined
+  const category = params.get('category')?.trim() || undefined
+  const search = params.get('search')?.trim() || ''
+  const sortField = params.get('sortField') ?? 'equipmentId'
+  const sortDirection = params.get('sortDirection') ?? 'asc'
+  if (type && !Object.values(AssetType).includes(type as AssetType)) throw new AssetListValidationError('Invalid asset type')
+  if (status && !Object.values(AssetStatus).includes(status as AssetStatus)) throw new AssetListValidationError('Invalid asset status')
+  if (category && category.length > 100) throw new AssetListValidationError('Category must be 100 characters or fewer')
+  if (search.length > 200) throw new AssetListValidationError('Search must be 200 characters or fewer')
+  if (!Object.hasOwn(sortExpressions, sortField)) throw new AssetListValidationError('Invalid sort field')
+  if (sortDirection !== 'asc' && sortDirection !== 'desc') throw new AssetListValidationError('Invalid sort direction')
+  return { page, pageSize, type, status, category, search, sortField: sortField as keyof typeof sortExpressions, sortDirection }
+}
+
+type AssetListParams = ReturnType<typeof parseAssetListParams>
+
+// No attachments, service counts, notes, sharing tokens, or purchase/financing details
+// are needed to render the table. Relations are fetched only for the requested page.
+const assetListSelect = {
+  id: true, equipmentId: true, name: true, category: true, type: true,
+  serialNumber: true, make: true, model: true, year: true, status: true,
+  currentLocation: true, purchaseCost: true,
+  currentProject: { select: { title: true } },
+  currentYard: { select: { name: true } },
+  currentAssignee: { select: { id: true, firstName: true, lastName: true } },
+  statusDefinition: { select: { id: true, name: true, baseStatus: true, color: true } },
+} satisfies Prisma.AssetSelect
+
+export type AssetListItem = Prisma.AssetGetPayload<{ select: typeof assetListSelect }>
+export interface AssetListResponse {
+  data: AssetListItem[]
+  pagination: { page: number; pageSize: number; total: number; totalPages: number }
+  summary: { availableCount: number; inUseCount: number; maintenanceCount: number; totalValue: number }
+}
+
+export async function listAssets(tx: Prisma.TransactionClient, companyId: string, params: AssetListParams): Promise<AssetListResponse> {
+  const conditions = [Prisma.sql`a."companyId" = ${companyId}`]
+  if (params.type) conditions.push(Prisma.sql`a.type = ${params.type}::"AssetType"`)
+  if (params.status) conditions.push(Prisma.sql`a.status = ${params.status}::"AssetStatus"`)
+  if (params.category) conditions.push(Prisma.sql`LOWER(a.category) = LOWER(${params.category})`)
+  const where = Prisma.join(conditions, ' AND ')
+  // STRPOS preserves literal substring search: %, _ and backslashes aren't wildcards.
+  const search = params.search ? Prisma.sql`(
+    STRPOS(LOWER(a.name), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a."equipmentId"), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a.category), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a."serialNumber"), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a.make), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a.model), LOWER(${params.search})) > 0 OR
+    STRPOS(LOWER(a."currentLocation"), LOWER(${params.search})) > 0
+  )` : Prisma.sql`TRUE`
+
+  // Summary retains the existing type/status/category scope; text search only
+  // narrows the result count and rows. All aggregates stay inside PostgreSQL.
+  const [totals] = await tx.$queryRaw<Array<AssetListResponse['summary'] & { total: number }>>(Prisma.sql`
+    SELECT COUNT(*) FILTER (WHERE ${search})::int AS total,
+      COUNT(*) FILTER (WHERE a.status = 'AVAILABLE')::int AS "availableCount",
+      COUNT(*) FILTER (WHERE a.status = 'IN_USE')::int AS "inUseCount",
+      COUNT(*) FILTER (WHERE a.status = 'UNDER_MAINTENANCE')::int AS "maintenanceCount",
+      COALESCE(SUM(a."purchaseCost"), 0)::float8 AS "totalValue"
+    FROM "Asset" a WHERE ${where}
+  `)
+  const { total, ...summary } = totals
+  const totalPages = Math.max(1, Math.ceil(total / params.pageSize))
+  const page = Math.min(params.page, totalPages)
+  const pagination = { page, pageSize: params.pageSize, total, totalPages }
+  if (total === 0) return { data: [], pagination, summary }
+
+  const joins = params.sortField === 'status'
+    ? Prisma.sql`LEFT JOIN "AssetStatusDefinition" s ON s.id = a."statusDefinitionId"`
+    : params.sortField === 'assignee'
+      ? Prisma.sql`LEFT JOIN "User" u ON u.id = a."currentAssigneeId"`
+      : params.sortField === 'location'
+        ? Prisma.sql`LEFT JOIN "Card" c ON c.id = a."currentProjectId" LEFT JOIN "AssetYard" y ON y.id = a."currentYardId"`
+        : Prisma.empty
+  const direction = params.sortDirection === 'desc' ? Prisma.sql`DESC` : Prisma.sql`ASC`
+  // Stable tie breakers prevent equal sort values from moving between pages.
+  const ids = await tx.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT a.id FROM "Asset" a ${joins}
+    WHERE ${where} AND ${search}
+    ORDER BY ${sortExpressions[params.sortField]} ${direction}, a."createdAt" DESC, a.id ASC
+    LIMIT ${params.pageSize} OFFSET ${(page - 1) * params.pageSize}
+  `)
+  const rows = await tx.asset.findMany({
+    where: { companyId, id: { in: ids.map(asset => asset.id) } },
+    select: assetListSelect,
+  })
+  const rowsById = new Map(rows.map(asset => [asset.id, asset]))
+  return { data: ids.map(({ id }) => rowsById.get(id)!), pagination, summary }
+}

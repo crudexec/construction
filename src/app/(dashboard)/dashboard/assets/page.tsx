@@ -1,65 +1,39 @@
 'use client'
 
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Plus, Search, Package, Truck, Wrench, Settings, AlertTriangle, X, ChevronUp, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCurrency } from '@/hooks/useCurrency'
 import { fetchAssetCategories } from '@/components/assets/asset-category-field'
 
-interface Asset {
-  id: string
-  equipmentId?: string | null
-  category?: string | null
-  name: string
-  type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
-  serialNumber?: string
-  make?: string | null
-  model?: string | null
-  year?: number | null
-  status: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED'
-  statusDefinition?: {
-    id: string
-    name: string
-    baseStatus: Asset['status']
-    color?: string | null
-  } | null
-  currentLocation?: string
-  currentProject?: { title: string } | null
-  currentYard?: { name: string } | null
-  currentAssignee?: {
-    id: string
-    firstName: string
-    lastName: string
-  }
-  purchaseCost?: number
-  createdAt: string
-  attachments?: { id: string; url: string }[]
-  _count: {
-    requests: number
-    maintenanceRecords: number
-  }
+import type { AssetListItem as Asset, AssetListResponse } from '@/lib/assets/list'
+
+interface AssetQuery {
+  type: string
+  status: string
+  category: string
+  search: string
+  sortField: string
+  sortDirection: 'asc' | 'desc'
+  page: number
+  pageSize: number
 }
 
-async function fetchAssets(type?: string, status?: string, category?: string): Promise<Asset[]> {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-
-  const params = new URLSearchParams()
-  if (type && type !== 'all') params.append('type', type)
-  if (status && status !== 'all') params.append('status', status)
-  if (category) params.append('category', category)
-
-  const response = await fetch(`/api/assets?${params.toString()}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
+async function fetchAssets(query: AssetQuery, signal: AbortSignal): Promise<AssetListResponse> {
+  const params = new URLSearchParams({
+    page: String(query.page),
+    pageSize: String(query.pageSize),
+    sortField: query.sortField,
+    sortDirection: query.sortDirection,
   })
+  if (query.type !== 'all') params.set('type', query.type)
+  if (query.status !== 'all') params.set('status', query.status)
+  if (query.category) params.set('category', query.category)
+  if (query.search) params.set('search', query.search)
 
+  const response = await fetch(`/api/assets?${params}`, { credentials: 'include', signal })
   if (!response.ok) throw new Error('Failed to fetch assets')
   return response.json()
 }
@@ -103,88 +77,62 @@ const getStatusBadge = (status: string, customStatus?: Asset['statusDefinition']
 export default function AssetsPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
+  const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterCategory, setFilterCategory] = useState('')
   const [sortField, setSortField] = useState<string>('equipmentId')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(25)
   const { format: formatCurrency } = useCurrency()
 
-  const { data: assets = [], isLoading, isError, refetch } = useQuery({
-    queryKey: ['assets', filterType, filterStatus, filterCategory],
-    queryFn: () => fetchAssets(filterType, filterStatus, filterCategory)
+  const query: AssetQuery = { type: filterType, status: filterStatus, category: filterCategory, search, sortField, sortDirection, page, pageSize }
+  const { data, isLoading, isFetching, isPlaceholderData, isError, refetch } = useQuery({
+    queryKey: ['assets', 'list', query],
+    queryFn: ({ signal }) => fetchAssets(query, signal),
+    placeholderData: keepPreviousData,
   })
+  const searchPending = searchTerm.trim() !== search
+  const isUpdating = isFetching || searchPending
+
+  useEffect(() => {
+    if (searchTerm.trim() === search) return
+    const timer = setTimeout(() => {
+      setSearch(searchTerm.trim())
+      setPage(1)
+      setSelectedRows(new Set())
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm, search])
+
   const { data: categories = [], isError: categoriesError } = useQuery({
     queryKey: ['asset-categories', filterType],
     queryFn: () => fetchAssetCategories(filterType)
   })
 
-  const filteredAssets = assets.filter((asset: Asset) => {
-    const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (asset.equipmentId?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (asset.category?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (asset.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (asset.make?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (asset.model?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                         (asset.currentLocation?.toLowerCase().includes(searchTerm.toLowerCase()))
-    return matchesSearch
-  })
-
-  const sortedAssets = [...filteredAssets].sort((a: Asset, b: Asset) => {
-    let aVal: string | number = ''
-    let bVal: string | number = ''
-
-    switch (sortField) {
-      case 'equipmentId':
-        aVal = (a.equipmentId || a.name).toLowerCase()
-        bVal = (b.equipmentId || b.name).toLowerCase()
-        break
-      case 'category':
-        aVal = a.category?.toLowerCase() || ''
-        bVal = b.category?.toLowerCase() || ''
-        break
-      case 'name':
-        aVal = a.name.toLowerCase()
-        bVal = b.name.toLowerCase()
-        break
-      case 'makeModel':
-        aVal = [a.make, a.model, a.year].filter(Boolean).join(' ').toLowerCase()
-        bVal = [b.make, b.model, b.year].filter(Boolean).join(' ').toLowerCase()
-        break
-      case 'type':
-        aVal = a.type
-        bVal = b.type
-        break
-      case 'status':
-        aVal = a.statusDefinition?.name || a.status
-        bVal = b.statusDefinition?.name || b.status
-        break
-      case 'location':
-        aVal = a.currentLocation?.toLowerCase() || 'zzz'
-        bVal = b.currentLocation?.toLowerCase() || 'zzz'
-        break
-      case 'assignee':
-        aVal = a.currentAssignee ? `${a.currentAssignee.firstName} ${a.currentAssignee.lastName}`.toLowerCase() : 'zzz'
-        bVal = b.currentAssignee ? `${b.currentAssignee.firstName} ${b.currentAssignee.lastName}`.toLowerCase() : 'zzz'
-        break
-      case 'cost':
-        aVal = a.purchaseCost || 0
-        bVal = b.purchaseCost || 0
-        break
-      default:
-        aVal = a.name.toLowerCase()
-        bVal = b.name.toLowerCase()
-    }
-
-    if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1
-    if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1
-    return 0
-  })
-
   const activeFilterCount = [filterType !== 'all', filterStatus !== 'all', !!filterCategory].filter(Boolean).length
+  const paginatedAssets = data?.data ?? []
+  const totalAssets = data?.pagination.total ?? 0
+  const totalPages = data?.pagination.totalPages ?? 1
+  const currentPage = data?.pagination.page ?? 1
+  const pageStart = (currentPage - 1) * (data?.pagination.pageSize ?? pageSize)
+  const allPageSelected = paginatedAssets.length > 0 && paginatedAssets.every(asset => selectedRows.has(asset.id))
+  const somePageSelected = paginatedAssets.some(asset => selectedRows.has(asset.id))
+
+  // The server clamps the page when deletions or refreshed data shrink the list.
+  useEffect(() => {
+    if (data && !isPlaceholderData && !isUpdating && !isError) setPage(data.pagination.page)
+  }, [data, isPlaceholderData, isUpdating, isError])
+
+  const resetResults = () => {
+    setPage(1)
+    setSelectedRows(new Set())
+  }
 
   const handleSort = (field: string) => {
+    setPage(1)
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
     } else {
@@ -201,11 +149,14 @@ export default function AssetsPage() {
   }
 
   const handleSelectAll = () => {
-    if (selectedRows.size === sortedAssets.length) {
-      setSelectedRows(new Set())
-    } else {
-      setSelectedRows(new Set(sortedAssets.map((asset: Asset) => asset.id)))
-    }
+    setSelectedRows(previous => {
+      const next = new Set(previous)
+      paginatedAssets.forEach(asset => {
+        if (allPageSelected) next.delete(asset.id)
+        else next.add(asset.id)
+      })
+      return next
+    })
   }
 
   const handleRowSelect = (id: string, event: React.MouseEvent) => {
@@ -217,24 +168,13 @@ export default function AssetsPage() {
   }
 
   const clearAllFilters = () => {
+    resetResults()
     setFilterType('all')
     setFilterStatus('all')
     setFilterCategory('')
   }
 
-  // Calculate stats
-  const availableCount = assets.filter((a: Asset) => a.status === 'AVAILABLE').length
-  const inUseCount = assets.filter((a: Asset) => a.status === 'IN_USE').length
-  const maintenanceCount = assets.filter((a: Asset) => a.status === 'UNDER_MAINTENANCE').length
-  const totalValue = assets.reduce((sum: number, a: Asset) => sum + (a.purchaseCost || 0), 0)
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-32">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
+  const { availableCount = 0, inUseCount = 0, maintenanceCount = 0, totalValue = 0 } = data?.summary ?? {}
 
   return (
     <div className="space-y-6">
@@ -290,13 +230,14 @@ export default function AssetsPage() {
                   aria-label="Search assets"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  maxLength={200}
                   className="pl-7 pr-2 py-1 w-40 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
               <select
                 aria-label="Filter by asset type"
                 value={filterType}
-                onChange={(e) => { setFilterType(e.target.value); setFilterCategory('') }}
+                onChange={(e) => { setFilterType(e.target.value); setFilterCategory(''); resetResults() }}
                 className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
               >
                 <option value="all">All Types</option>
@@ -307,7 +248,7 @@ export default function AssetsPage() {
               <select
                 aria-label="Filter by category"
                 value={filterCategory}
-                onChange={event => setFilterCategory(event.target.value)}
+                onChange={event => { setFilterCategory(event.target.value); resetResults() }}
                 className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
               >
                 <option value="">All Categories</option>
@@ -317,7 +258,7 @@ export default function AssetsPage() {
               <select
                 aria-label="Filter by status"
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
+                onChange={(e) => { setFilterStatus(e.target.value); resetResults() }}
                 className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
               >
                 <option value="all">All Status</option>
@@ -341,7 +282,7 @@ export default function AssetsPage() {
               {selectedRows.size > 0 && (
                 <span className="text-primary-600 font-medium">{selectedRows.size} selected</span>
               )}
-              <span>{sortedAssets.length} assets</span>
+              <span>{totalAssets} assets</span>
               <span className="hidden md:inline text-gray-300">|</span>
               <span className="hidden md:inline">{availableCount} available</span>
               <span className="hidden md:inline">{inUseCount} in use</span>
@@ -355,13 +296,16 @@ export default function AssetsPage() {
 
           <div className="border border-gray-300 rounded overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
+              <table aria-busy={isUpdating} className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-gray-100 border-b border-gray-300">
                     <th className="w-8 px-1 py-1.5 border-r border-gray-200">
                       <input
                         type="checkbox"
-                        checked={selectedRows.size === sortedAssets.length && sortedAssets.length > 0}
+                        aria-label="Select all assets on this page"
+                        disabled={isUpdating || isError}
+                        checked={allPageSelected}
+                        ref={input => { if (input) input.indeterminate = somePageSelected && !allPageSelected }}
                         onChange={handleSelectAll}
                         className="h-3 w-3 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
@@ -397,7 +341,13 @@ export default function AssetsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedAssets.length === 0 ? (
+                  {isLoading || isError ? (
+                    <tr>
+                      <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
+                        {isLoading ? 'Loading assets…' : 'Assets could not be loaded.'}
+                      </td>
+                    </tr>
+                  ) : totalAssets === 0 ? (
                     <tr>
                       <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                         <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
@@ -406,23 +356,25 @@ export default function AssetsPage() {
                       </td>
                     </tr>
                   ) : (
-                    sortedAssets.map((asset: Asset, index: number) => (
+                    paginatedAssets.map((asset: Asset, index: number) => (
                       <tr
                         key={asset.id}
                         className={`border-b border-gray-200 hover:bg-blue-50 cursor-pointer ${
                           selectedRows.has(asset.id) ? 'bg-blue-100' : index % 2 === 0 ? 'bg-white' : 'bg-gray-50'
                         }`}
-                        onClick={() => router.push(`/dashboard/assets/${asset.id}`)}
+                        onClick={() => { if (!isUpdating) router.push(`/dashboard/assets/${asset.id}`) }}
                       >
-                        <td className="px-1 py-1 border-r border-gray-200 text-center" onClick={(event) => handleRowSelect(asset.id, event)}>
+                        <td className="px-1 py-1 border-r border-gray-200 text-center" onClick={(event) => { event.stopPropagation(); if (!isUpdating) handleRowSelect(asset.id, event) }}>
                           <input
                             type="checkbox"
+                            aria-label={`Select ${asset.equipmentId || asset.name}`}
+                            disabled={isUpdating}
                             checked={selectedRows.has(asset.id)}
                             onChange={() => {}}
                             className="h-3 w-3 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                           />
                         </td>
-                        <td className="px-1 py-1 border-r border-gray-200 text-center text-gray-400">{index + 1}</td>
+                        <td className="px-1 py-1 border-r border-gray-200 text-center text-gray-400">{pageStart + index + 1}</td>
                         <td className="px-2 py-1 border-r border-gray-200 font-semibold text-gray-900">{asset.equipmentId || <span className="font-normal text-gray-400">—</span>}</td>
                         <td className="px-2 py-1 border-r border-gray-200">
                           <div className="flex items-center gap-1.5">
@@ -454,10 +406,44 @@ export default function AssetsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between px-1 text-[10px] text-gray-500">
-            <span>Showing {sortedAssets.length} of {assets.length} assets</span>
-            <span>Click row to view details | Sort by clicking column headers</span>
-          </div>
+          {!isError && (
+            <nav aria-label="Asset pagination" className="flex flex-wrap items-center justify-between gap-3 px-1 pt-2 text-xs text-gray-600">
+              <span role="status" className="tabular-nums">
+                {isUpdating ? 'Loading assets…' : `Showing ${totalAssets === 0 ? 0 : pageStart + 1}–${pageStart + paginatedAssets.length} of ${totalAssets} assets`}
+              </span>
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex items-center gap-2">
+                  Rows per page
+                  <select
+                    value={pageSize}
+                    onChange={event => { setPageSize(Number(event.target.value)); setPage(1) }}
+                    className="min-h-9 rounded border border-gray-300 bg-white px-2 focus:ring-2 focus:ring-primary-500"
+                  >
+                    {[25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
+                  </select>
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage(currentPage - 1)}
+                    disabled={isUpdating || currentPage === 1}
+                    className="min-h-9 rounded border border-gray-300 px-3 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="tabular-nums">Page {currentPage} of {totalPages}</span>
+                  <button
+                    type="button"
+                    onClick={() => setPage(currentPage + 1)}
+                    disabled={isUpdating || currentPage === totalPages}
+                    className="min-h-9 rounded border border-gray-300 px-3 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </nav>
+          )}
         </div>
       </div>
     </div>

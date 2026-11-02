@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Public page paths that don't require any authentication
-const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/vendor/login', '/client']
+const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/vendor/login', '/client', '/invite']
 // Paths for authenticated users to be redirected away from
 const authPaths = ['/login', '/register']
 // Vendor portal paths (require vendor auth token)

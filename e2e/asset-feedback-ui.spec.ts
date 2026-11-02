@@ -30,7 +30,9 @@ async function mockAssetApi(page: Page, baseURL: string) {
     if (path === '/api/asset-field-layout') response = { order: defaultAssetFieldOrder([]), version: 0, customFields: [] }
     if (path === '/api/asset-statuses') response = [companyStatus]
     if (path === '/api/assets') {
-      response = [asset]
+      response = new URL(request.url()).searchParams.has('page')
+        ? { data: [asset], pagination: { page: 1, pageSize: 25, total: 1, totalPages: 1 }, summary: { availableCount: 1, inUseCount: 0, maintenanceCount: 0, totalValue: 0 } }
+        : [asset]
       if (method === 'POST') {
         const data = request.postDataJSON()
         savedPayloads.push(data)
