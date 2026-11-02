@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, Suspense } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Formik, Form, Field, ErrorMessage } from 'formik'
@@ -16,6 +17,9 @@ import {
   UserPlus,
   Edit,
   Trash2,
+  Send,
+  RotateCw,
+  Loader2,
   Mail,
   Smartphone,
   Check,
@@ -23,11 +27,8 @@ import {
   Key,
   Copy,
   Link2,
-  Tag,
-  Tags,
   Layers,
-  Hash,
-  ListChecks,
+  Wrench,
   Settings
 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -42,6 +43,36 @@ import { AssetCustomFieldManager } from '@/components/settings/asset-custom-fiel
 import { AssetStatusManager } from '@/components/settings/asset-status-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
+
+const settingsGroups = [
+  { id: 'company', name: 'Company', icon: Building, sections: [{ id: 'company', name: 'Company' }] },
+  { id: 'team', name: 'Team', icon: Users, sections: [{ id: 'team', name: 'Team' }] },
+  {
+    id: 'projects', name: 'Projects', icon: FileText,
+    sections: [
+      { id: 'templates', name: 'Templates' },
+      { id: 'cost-codes', name: 'Cost Codes' },
+      { id: 'file-tags', name: 'File Tags' }
+    ]
+  },
+  {
+    id: 'vendors', name: 'Vendors', icon: Layers,
+    sections: [
+      { id: 'vendor-categories', name: 'Categories' },
+      { id: 'service-tags', name: 'Service Tags' }
+    ]
+  },
+  {
+    id: 'assets', name: 'Assets', icon: Wrench,
+    sections: [
+      { id: 'asset-custom-fields', name: 'Custom Fields' },
+      { id: 'asset-statuses', name: 'Statuses' }
+    ]
+  },
+  { id: 'notifications', name: 'Notifications', icon: Bell, sections: [{ id: 'notifications', name: 'Notifications' }] },
+  { id: 'security', name: 'Security', icon: Shield, sections: [{ id: 'security', name: 'Security' }] },
+  { id: 'billing', name: 'Billing', icon: CreditCard, sections: [{ id: 'billing', name: 'Billing' }] }
+]
 
 interface Company {
   id: string
@@ -301,8 +332,13 @@ async function updateNotificationPreferences(data: Partial<NotificationPreferenc
 
 function SettingsContent() {
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get('tab') || 'company'
-  const [activeTab, setActiveTab] = useState(initialTab)
+  const requestedTab = searchParams.get('tab') || 'company'
+  // Legacy links (for example ?tab=asset-statuses) still open the same setting.
+  const activeGroup = settingsGroups.find(group =>
+    group.id === requestedTab || group.sections.some(section => section.id === requestedTab)
+  ) || settingsGroups[0]
+  const requestedSection = activeGroup.id === requestedTab ? searchParams.get('section') : requestedTab
+  const activeTab = activeGroup.sections.find(section => section.id === requestedSection)?.id || activeGroup.sections[0].id
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -433,21 +469,6 @@ function SettingsContent() {
     }
   })
 
-  const tabs = [
-    { id: 'company', name: 'Company', icon: Building },
-    { id: 'team', name: 'Team', icon: Users },
-    { id: 'templates', name: 'Templates', icon: FileText },
-    { id: 'vendor-categories', name: 'Vendor Categories', icon: Layers },
-    { id: 'cost-codes', name: 'Cost Codes', icon: Hash },
-    { id: 'asset-custom-fields', name: 'Asset Custom Fields', icon: ListChecks },
-    { id: 'asset-statuses', name: 'Asset Statuses', icon: ListChecks },
-    { id: 'service-tags', name: 'Service Tags', icon: Tags },
-    { id: 'file-tags', name: 'File Tags', icon: Tag },
-    { id: 'notifications', name: 'Notifications', icon: Bell },
-    { id: 'security', name: 'Security', icon: Shield },
-    { id: 'billing', name: 'Billing', icon: CreditCard },
-  ]
-
   const currencies = [
     { value: 'USD', label: 'USD - US Dollar' },
     { value: 'CAD', label: 'CAD - Canadian Dollar' },
@@ -478,31 +499,51 @@ function SettingsContent() {
         <h1 className="text-sm font-medium text-gray-900">Settings</h1>
       </div>
 
-      {/* Compact Tabs */}
       <div className="border-b border-gray-200 bg-white">
-        <nav className="-mb-px flex flex-wrap">
-          {tabs.map((tab) => {
-            const Icon = tab.icon
+        <nav aria-label="Settings categories" className="-mb-px flex flex-wrap gap-x-1">
+          {settingsGroups.map(group => {
+            const Icon = group.icon
+            const selected = activeGroup.id === group.id
             return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-1.5 px-2 border-b-2 text-xs flex items-center space-x-1 ${
-                  activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600 font-medium'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              <Link
+                key={group.id}
+                href={`/dashboard/settings?tab=${group.id}`}
+                scroll={false}
+                aria-current={selected ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 py-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary-600 ${
+                  selected
+                    ? 'border-primary-600 text-primary-700 font-semibold'
+                    : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
               >
-                <Icon className="h-3 w-3" />
-                <span>{tab.name}</span>
-              </button>
+                <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>{group.name}</span>
+              </Link>
             )
           })}
         </nav>
       </div>
 
-      {/* Tab Content */}
       <div className="bg-white rounded border border-gray-200 p-4">
+        {activeGroup.sections.length > 1 && (
+          <nav aria-label={`${activeGroup.name} settings`} className="mb-5 flex flex-wrap gap-1 border-b border-gray-200 pb-3">
+            {activeGroup.sections.map(section => (
+              <Link
+                key={section.id}
+                href={`/dashboard/settings?tab=${activeGroup.id}&section=${section.id}`}
+                scroll={false}
+                aria-current={activeTab === section.id ? 'page' : undefined}
+                className={`inline-flex min-h-11 items-center rounded px-3 py-2 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 ${
+                  activeTab === section.id
+                    ? 'bg-primary-50 text-primary-700 font-semibold'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }`}
+              >
+                {section.name}
+              </Link>
+            ))}
+          </nav>
+        )}
         {activeTab === 'company' && company && (
           <div>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Company Information</h3>
@@ -923,6 +964,9 @@ function SettingsContent() {
                       <tbody>
                         {teamInvitations.map(invitation => {
                           const expired = new Date(invitation.expiresAt).getTime() <= Date.now()
+                          const sending = inviteMutation.isPending && inviteMutation.variables?.email === invitation.email
+                          const removing = removeInvitationMutation.isPending && removeInvitationMutation.variables === invitation.id
+                          const resendLabel = `${expired ? 'Renew and resend invitation' : 'Resend invitation'} for ${invitation.email}`
                           return (
                             <tr key={invitation.id} className="border-b border-gray-100">
                               <td className="px-3 py-2">
@@ -937,32 +981,40 @@ function SettingsContent() {
                               </td>
                               <td className="px-3 py-2">{new Date(invitation.expiresAt).toLocaleDateString()}</td>
                               <td className="px-3 py-2 text-right">
-                                <div className="flex flex-wrap items-center justify-end gap-3">
-                                <button
-                                  className="text-primary-700 hover:underline disabled:opacity-50"
-                                  disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
-                                  onClick={() => inviteMutation.mutate({ email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, role: invitation.role })}
-                                >
-                                  {inviteMutation.isPending && inviteMutation.variables?.email === invitation.email ? 'Sending…' : expired ? 'Renew and resend' : 'Resend invitation'}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="min-h-9 text-red-700 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
-                                  aria-label={`Remove invitation for ${invitation.email}`}
-                                  disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
-                                  onClick={async () => {
-                                    const confirmed = await showModal({
-                                      title: 'Remove invitation?',
-                                      message: `Remove the invitation for ${invitation.email}? Their invitation links will stop working. You can invite them again later.`,
-                                      type: 'confirm',
-                                      confirmText: 'Remove invitation',
-                                      showCancel: true,
-                                    })
-                                    if (confirmed) removeInvitationMutation.mutate(invitation.id)
-                                  }}
-                                >
-                                  {removeInvitationMutation.isPending && removeInvitationMutation.variables === invitation.id ? 'Removing…' : 'Remove invitation'}
-                                </button>
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded border border-gray-300 bg-white px-2 text-primary-700 hover:bg-primary-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:px-3"
+                                    aria-label={resendLabel}
+                                    title={sending ? 'Sending invitation…' : resendLabel}
+                                    aria-busy={sending}
+                                    disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
+                                    onClick={() => inviteMutation.mutate({ email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, role: invitation.role })}
+                                  >
+                                    {sending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : expired ? <RotateCw className="h-4 w-4" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
+                                    <span className="hidden whitespace-nowrap sm:inline">{sending ? 'Sending…' : expired ? 'Renew & resend' : 'Resend'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded border border-red-200 bg-white px-2 text-red-700 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600 disabled:cursor-not-allowed disabled:opacity-50 sm:min-h-9 sm:px-3"
+                                    aria-label={`Remove invitation for ${invitation.email}`}
+                                    title={removing ? 'Removing invitation…' : `Remove invitation for ${invitation.email}`}
+                                    aria-busy={removing}
+                                    disabled={inviteMutation.isPending || removeInvitationMutation.isPending}
+                                    onClick={async () => {
+                                      const confirmed = await showModal({
+                                        title: 'Remove invitation?',
+                                        message: `Remove the invitation for ${invitation.email}? Their invitation links will stop working. You can invite them again later.`,
+                                        type: 'confirm',
+                                        confirmText: 'Remove invitation',
+                                        showCancel: true,
+                                      })
+                                      if (confirmed) removeInvitationMutation.mutate(invitation.id)
+                                    }}
+                                  >
+                                    {removing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Trash2 className="h-4 w-4" aria-hidden="true" />}
+                                    <span className="hidden sm:inline">{removing ? 'Removing…' : 'Remove'}</span>
+                                  </button>
                                 </div>
                               </td>
                             </tr>

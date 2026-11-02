@@ -39,6 +39,14 @@ for (const width of [1440, 390]) {
     const section = page.getByRole('region', { name: 'Invitations', exact: true })
     const remove = section.getByRole('button', { name: 'Remove invitation for pending@example.test', exact: true })
     await expect(remove).toBeVisible()
+    const resend = section.getByRole('button', { name: 'Resend invitation for pending@example.test', exact: true })
+    for (const button of [resend, remove]) {
+      await expect(button.locator('svg')).toHaveCount(1)
+      await expect(button).toHaveAttribute('title', /invitation for pending@example.test/)
+      const bounds = await button.boundingBox()
+      expect(bounds!.height).toBeGreaterThanOrEqual(width < 640 ? 44 : 36)
+      expect(bounds!.width).toBeGreaterThanOrEqual(44)
+    }
     await remove.scrollIntoViewIfNeeded()
     await page.screenshot({ path: testInfo.outputPath('invitation-actions.png'), fullPage: true })
     await remove.click()
