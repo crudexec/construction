@@ -60,8 +60,8 @@ const plans = [
     name: 'Trial',
     price: '$0',
     description: 'Explore the workflow, create sample jobs, and see how vendor records connect to project work.',
-    action: 'Start free',
-    href: '/register',
+    action: 'Request access',
+    href: 'mailto:info@buildfloapp.com',
     features: ['Lead and project workspace', 'Vendor records', 'Document and task examples'],
   },
   {
@@ -91,7 +91,7 @@ export default function HomePage() {
         </nav>
         <div className={styles.navActions}>
           <Link href="/login">Sign in</Link>
-          <Link href="/register" className={styles.navButton}>Start free</Link>
+          <Link href="mailto:info@buildfloapp.com" className={styles.navButton}>Request access</Link>
         </div>
       </header>
 
@@ -114,8 +114,8 @@ export default function HomePage() {
               purchase orders, and closeout records — one stage at a time.
             </p>
             <div className={styles.heroActions}>
-              <Link href="/register" className={styles.primaryButton}>
-                Start the workflow <ArrowRight aria-hidden="true" />
+              <Link href="mailto:info@buildfloapp.com" className={styles.primaryButton}>
+                Request access <ArrowRight aria-hidden="true" />
               </Link>
               <Link href="#method" className={styles.textLink}>See the four stages</Link>
             </div>
@@ -237,8 +237,8 @@ export default function HomePage() {
         <h2>Start at stage one.</h2>
         <p>Add a lead, connect a vendor, and watch the job record become easier to trust.</p>
         <div>
-          <Link href="/register" className={styles.primaryButton}>
-            Start the workflow <ArrowRight aria-hidden="true" />
+          <Link href="mailto:info@buildfloapp.com" className={styles.primaryButton}>
+            Request access <ArrowRight aria-hidden="true" />
           </Link>
           <Link href="/login" className={styles.textLink}>Open demo</Link>
         </div>

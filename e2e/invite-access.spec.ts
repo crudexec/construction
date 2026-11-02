@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test('opens a valid invitation without requiring a sign-in', async ({ page }) => {
-  await page.route('**/api/invite/test-invitation', route => route.fulfill({ json: {
+  await page.route('**/api/invite/test-invitation', route => route.fulfill({ json: route.request().method() === 'POST' ? { user: { id: 'new-user' } } : {
     invite: {
       id: 'invite', email: 'new@example.test', firstName: 'New', lastName: 'Member', role: 'STAFF',
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
@@ -14,6 +14,11 @@ test('opens a valid invitation without requiring a sign-in', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Join BuildFlo' })).toBeVisible()
   await expect(page.getByLabel('Create Password')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Accept Invitation', exact: true })).toBeEnabled()
+  await page.getByLabel('Create Password').fill('invited-user-password')
+  await page.getByLabel('Confirm Password').fill('invited-user-password')
+  await page.getByRole('button', { name: 'Accept Invitation', exact: true }).click()
+  await expect(page).toHaveURL(/\/login$/)
+  await expect(page.getByRole('heading', { name: 'Sign in to your account' })).toBeVisible()
 })
 
 test('shows the invitation error instead of redirecting recipients to sign-in', async ({ page }) => {

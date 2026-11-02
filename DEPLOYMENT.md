@@ -66,12 +66,13 @@ In Coolify's Domain settings:
    - Run database migrations
    - Start the application
 
-### 7. Create Initial Admin User
+### 7. Company and User Access
 
-After deployment, access your app and:
-1. Navigate to `/register`
-2. Create the first user account
-3. This user will automatically be an ADMIN
+Public company registration is disabled. `/register` explains how to join by invitation,
+and `POST /api/auth/register` always returns `403 PUBLIC_REGISTRATION_DISABLED`.
+Provision the initial company and administrator through a controlled operator process.
+Existing company administrators add team members from Settings → Team; recipients
+create their accounts through the invitation link. Do not reopen public signup to add a team member.
 
 ### 8. Database Backup (Important!)
 
