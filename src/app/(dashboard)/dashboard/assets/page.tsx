@@ -6,14 +6,15 @@ import { Plus, Search, Package, Truck, Wrench, Settings, AlertTriangle, X, Chevr
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCurrency } from '@/hooks/useCurrency'
+import { AssetFilterSelect } from '@/components/assets/asset-filter-select'
 import { fetchAssetCategories } from '@/components/assets/asset-category-field'
 
 import type { AssetListItem as Asset, AssetListResponse } from '@/lib/assets/list'
 
 interface AssetQuery {
-  type: string
-  status: string
-  category: string
+  types: string[] | null
+  statuses: string[] | null
+  categories: string[] | null
   search: string
   sortField: string
   sortDirection: 'asc' | 'desc'
@@ -28,9 +29,9 @@ async function fetchAssets(query: AssetQuery, signal: AbortSignal): Promise<Asse
     sortField: query.sortField,
     sortDirection: query.sortDirection,
   })
-  if (query.type !== 'all') params.set('type', query.type)
-  if (query.status !== 'all') params.set('status', query.status)
-  if (query.category) params.set('category', query.category)
+  if (query.types !== null) params.set('types', JSON.stringify(query.types))
+  params.set('statuses', JSON.stringify(query.statuses ?? STATUS_OPTIONS.map(option => option.value)))
+  if (query.categories !== null) params.set('categories', JSON.stringify(query.categories))
   if (query.search) params.set('search', query.search)
 
   const response = await fetch(`/api/assets?${params}`, { credentials: 'include', signal })
@@ -74,13 +75,27 @@ const getStatusBadge = (status: string, customStatus?: Asset['statusDefinition']
   )
 }
 
+const TYPE_OPTIONS = [
+  { value: 'VEHICLE', label: 'Vehicles' },
+  { value: 'EQUIPMENT', label: 'Equipment' },
+  { value: 'TOOL', label: 'Tools' },
+]
+const STATUS_OPTIONS = [
+  { value: 'AVAILABLE', label: 'Available' },
+  { value: 'IN_USE', label: 'In Use' },
+  { value: 'UNDER_MAINTENANCE', label: 'Maintenance' },
+  { value: 'RETIRED', label: 'Retired' },
+  { value: 'LOST_DAMAGED', label: 'Lost/Damaged' },
+]
+const DEFAULT_STATUSES = STATUS_OPTIONS.filter(option => option.value !== 'RETIRED').map(option => option.value)
+
 export default function AssetsPage() {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState('')
   const [search, setSearch] = useState('')
-  const [filterType, setFilterType] = useState<string>('all')
-  const [filterStatus, setFilterStatus] = useState<string>('all')
-  const [filterCategory, setFilterCategory] = useState('')
+  const [filterType, setFilterType] = useState<string[] | null>(null)
+  const [filterStatus, setFilterStatus] = useState<string[] | null>(DEFAULT_STATUSES)
+  const [filterCategory, setFilterCategory] = useState<string[] | null>(null)
   const [sortField, setSortField] = useState<string>('equipmentId')
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
@@ -88,7 +103,7 @@ export default function AssetsPage() {
   const [pageSize, setPageSize] = useState(25)
   const { format: formatCurrency } = useCurrency()
 
-  const query: AssetQuery = { type: filterType, status: filterStatus, category: filterCategory, search, sortField, sortDirection, page, pageSize }
+  const query: AssetQuery = { types: filterType, statuses: filterStatus, categories: filterCategory, search, sortField, sortDirection, page, pageSize }
   const { data, isLoading, isFetching, isPlaceholderData, isError, refetch } = useQuery({
     queryKey: ['assets', 'list', query],
     queryFn: ({ signal }) => fetchAssets(query, signal),
@@ -108,11 +123,13 @@ export default function AssetsPage() {
   }, [searchTerm, search])
 
   const { data: categories = [], isError: categoriesError } = useQuery({
-    queryKey: ['asset-categories', filterType],
-    queryFn: () => fetchAssetCategories(filterType)
+    queryKey: ['asset-categories', 'all'],
+    queryFn: () => fetchAssetCategories()
   })
 
-  const activeFilterCount = [filterType !== 'all', filterStatus !== 'all', !!filterCategory].filter(Boolean).length
+  const retiredHidden = filterStatus !== null && !filterStatus.includes('RETIRED')
+  const hasCustomFilters = filterType !== null || filterCategory !== null || filterStatus === null ||
+    filterStatus.length !== DEFAULT_STATUSES.length || DEFAULT_STATUSES.some(status => !filterStatus.includes(status)) || !!searchTerm
   const paginatedAssets = data?.data ?? []
   const totalAssets = data?.pagination.total ?? 0
   const totalPages = data?.pagination.totalPages ?? 1
@@ -169,9 +186,11 @@ export default function AssetsPage() {
 
   const clearAllFilters = () => {
     resetResults()
-    setFilterType('all')
-    setFilterStatus('all')
-    setFilterCategory('')
+    setFilterType(null)
+    setFilterStatus(DEFAULT_STATUSES)
+    setFilterCategory(null)
+    setSearchTerm('')
+    setSearch('')
   }
 
   const { availableCount = 0, inUseCount = 0, maintenanceCount = 0, totalValue = 0 } = data?.summary ?? {}
@@ -221,7 +240,7 @@ export default function AssetsPage() {
       <div className="bg-white rounded-lg shadow border p-6">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input
@@ -231,50 +250,30 @@ export default function AssetsPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   maxLength={200}
-                  className="pl-7 pr-2 py-1 w-40 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  className="pl-7 pr-2 py-1 min-h-11 sm:min-h-8 w-full sm:w-40 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
                 />
               </div>
-              <select
-                aria-label="Filter by asset type"
-                value={filterType}
-                onChange={(e) => { setFilterType(e.target.value); setFilterCategory(''); resetResults() }}
-                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="all">All Types</option>
-                <option value="VEHICLE">Vehicles</option>
-                <option value="EQUIPMENT">Equipment</option>
-                <option value="TOOL">Tools</option>
-              </select>
-              <select
-                aria-label="Filter by category"
-                value={filterCategory}
-                onChange={event => { setFilterCategory(event.target.value); resetResults() }}
-                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="">All Categories</option>
-                {filterCategory && !categories.includes(filterCategory) && <option value={filterCategory}>{filterCategory}</option>}
-                {categories.map(category => <option key={category} value={category}>{category}</option>)}
-              </select>
-              <select
-                aria-label="Filter by status"
-                value={filterStatus}
-                onChange={(e) => { setFilterStatus(e.target.value); resetResults() }}
-                className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-1 focus:ring-primary-500"
-              >
-                <option value="all">All Status</option>
-                <option value="AVAILABLE">Available</option>
-                <option value="IN_USE">In Use</option>
-                <option value="UNDER_MAINTENANCE">Maintenance</option>
-                <option value="RETIRED">Retired</option>
-                <option value="LOST_DAMAGED">Lost/Damaged</option>
-              </select>
-              {activeFilterCount > 0 && (
+              <AssetFilterSelect
+                label="Type" ariaLabel="Filter by asset type" options={TYPE_OPTIONS} selected={filterType}
+                onChange={values => { setFilterType(values); resetResults() }}
+              />
+              <AssetFilterSelect
+                label="Category" ariaLabel="Filter by category"
+                options={[...categories.map(category => ({ value: category, label: category })), { value: '', label: 'Uncategorized' }]}
+                selected={filterCategory}
+                onChange={values => { setFilterCategory(values); resetResults() }}
+              />
+              <AssetFilterSelect
+                label="Status" ariaLabel="Filter by status" options={STATUS_OPTIONS} selected={filterStatus}
+                onChange={values => { setFilterStatus(values); resetResults() }}
+              />
+              {hasCustomFilters && (
                 <button
                   onClick={clearAllFilters}
-                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-0.5"
+                  className="min-h-11 sm:min-h-8 text-xs text-gray-600 hover:text-gray-900 flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
                 >
-                  <X className="h-3 w-3" />
-                  Clear
+                  <X aria-hidden="true" className="h-3 w-3" />
+                  Reset filters
                 </button>
               )}
             </div>
@@ -291,6 +290,7 @@ export default function AssetsPage() {
             </div>
           </div>
 
+          {retiredHidden && <p className="px-1 text-xs text-gray-600">Retired assets hidden. Include them using the Status filter.</p>}
           {categoriesError && <p role="alert" className="text-xs text-red-600">Category filters could not be loaded.</p>}
           {isError && <p role="alert" className="text-sm text-red-600">Could not load assets. <button onClick={() => refetch()} className="underline">Retry</button></p>}
 
@@ -352,7 +352,7 @@ export default function AssetsPage() {
                       <td colSpan={11} className="px-4 py-8 text-center text-gray-500">
                         <Package className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                         <p className="font-medium">No assets found</p>
-                        <p className="text-[10px]">{activeFilterCount > 0 || searchTerm ? 'Try adjusting filters' : 'Add your first asset'}</p>
+                        <p className="text-[10px]">{hasCustomFilters || retiredHidden ? 'Try adjusting filters' : 'Add your first asset'}</p>
                       </td>
                     </tr>
                   ) : (

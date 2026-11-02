@@ -29,7 +29,11 @@ async function mockAssetsApi(page: Page, baseURL: string) {
       expect(searchParams.has('page')).toBe(true)
       expect(searchParams.has('pageSize')).toBe(true)
       const filtered = assets.filter(asset =>
-        (['type', 'status', 'category'] as const).every(key => !searchParams.get(key) || asset[key] === searchParams.get(key))
+        (['type', 'status', 'category'] as const).every(key => {
+          const param = { type: 'types', status: 'statuses', category: 'categories' }[key]
+          const values: string[] | null = searchParams.has(param) ? JSON.parse(searchParams.get(param)!) : null
+          return values === null || values.includes(asset[key])
+        })
       )
       const search = searchParams.get('search')?.toLowerCase() || ''
       const sorted = filtered.filter(asset => [asset.equipmentId, asset.name, asset.category].some(value => value.toLowerCase().includes(search)))
@@ -133,15 +137,18 @@ test('searches and sorts across all pages and resets each filter to page one', a
   await expect(page.locator('tbody tr').first()).toContainText('Asset 036')
 
   for (const [label, value] of [
-    ['Filter by asset type', 'EQUIPMENT'],
+    ['Filter by asset type', 'Equipment'],
     ['Filter by category', 'Excavator'],
-    ['Filter by status', 'AVAILABLE'],
+    ['Filter by status', 'Available'],
   ]) {
-    await page.getByLabel(label, { exact: true }).selectOption(value)
+    await page.getByRole('button', { name: new RegExp(label) }).click()
+    await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
+    await page.getByRole('checkbox', { name: value, exact: true }).check()
+    await page.keyboard.press('Escape')
     await expect(pagination.getByRole('status')).toHaveText('Showing 1–25 of 30 assets')
     await next.click()
     await expect(pagination.getByRole('status')).toHaveText('Showing 26–30 of 30 assets')
-    await page.getByRole('button', { name: 'Clear', exact: true }).click()
+    await page.getByRole('button', { name: 'Reset filters', exact: true }).click()
     await expect(pagination.getByRole('status')).toHaveText('Showing 1–25 of 61 assets')
     await next.click()
   }
@@ -164,7 +171,7 @@ test('selects only the visible page and preserves other pages when deselecting',
   await pagination.getByRole('button', { name: 'Previous' }).click()
   await expect(selectAll).toBeChecked()
   await page.getByLabel('Search assets').fill('EQ-061')
-  await expect(page.getByText(/\d+ selected/)).toHaveCount(0)
+  await expect(page.getByText(/^\d+ selected$/)).toHaveCount(0)
   await expect(selectAll).not.toBeChecked()
 })
 
@@ -184,3 +191,74 @@ test('keeps pagination controls within the viewport on mobile', async ({ page },
   await pagination.getByRole('button', { name: 'Next' }).click()
   await expect(pagination.getByRole('status')).toHaveText('Showing 26–50 of 61 assets')
 })
+
+
+test('sends multiple checkbox selections to the server and restores the retired-excluded default', async ({ page }) => {
+  const requests: URL[] = []
+  page.on('request', request => {
+    const url = new URL(request.url())
+    if (url.pathname === '/api/assets') requests.push(url)
+  })
+  await page.goto('/dashboard/assets')
+  const pagination = page.getByRole('navigation', { name: 'Asset pagination' })
+  await expect(pagination.getByRole('status')).toContainText('of 61 assets')
+  expect(JSON.parse(requests.at(-1)!.searchParams.get('statuses')!)).not.toContain('RETIRED')
+  const status = page.getByRole('button', { name: /^Filter by status/ })
+  await status.click()
+  await expect(page.getByRole('checkbox', { name: 'Retired', exact: true })).not.toBeChecked()
+  await page.getByRole('checkbox', { name: 'Retired', exact: true }).check()
+  await expect(page.getByText('Retired assets hidden.', { exact: false })).toHaveCount(0)
+  await expect.poll(() => JSON.parse(requests.at(-1)!.searchParams.get('statuses')!)).toContain('RETIRED')
+  await page.keyboard.press('Escape')
+  await expect(status).toBeFocused()
+  await page.getByRole('button', { name: /^Filter by asset type/ }).click()
+  await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
+  await expect(pagination.getByRole('status')).toHaveText('Showing 0–0 of 0 assets')
+  await page.getByRole('checkbox', { name: 'Equipment', exact: true }).check()
+  await page.getByRole('checkbox', { name: 'Vehicles', exact: true }).check()
+  await expect(pagination.getByRole('status')).toContainText('of 61 assets')
+  expect(JSON.parse(requests.at(-1)!.searchParams.get('types')!)).toEqual(['EQUIPMENT', 'VEHICLE'])
+  // Opening another filter dismisses the first without losing its selection.
+  await page.getByRole('button', { name: /^Filter by category/ }).click()
+  await expect(page.getByRole('group', { name: 'Type options' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Excavator', exact: true }).check()
+  await page.getByRole('checkbox', { name: 'Truck', exact: true }).check()
+  await expect(pagination.getByRole('status')).toContainText('of 61 assets')
+  expect(JSON.parse(requests.at(-1)!.searchParams.get('categories')!)).toEqual(['Excavator', 'Truck'])
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'Reset filters', exact: true }).click()
+  await status.click()
+  await expect(page.getByRole('checkbox', { name: 'Retired', exact: true })).not.toBeChecked()
+  await expect(page.getByRole('checkbox', { name: 'Available', exact: true })).toBeChecked()
+  await page.keyboard.press('Escape')
+  await page.reload()
+  await status.click()
+  await expect(page.getByRole('checkbox', { name: 'Retired', exact: true })).not.toBeChecked()
+})
+
+for (const width of [1440, 390]) {
+  test(`checkbox filters support keyboard and fit at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.goto('/dashboard/assets')
+    const status = page.getByRole('button', { name: /^Filter by status/ })
+    await status.focus()
+    await page.keyboard.press('Enter')
+    const options = page.getByRole('group', { name: 'Status options' })
+    await expect(options).toBeVisible()
+    await page.keyboard.press('Tab')
+    await expect(options.getByRole('button', { name: 'Select all', exact: true })).toBeFocused()
+    await page.keyboard.press('Enter')
+    await expect(options.getByRole('checkbox', { name: 'Retired', exact: true })).toBeChecked()
+    await options.getByRole('checkbox', { name: 'Retired', exact: true }).focus()
+    await page.keyboard.press('Space')
+    await expect(options.getByRole('checkbox', { name: 'Retired', exact: true })).not.toBeChecked()
+    const bounds = await options.boundingBox()
+    expect(bounds!.x).toBeGreaterThanOrEqual(0)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: testInfo.outputPath(`asset-filters-${width}.png`), fullPage: true })
+    await page.keyboard.press('Escape')
+    await expect(options).toHaveCount(0)
+    await expect(status).toBeFocused()
+  })
+}

@@ -151,3 +151,56 @@ test('preserves the array response used by existing asset request screens', asyn
   assert.equal(result.length, 30)
   assert.ok('attachments' in result[0])
 })
+
+function multiQuery(filters: Record<string, string[]>, pageSize = 100) {
+  const params = new URLSearchParams({ page: '1', pageSize: String(pageSize) })
+  for (const [key, values] of Object.entries(filters)) params.set(key, JSON.stringify(values))
+  return params.toString()
+}
+
+test('combines multiple selections before paging and totals, including literal category names', async () => {
+  const result = await list(multiQuery({ types: ['EQUIPMENT', 'VEHICLE'], statuses: ['AVAILABLE', 'IN_USE'], categories: ['EXCAVATOR', 'Truck'] }, 25))
+  assert.equal(result.pagination.total, 61)
+  assert.equal(result.data.length, 25)
+  assert.equal(result.summary.totalValue, 61000)
+  const narrowed = await list(multiQuery({ types: ['EQUIPMENT', 'TOOL'], statuses: ['AVAILABLE', 'IN_USE'], categories: ['Excavator', 'Truck'] }))
+  assert.equal(narrowed.pagination.total, 30)
+  for (const key of ['types', 'statuses', 'categories']) {
+    const empty = await list(multiQuery({ [key]: [] }))
+    assert.equal(empty.pagination.total, 0)
+    assert.equal(empty.summary.totalValue, 0)
+  }
+  const special = await prisma.asset.create({ data: { name: 'Special category', companyId, type: 'TOOL', category: "Parts, valves & 1/2\" fittings", purchaseCost: 42 } })
+  try {
+    const result = await list(multiQuery({ categories: ["Parts, valves & 1/2\" fittings", "' OR TRUE --"] }))
+    assert.deepEqual(result.data.map(asset => asset.id), [special.id])
+    assert.equal(result.summary.totalValue, 42)
+  } finally { await prisma.asset.delete({ where: { id: special.id } }) }
+})
+
+test('excludes retired assets by default but includes explicit selections, with uncategorized assets supported', async () => {
+  const retired = await prisma.asset.create({ data: { name: 'Retired asset', companyId, type: 'TOOL', status: 'RETIRED', purchaseCost: 500 } })
+  try {
+    assert.equal((await list()).pagination.total, 61)
+    assert.equal((await list()).summary.totalValue, 61000)
+    const result = await list(multiQuery({ statuses: ['AVAILABLE', 'IN_USE', 'RETIRED'] }))
+    assert.equal(result.pagination.total, 62)
+    assert.equal(result.summary.totalValue, 61500)
+    const onlyRetired = await list(multiQuery({ statuses: ['RETIRED'], categories: [''] }))
+    assert.deepEqual(onlyRetired.data.map(asset => asset.id), [retired.id])
+    assert.equal((await list('page=1&status=RETIRED')).pagination.total, 1)
+    const legacy = await GET(request('status=RETIRED'))
+    assert.equal((await legacy.json()).length, 1)
+  } finally { await prisma.asset.delete({ where: { id: retired.id } }) }
+})
+
+test('validates all multi-select values and rejects malformed filter arrays', async () => {
+  for (const [key, value] of [
+    ['types', '["VEHICLE","INVALID"]'], ['statuses', '["AVAILABLE","INVALID"]'],
+    ['categories', '[null]'], ['types', 'null'], ['statuses', '{}'], ['categories', 'not-json'],
+    ['categories', JSON.stringify(['a'.repeat(101)])], ['types', JSON.stringify(Array(1001).fill('TOOL'))],
+  ]) {
+    const query = new URLSearchParams({ page: '1', [key]: value }).toString()
+    assert.equal((await GET(request(query))).status, 400, query)
+  }
+})

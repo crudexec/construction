@@ -15,6 +15,24 @@ const sortExpressions = {
 
 export class AssetListValidationError extends Error {}
 
+// Plural filters are JSON arrays: [] means no matches. Omitted type/category
+// includes all; omitted status defaults to non-retired below. Single values
+// remain supported for existing callers.
+function selections(params: URLSearchParams, plural: string, singular: string): string[] | undefined {
+  if (!params.has(plural)) {
+    const value = params.get(singular)?.trim()
+    return value ? [value] : undefined
+  }
+  let values: unknown
+  try { values = JSON.parse(params.get(plural)!) } catch {
+    throw new AssetListValidationError(`Invalid ${plural} selection`)
+  }
+  if (!Array.isArray(values) || values.length > 1000 || values.some(value => typeof value !== 'string')) {
+    throw new AssetListValidationError(`Invalid ${plural} selection`)
+  }
+  return [...new Set((values as string[]).map(value => value.trim()))]
+}
+
 function positiveInteger(params: URLSearchParams, name: string, fallback: number, maximum: number) {
   const value = params.get(name)
   if (value === null) return fallback
@@ -27,19 +45,19 @@ function positiveInteger(params: URLSearchParams, name: string, fallback: number
 export function parseAssetListParams(params: URLSearchParams) {
   const page = positiveInteger(params, 'page', 1, 2_147_483_647)
   const pageSize = positiveInteger(params, 'pageSize', 25, 100)
-  const type = params.get('type') || undefined
-  const status = params.get('status') || undefined
-  const category = params.get('category')?.trim() || undefined
+  const types = selections(params, 'types', 'type')
+  const statuses = selections(params, 'statuses', 'status') ?? Object.values(AssetStatus).filter(status => status !== 'RETIRED')
+  const categories = selections(params, 'categories', 'category')
   const search = params.get('search')?.trim() || ''
   const sortField = params.get('sortField') ?? 'equipmentId'
   const sortDirection = params.get('sortDirection') ?? 'asc'
-  if (type && !Object.values(AssetType).includes(type as AssetType)) throw new AssetListValidationError('Invalid asset type')
-  if (status && !Object.values(AssetStatus).includes(status as AssetStatus)) throw new AssetListValidationError('Invalid asset status')
-  if (category && category.length > 100) throw new AssetListValidationError('Category must be 100 characters or fewer')
+  if (types?.some(type => !Object.values(AssetType).includes(type as AssetType))) throw new AssetListValidationError('Invalid asset type')
+  if (statuses.some(status => !Object.values(AssetStatus).includes(status as AssetStatus))) throw new AssetListValidationError('Invalid asset status')
+  if (categories?.some(category => category.length > 100)) throw new AssetListValidationError('Category must be 100 characters or fewer')
   if (search.length > 200) throw new AssetListValidationError('Search must be 200 characters or fewer')
   if (!Object.hasOwn(sortExpressions, sortField)) throw new AssetListValidationError('Invalid sort field')
   if (sortDirection !== 'asc' && sortDirection !== 'desc') throw new AssetListValidationError('Invalid sort direction')
-  return { page, pageSize, type, status, category, search, sortField: sortField as keyof typeof sortExpressions, sortDirection }
+  return { page, pageSize, types, statuses, categories, search, sortField: sortField as keyof typeof sortExpressions, sortDirection }
 }
 
 type AssetListParams = ReturnType<typeof parseAssetListParams>
@@ -65,9 +83,12 @@ export interface AssetListResponse {
 
 export async function listAssets(tx: Prisma.TransactionClient, companyId: string, params: AssetListParams): Promise<AssetListResponse> {
   const conditions = [Prisma.sql`a."companyId" = ${companyId}`]
-  if (params.type) conditions.push(Prisma.sql`a.type = ${params.type}::"AssetType"`)
-  if (params.status) conditions.push(Prisma.sql`a.status = ${params.status}::"AssetStatus"`)
-  if (params.category) conditions.push(Prisma.sql`LOWER(a.category) = LOWER(${params.category})`)
+  if (params.types) conditions.push(params.types.length
+    ? Prisma.sql`a.type IN (${Prisma.join(params.types.map(type => Prisma.sql`${type}::"AssetType"`))})` : Prisma.sql`FALSE`)
+  conditions.push(params.statuses.length
+    ? Prisma.sql`a.status IN (${Prisma.join(params.statuses.map(status => Prisma.sql`${status}::"AssetStatus"`))})` : Prisma.sql`FALSE`)
+  if (params.categories) conditions.push(params.categories.length
+    ? Prisma.sql`LOWER(COALESCE(a.category, '')) IN (${Prisma.join(params.categories.map(category => Prisma.sql`LOWER(${category})`))})` : Prisma.sql`FALSE`)
   const where = Prisma.join(conditions, ' AND ')
   // STRPOS preserves literal substring search: %, _ and backslashes aren't wildcards.
   const search = params.search ? Prisma.sql`(
