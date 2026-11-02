@@ -5,6 +5,40 @@ import { getEmailService } from '@/lib/email'
 import { teamInviteTemplate } from '@/lib/email/templates/notifications'
 import crypto from 'crypto'
 
+// Invitations are separate from users until the recipient accepts.
+export async function GET(request: NextRequest) {
+  try {
+    const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
+    const user = token ? await validateUser(token) : null
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized - Admin access required' }, { status: 401 })
+    }
+
+    const [invites, members] = await Promise.all([
+      prisma.teamInvite.findMany({
+        where: { companyId: user.companyId, isAccepted: false },
+        select: { id: true, email: true, firstName: true, lastName: true, role: true, createdAt: true, expiresAt: true },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.findMany({
+        where: { companyId: user.companyId, isActive: true },
+        select: { email: true }
+      })
+    ])
+    // Hide invitations already resolved by an administrator and older duplicates.
+    const seen = new Set(members.map(member => member.email.trim().toLowerCase()))
+    return NextResponse.json(invites.filter(invite => {
+      const email = invite.email.trim().toLowerCase()
+      if (seen.has(email)) return false
+      seen.add(email)
+      return true
+    }))
+  } catch (error) {
+    console.error('Error fetching team invitations:', error)
+    return NextResponse.json({ error: 'Failed to fetch invitations' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
@@ -20,13 +54,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { email, firstName, lastName, role } = body
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const firstName = typeof body.firstName === 'string' ? body.firstName.trim() : ''
+    const lastName = typeof body.lastName === 'string' ? body.lastName.trim() : ''
+    const role = body.role || 'STAFF'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !firstName || !lastName ||
+        !['ADMIN', 'STAFF', 'SUBCONTRACTOR', 'CLIENT'].includes(role)) {
+      return NextResponse.json({ error: 'Enter a valid email, name, and role' }, { status: 400 })
+    }
     
     console.log('Creating invite for:', { email, firstName, lastName, role, companyId: user.companyId })
 
     // Check if user already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
+    const existingUser = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } }
     })
 
     if (existingUser) {
@@ -57,112 +98,40 @@ export async function POST(request: NextRequest) {
       }
 
       // User exists and is active, or belongs to different company
-      return NextResponse.json({ error: 'User with this email already exists' }, { status: 400 })
-    }
-
-    // Check if there's already a pending invite for this email
-    const existingInvite = await prisma.teamInvite.findFirst({
-      where: {
-        email,
-        companyId: user.companyId,
-        isAccepted: false,
-        expiresAt: {
-          gte: new Date()
-        }
-      }
-    })
-
-    if (existingInvite) {
-      // Return the existing invite URL and resend the email
-      const host = request.headers.get('host') || 'localhost:3000'
-      const protocol = host.includes('localhost') ? 'http' : 'https'
-      const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${existingInvite.token}`
-
-      // Resend the invitation email
-      let emailSent = false
-      try {
-        const company = await prisma.company.findUnique({
-          where: { id: user.companyId },
-          select: { appName: true }
-        })
-        const companyName = company?.appName || 'BuildFlow'
-        const emailService = await getEmailService(user.companyId)
-
-        if (emailService.isConfigured()) {
-          const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email
-
-          const emailTemplate = teamInviteTemplate({
-            recipientName: existingInvite.firstName || 'Team Member',
-            recipientEmail: existingInvite.email,
-            invitedBy: inviterName,
-            role: existingInvite.role,
-            inviteUrl,
-            expiresAt: existingInvite.expiresAt.toLocaleDateString('en-US', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            }),
-            companyName
-          })
-
-          const emailResult = await emailService.send({
-            to: existingInvite.email,
-            subject: emailTemplate.subject,
-            html: emailTemplate.html,
-            text: emailTemplate.text
-          })
-
-          emailSent = emailResult.success
-          if (!emailResult.success) {
-            console.error('Failed to resend invite email:', emailResult.error)
-          }
-        }
-      } catch (emailError) {
-        console.error('Error resending invite email:', emailError)
-      }
-
       return NextResponse.json({
-        invite: {
-          id: existingInvite.id,
-          email: existingInvite.email,
-          firstName: existingInvite.firstName,
-          lastName: existingInvite.lastName,
-          role: existingInvite.role,
-          token: existingInvite.token,
-          expiresAt: existingInvite.expiresAt
-        },
-        inviteUrl,
-        emailResent: emailSent,
-        message: emailSent ? 'Invitation email resent successfully' : 'Existing invite found (email may not have been sent)'
-      })
+        error: existingUser.companyId === user.companyId
+          ? 'This person is already an active member of your team.'
+          : 'This email belongs to an account in another company. Contact support to resolve the company association before inviting them.',
+        code: existingUser.companyId === user.companyId ? 'ALREADY_ON_TEAM' : 'ACCOUNT_COMPANY_CONFLICT'
+      }, { status: 409 })
     }
 
-    // Generate unique invite token
-    const inviteToken = crypto.randomBytes(32).toString('hex')
-    
-    // Set expiry to 7 days from now
-    const expiresAt = new Date()
-    expiresAt.setDate(expiresAt.getDate() + 7)
-
-    // Create team invite
-    const invite = await prisma.teamInvite.create({
-      data: {
-        email,
-        firstName,
-        lastName,
-        role: role || 'STAFF',
-        token: inviteToken,
-        companyId: user.companyId,
-        invitedById: user.id,
-        expiresAt
-      }
+    // Reuse the latest unaccepted invitation, renewing expired links on resend.
+    const existingInvite = await prisma.teamInvite.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' }, companyId: user.companyId, isAccepted: false },
+      orderBy: { createdAt: 'desc' }
     })
+    const now = new Date()
+    const renewed = !!existingInvite && existingInvite.expiresAt <= now
+    const invite = existingInvite
+      ? renewed
+        ? await prisma.teamInvite.update({
+            where: { id: existingInvite.id },
+            data: { token: crypto.randomBytes(32).toString('hex'), expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) }
+          })
+        : existingInvite
+      : await prisma.teamInvite.create({
+          data: {
+            email, firstName, lastName, role,
+            token: crypto.randomBytes(32).toString('hex'),
+            companyId: user.companyId, invitedById: user.id,
+            expiresAt: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+          }
+        })
 
-    // Generate invite URL - using the host from the request if NEXT_PUBLIC_APP_URL is not set
     const host = request.headers.get('host') || 'localhost:3000'
     const protocol = host.includes('localhost') ? 'http' : 'https'
-    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${inviteToken}`
+    const inviteUrl = `${process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`}/invite/${invite.token}`
 
     // Create activity log for invitation creation
     try {
@@ -174,7 +143,7 @@ export async function POST(request: NextRequest) {
         orderBy: { updatedAt: 'desc' }
       })
 
-      if (recentProject) {
+      if (recentProject && !existingInvite) {
         await prisma.activity.create({
           data: {
             type: 'user_invited',
@@ -205,12 +174,12 @@ export async function POST(request: NextRequest) {
         const inviterName = `${user.firstName} ${user.lastName}`.trim() || user.email
 
         const emailTemplate = teamInviteTemplate({
-          recipientName: firstName || 'Team Member',
-          recipientEmail: email,
+          recipientName: invite.firstName || 'Team Member',
+          recipientEmail: invite.email,
           invitedBy: inviterName,
-          role: role || 'STAFF',
+          role: invite.role,
           inviteUrl,
-          expiresAt: expiresAt.toLocaleDateString('en-US', {
+          expiresAt: invite.expiresAt.toLocaleDateString('en-US', {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -220,7 +189,7 @@ export async function POST(request: NextRequest) {
         })
 
         const emailResult = await emailService.send({
-          to: email,
+          to: invite.email,
           subject: emailTemplate.subject,
           html: emailTemplate.html,
           text: emailTemplate.text
@@ -252,6 +221,8 @@ export async function POST(request: NextRequest) {
       },
       inviteUrl,
       emailSent,
+      resent: !!existingInvite,
+      renewed,
       message: emailSent ? 'Invitation sent successfully' : 'Invitation created but email could not be sent'
     })
   } catch (error) {

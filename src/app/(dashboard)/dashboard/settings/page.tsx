@@ -68,6 +68,16 @@ interface User {
   isActive?: boolean
 }
 
+interface TeamInvitation {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: User['role']
+  createdAt: string
+  expiresAt: string
+}
+
 interface NotificationPreference {
   // Email preferences
   emailEnabled: boolean
@@ -179,6 +189,12 @@ async function fetchTeamMembers() {
   return Array.isArray(data) ? data : (data.users || [])
 }
 
+async function fetchTeamInvitations(): Promise<TeamInvitation[]> {
+  const response = await fetch('/api/team/invite')
+  if (!response.ok) throw new Error('Failed to load invitations')
+  return response.json()
+}
+
 async function inviteTeamMember(data: { email: string; firstName: string; lastName: string; role: string }) {
   const token = document.cookie
     .split('; ')
@@ -283,6 +299,8 @@ function SettingsContent() {
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
+  const [inviteEmailSent, setInviteEmailSent] = useState(false)
+  const [inviteExpiresAt, setInviteExpiresAt] = useState('')
   const [showPasswordResetModal, setShowPasswordResetModal] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<string>('')
   const [selectedMemberName, setSelectedMemberName] = useState<string>('')
@@ -299,6 +317,12 @@ function SettingsContent() {
     queryKey: ['team-members'],
     queryFn: fetchTeamMembers,
     enabled: activeTab === 'team'
+  })
+
+  const { data: teamInvitations, isLoading: invitesLoading, isError: invitesError, refetch: refetchInvitations } = useQuery({
+    queryKey: ['team-invitations', user?.companyId],
+    queryFn: fetchTeamInvitations,
+    enabled: activeTab === 'team' && user?.role === 'ADMIN'
   })
 
   const { data: notificationData, isLoading: notificationLoading } = useQuery({
@@ -329,15 +353,21 @@ function SettingsContent() {
     mutationFn: inviteTeamMember,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['team-members'] })
+      queryClient.invalidateQueries({ queryKey: ['team-invitations'] })
       setShowInviteModal(false)
 
       // Check if user was reactivated (previously removed user)
       if (data.reactivated) {
         toast.success('User has been reactivated and added back to the team!')
       } else {
-        toast.success('Invitation created successfully!')
-        // Show invite link in a success modal (only for new invites)
+        if (data.emailSent) {
+          toast.success(data.resent ? 'Invitation email resent.' : 'Invitation email sent.')
+        } else {
+          toast.error('Invitation saved, but email could not be sent. Copy the link to share it or check Email settings.')
+        }
         setInviteLink(data.inviteUrl)
+        setInviteEmailSent(data.emailSent === true)
+        setInviteExpiresAt(data.invite.expiresAt)
         setShowInviteLinkModal(true)
       }
     },
@@ -849,6 +879,63 @@ function SettingsContent() {
               </div>
             )}
 
+            {user?.role === 'ADMIN' && (
+              <section className="mt-6" aria-labelledby="team-invitations-heading">
+                <h3 id="team-invitations-heading" className="text-sm font-medium text-gray-900 mb-2">Invitations</h3>
+                <p className="text-xs text-gray-500 mb-3">Invited people appear as team members after accepting their invitation.</p>
+                {invitesLoading ? (
+                  <p className="text-sm text-gray-500">Loading invitations…</p>
+                ) : invitesError ? (
+                  <div role="alert" className="text-sm text-red-700">
+                    Invitations could not be loaded. <button className="underline" onClick={() => refetchInvitations()}>Try again</button>
+                  </div>
+                ) : teamInvitations?.length ? (
+                  <div className="border border-gray-200 rounded overflow-x-auto">
+                    <table className="min-w-full text-xs">
+                      <thead className="bg-gray-50 border-b border-gray-200 text-left text-gray-500">
+                        <tr>
+                          <th scope="col" className="px-3 py-2">Name / Email</th>
+                          <th scope="col" className="px-3 py-2">Role</th>
+                          <th scope="col" className="px-3 py-2">Status</th>
+                          <th scope="col" className="px-3 py-2">Expires</th>
+                          <th scope="col" className="px-3 py-2 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {teamInvitations.map(invitation => {
+                          const expired = new Date(invitation.expiresAt).getTime() <= Date.now()
+                          return (
+                            <tr key={invitation.id} className="border-b border-gray-100">
+                              <td className="px-3 py-2">
+                                <div className="font-medium text-gray-900">{invitation.firstName} {invitation.lastName}</div>
+                                <div className="text-gray-500">{invitation.email}</div>
+                              </td>
+                              <td className="px-3 py-2">{invitation.role}</td>
+                              <td className="px-3 py-2">
+                                <span className={`rounded px-2 py-1 ${expired ? 'bg-gray-100 text-gray-700' : 'bg-amber-50 text-amber-800'}`}>
+                                  {expired ? 'Expired' : 'Pending acceptance'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">{new Date(invitation.expiresAt).toLocaleDateString()}</td>
+                              <td className="px-3 py-2 text-right">
+                                <button
+                                  className="text-primary-700 hover:underline disabled:opacity-50"
+                                  disabled={inviteMutation.isPending}
+                                  onClick={() => inviteMutation.mutate({ email: invitation.email, firstName: invitation.firstName, lastName: invitation.lastName, role: invitation.role })}
+                                >
+                                  {inviteMutation.isPending && inviteMutation.variables?.email === invitation.email ? 'Sending…' : expired ? 'Renew and resend' : 'Resend invitation'}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : <p className="text-sm text-gray-500">No outstanding invitations.</p>}
+              </section>
+            )}
+
             {/* Invite Modal */}
             {showInviteModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -952,9 +1039,11 @@ function SettingsContent() {
             {showInviteLinkModal && (
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white rounded-lg max-w-md w-full p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Invitation Link Created</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">{inviteEmailSent ? 'Invitation Email Sent' : 'Invitation Saved — Email Not Sent'}</h3>
                   <p className="text-sm text-gray-600 mb-4">
-                    Share this link with the team member to join your organization:
+                    {inviteEmailSent
+                      ? 'The invitation was submitted for email delivery. You can also share this link directly:'
+                      : 'The invitation is saved, but email could not be sent. Share this link directly or check Email settings before resending:'}
                   </p>
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -993,7 +1082,7 @@ function SettingsContent() {
                   </div>
                   <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
                     <div className="text-sm text-yellow-800">
-                      <strong>Note:</strong> This invitation link will expire in 7 days.
+                      <strong>Expires:</strong> {inviteExpiresAt ? new Date(inviteExpiresAt).toLocaleString() : 'Unknown'}
                     </div>
                   </div>
                   <div className="flex justify-end">
