@@ -18,12 +18,10 @@ import {
   Warehouse,
   HelpCircle,
   FileText,
-  Contact,
-  MessageSquare
+  Contact
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useAuthStore } from '@/store/auth'
-import { useFeedbackAccess } from '@/components/feedback/shared'
 
 // Create sidebar context
 const SidebarContext = createContext<{
@@ -95,7 +93,6 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout } = useAuthStore()
-  const feedbackAccess = useFeedbackAccess()
   const { isCollapsed, setCollapsed } = useSidebar()
   const [isMobile, setIsMobile] = useState(false)
 
@@ -161,7 +158,6 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 py-1 overflow-y-auto">
-        {feedbackAccess.data?.canManage && <Link href="/dashboard/feedback" title={isCollapsed ? 'Feedback' : undefined} className={cn('group flex items-center rounded px-2 py-1.5 text-xs text-slate-300 hover:bg-slate-700 hover:text-white', isCollapsed ? 'justify-center' : 'mx-1', pathname === '/dashboard/feedback' && 'bg-slate-700 text-white')}><MessageSquare className={cn('h-3.5 w-3.5 shrink-0', !isCollapsed && 'mr-2')} />{!isCollapsed && 'Feedback'}</Link>}
         {navigation.map((item, idx) => {
           const isActive = pathname === item.href || (item.href === '/dashboard/assets' && pathname.startsWith('/dashboard/assets/'))
           return (

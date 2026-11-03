@@ -29,7 +29,8 @@ import {
   Link2,
   Layers,
   Wrench,
-  Settings
+  Settings,
+  MessageSquare
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useModal } from '@/components/ui/modal-provider'
@@ -43,6 +44,8 @@ import { AssetCustomFieldManager } from '@/components/settings/asset-custom-fiel
 import { AssetStatusManager } from '@/components/settings/asset-status-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
+import FeedbackBoard from '@/components/feedback/board'
+import { useFeedbackAccess } from '@/components/feedback/shared'
 
 const settingsGroups = [
   { id: 'company', name: 'Company', icon: Building, sections: [{ id: 'company', name: 'Company' }] },
@@ -71,7 +74,8 @@ const settingsGroups = [
   },
   { id: 'notifications', name: 'Notifications', icon: Bell, sections: [{ id: 'notifications', name: 'Notifications' }] },
   { id: 'security', name: 'Security', icon: Shield, sections: [{ id: 'security', name: 'Security' }] },
-  { id: 'billing', name: 'Billing', icon: CreditCard, sections: [{ id: 'billing', name: 'Billing' }] }
+  { id: 'billing', name: 'Billing', icon: CreditCard, sections: [{ id: 'billing', name: 'Billing' }] },
+  { id: 'feedback', name: 'Feedback', icon: MessageSquare, sections: [{ id: 'feedback', name: 'Feedback' }] }
 ]
 
 interface Company {
@@ -331,6 +335,7 @@ async function updateNotificationPreferences(data: Partial<NotificationPreferenc
 }
 
 function SettingsContent() {
+  const feedbackAccess = useFeedbackAccess()
   const searchParams = useSearchParams()
   const requestedTab = searchParams.get('tab') || 'company'
   // Legacy links (for example ?tab=asset-statuses) still open the same setting.
@@ -353,7 +358,8 @@ function SettingsContent() {
 
   const { data: companyData, isLoading: companyLoading } = useQuery({
     queryKey: ['company-settings'],
-    queryFn: fetchCompanySettings
+    queryFn: fetchCompanySettings,
+    enabled: activeTab !== 'feedback'
   })
 
   const { data: teamMembers, isLoading: teamLoading } = useQuery({
@@ -501,7 +507,7 @@ function SettingsContent() {
 
       <div className="border-b border-gray-200 bg-white">
         <nav aria-label="Settings categories" className="-mb-px flex flex-wrap gap-x-1">
-          {settingsGroups.map(group => {
+          {settingsGroups.filter(group => group.id !== 'feedback' || feedbackAccess.data?.canManage).map(group => {
             const Icon = group.icon
             const selected = activeGroup.id === group.id
             return (
@@ -524,7 +530,8 @@ function SettingsContent() {
         </nav>
       </div>
 
-      <div className="bg-white rounded border border-gray-200 p-4">
+      <div className={activeTab === 'feedback' ? '' : 'bg-white rounded border border-gray-200 p-4'}>
+        {activeTab === 'feedback' && <FeedbackBoard />}
         {activeGroup.sections.length > 1 && (
           <nav aria-label={`${activeGroup.name} settings`} className="mb-5 flex flex-wrap gap-1 border-b border-gray-200 pb-3">
             {activeGroup.sections.map(section => (

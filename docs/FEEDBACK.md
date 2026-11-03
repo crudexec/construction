@@ -2,7 +2,7 @@
 
 Signed-in dashboard users open the feedback button at the bottom right. Each new subject and message creates one request in **To do**, with a private conversation. The widget lists the submitter's requests and their current status. Users can add details and return to read replies. Sending text is explicit; Enter adds a new line in the reply composer.
 
-The **Feedback** navigation link opens `/dashboard/feedback` for managers. The board has **To do**, **In progress**, and **Done** lanes. Cards move between lanes using pointer or keyboard drag-and-drop, or the status menu. Opening a card shows the conversation and allows a reply. Every status change records the actor and transition in the conversation. Cards are ordered newest first; dragging within a lane does not reorder them.
+Managers open **Settings → Feedback** (`/dashboard/settings?tab=feedback`). The former `/dashboard/feedback` URL redirects there. The board has **To do**, **In progress**, and **Done** lanes. Cards move between lanes using pointer or keyboard drag-and-drop, or the status menu. Opening a card shows the conversation and allows a reply. Every status change records the actor and transition in the conversation. Cards are ordered newest first; dragging within a lane does not reorder them.
 
 ## Access
 
