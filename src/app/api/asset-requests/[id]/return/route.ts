@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -135,3 +136,6 @@ export async function POST(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/asset-requests/[id]/return', 'POST', POSTHandler)

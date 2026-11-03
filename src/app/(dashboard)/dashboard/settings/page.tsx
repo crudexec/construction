@@ -44,6 +44,7 @@ import { AssetCustomFieldManager } from '@/components/settings/asset-custom-fiel
 import { AssetStatusManager } from '@/components/settings/asset-status-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
+import { PlatformEntry } from '@/components/platform/entry'
 import FeedbackBoard from '@/components/feedback/board'
 import { useFeedbackAccess } from '@/components/feedback/shared'
 
@@ -500,9 +501,10 @@ function SettingsContent() {
   return (
     <div className="space-y-2">
       {/* Compact Header */}
-      <div className="flex items-center space-x-2 py-1">
+      <div className="flex flex-wrap items-center gap-2 py-1">
         <Settings className="h-4 w-4 text-gray-500" />
         <h1 className="text-sm font-medium text-gray-900">Settings</h1>
+        <div className="ml-auto"><PlatformEntry /></div>
       </div>
 
       <div className="border-b border-gray-200 bg-white">

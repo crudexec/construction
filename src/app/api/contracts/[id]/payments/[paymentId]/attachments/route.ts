@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { ContractPaymentAttachmentKind } from '@prisma/client'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
@@ -33,7 +34,7 @@ async function findPayment(contractId: string, paymentId: string, companyId: str
   })
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; paymentId: string }> }
 ) {
@@ -105,7 +106,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; paymentId: string }> }
 ) {
@@ -151,3 +152,7 @@ export async function DELETE(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/contracts/[id]/payments/[paymentId]/attachments', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/contracts/[id]/payments/[paymentId]/attachments', 'DELETE', DELETEHandler)

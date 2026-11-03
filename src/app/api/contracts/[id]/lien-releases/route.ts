@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { LienReleaseStatus, LienReleaseType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 
 const validTypes = new Set(Object.values(LienReleaseType))
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -127,7 +128,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -290,3 +291,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/contracts/[id]/lien-releases', 'GET', GETHandler)
+export const POST = auditedRoute('/api/contracts/[id]/lien-releases', 'POST', POSTHandler)

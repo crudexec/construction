@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET /api/stock-alerts/config - Get stock alert configurations
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/stock-alerts/config - Create or update stock alert config
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -188,3 +187,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create config' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/stock-alerts/config', 'GET', GETHandler)
+export const POST = auditedRoute('/api/stock-alerts/config', 'POST', POSTHandler)

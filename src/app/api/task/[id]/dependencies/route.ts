@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // Add dependency to a task
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -92,7 +93,7 @@ export async function POST(
 }
 
 // Remove dependency from a task
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -146,7 +147,7 @@ export async function DELETE(
 }
 
 // Get available tasks for dependency selection
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -222,3 +223,7 @@ export async function GET(
     )
   }
 }
+
+export const POST = auditedRoute('/api/task/[id]/dependencies', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/task/[id]/dependencies', 'DELETE', DELETEHandler)
+export const GET = auditedRoute('/api/task/[id]/dependencies', 'GET', GETHandler)

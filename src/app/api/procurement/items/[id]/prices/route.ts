@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET /api/procurement/items/[id]/prices - Get price comparisons for an item
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -57,7 +56,7 @@ export async function GET(
 }
 
 // POST /api/procurement/items/[id]/prices - Add a price comparison
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -139,3 +138,7 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to create price' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/procurement/items/[id]/prices', 'GET', GETHandler)
+export const POST = auditedRoute('/api/procurement/items/[id]/prices', 'POST', POSTHandler)

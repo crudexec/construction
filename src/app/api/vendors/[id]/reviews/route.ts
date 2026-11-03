@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -33,7 +34,7 @@ function calculateOverallRating(ratings: Record<string, number | null | undefine
   return Math.round((weightedSum / totalWeight) * 10) / 10
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -105,7 +106,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -217,3 +218,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/reviews', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/[id]/reviews', 'POST', POSTHandler)

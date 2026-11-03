@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -16,7 +17,7 @@ const definitions = (companyId: string) => prisma.assetCustomFieldDefinition.fin
 })
 const conflict = () => NextResponse.json({ error: 'The layout changed. Reload the layout before saving again.' }, { status: 409 })
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const user = await authenticate(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+ async function PUTHandler(request: NextRequest) {
   try {
     const user = await authenticate(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -67,3 +68,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Unable to save asset field layout' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/asset-field-layout', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/asset-field-layout', 'PUT', PUTHandler)

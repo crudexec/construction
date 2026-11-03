@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -6,7 +7,7 @@ import path from 'path'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -75,7 +76,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -185,7 +186,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -256,3 +257,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/comments/[id]/attachments', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/comments/[id]/attachments', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/vendors/comments/[id]/attachments', 'DELETE', DELETEHandler)

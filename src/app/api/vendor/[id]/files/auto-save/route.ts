@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -12,7 +13,7 @@ const GENERATED_DOCS_FOLDER_COLOR = '#10b981' // Green color
  * POST /api/vendor/[id]/files/auto-save
  * Auto-save generated documents (like change orders) to a vendor's files
  */
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -134,3 +135,6 @@ export async function POST(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/vendor/[id]/files/auto-save', 'POST', POSTHandler)

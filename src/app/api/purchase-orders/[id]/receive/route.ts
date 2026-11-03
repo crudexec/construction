@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // POST - Record receipt of items from purchase order
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -210,3 +211,6 @@ export async function POST(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/purchase-orders/[id]/receive', 'POST', POSTHandler)

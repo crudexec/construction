@@ -7,9 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CompanyStatus {
+  ACTIVE
+  SUSPENDED
+}
+
 model Company {
   id        String   @id @default(cuid())
   name      String
+  status    CompanyStatus @default(ACTIVE)
+  accessVersion Int @default(0)
+  suspendedAt DateTime?
+  suspensionReason String?
   appName   String   @default("BuildFlo")
   logo      String?
   website   String?
@@ -206,6 +215,8 @@ model User {
   avatar           String?
   role             Role      @default(STAFF)
   isActive         Boolean   @default(true)
+  sessionVersion   Int @default(0)
+  platformAdmin    PlatformAdmin?
   feedbackManager  FeedbackManager?
   feedbackRequests FeedbackRequest[]
   feedbackMessages FeedbackMessage[]
@@ -4169,4 +4180,58 @@ model ContractDocumentTagAssignment {
   @@unique([documentId, tagId])
   @@index([documentId])
   @@index([tagId])
+}
+
+// Explicit platform grant; never inferred from a company role or feedback grant.
+model PlatformAdmin {
+  userId String @id
+  createdAt DateTime @default(now())
+  secret String?
+  pendingSecret String?
+  pendingExpiresAt DateTime?
+  mfaEnabledAt DateTime?
+  lastCounter Int @default(-1)
+  failedAttempts Int @default(0)
+  lockedUntil DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions PlatformSession[]
+}
+
+model PlatformSession {
+  tokenHash String @id
+  userId String
+  userVersion Int
+  companyVersion Int
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  admin PlatformAdmin @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Immutable snapshots deliberately have no cascading foreign keys.
+model AuditEvent {
+  id String @id @default(cuid())
+  requestId String
+  companyId String
+  companyName String
+  actorId String?
+  actorName String
+  actorType String
+  scope String @default("COMPANY")
+  module String
+  action String
+  resourceId String?
+  summary String
+  outcome String
+  reason String?
+  before Json?
+  after Json?
+  createdAt DateTime @default(now())
+  @@unique([requestId, outcome])
+  @@index([companyId, createdAt, id])
+  @@index([scope, createdAt, id])
+  @@index([actorId, createdAt])
+  @@index([module, createdAt])
+  @@index([outcome, createdAt])
 }

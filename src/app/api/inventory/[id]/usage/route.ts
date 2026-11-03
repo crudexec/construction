@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // POST /api/inventory/[id]/usage - Record usage of inventory
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -133,3 +132,6 @@ export async function POST(
     return NextResponse.json({ error: 'Failed to record usage' }, { status: 500 })
   }
 }
+
+
+export const POST = auditedRoute('/api/inventory/[id]/usage', 'POST', POSTHandler)

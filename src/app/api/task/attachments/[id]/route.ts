@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { unlink } from 'fs/promises'
 import path from 'path'
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -63,3 +64,6 @@ export async function DELETE(
     )
   }
 }
+
+
+export const DELETE = auditedRoute('/api/task/attachments/[id]', 'DELETE', DELETEHandler)

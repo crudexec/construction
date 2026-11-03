@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET - List items this vendor supplies (via PriceComparison)
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -101,7 +102,7 @@ export async function GET(
 }
 
 // POST - Add item to vendor's catalog
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -239,7 +240,7 @@ export async function POST(
 }
 
 // DELETE - Remove item from vendor's catalog
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -321,3 +322,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/catalog', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/[id]/catalog', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/vendors/[id]/catalog', 'DELETE', DELETEHandler)

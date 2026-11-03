@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
@@ -77,7 +78,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
@@ -154,3 +155,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/contacts/[contactId]/comments', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/[id]/contacts/[contactId]/comments', 'POST', POSTHandler)

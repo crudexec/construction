@@ -1,5 +1,5 @@
-'use server'
-
+import { recordAudit } from '@/lib/platform/audit'
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { NotificationChannel } from '@prisma/client'
@@ -10,7 +10,7 @@ import { taskDueReminderSMS } from '@/lib/sms/templates/notifications'
 
 // GET /api/cron/due-date-notifications - Send due date reminder notifications
 // This should be called by a cron job daily (e.g., Vercel cron at 8am)
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     // Verify cron secret for security - REQUIRED
     const authHeader = request.headers.get('authorization')
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
     // Get all companies with email configured
     const companies = await prisma.company.findMany({
       where: {
+        status: 'ACTIVE',
         emailConfig: {
           isActive: true,
           provider: { not: 'NONE' },
@@ -275,6 +276,7 @@ export async function GET(request: NextRequest) {
         companyResult.errors.push(`Company error: ${companyError}`)
       }
 
+      await recordAudit({ companyId: company.id, companyName: company.appName, actorName: 'Due-date reminder job', actorType: 'SYSTEM', module: 'notifications', action: 'scheduled-reminders', summary: `Scheduled reminders: ${companyResult.notificationsSent} notifications, ${companyResult.emailsSent} emails, ${companyResult.smsSent} SMS`, outcome: companyResult.errors.length ? 'FAILED' : 'SUCCEEDED', after: { count: companyResult.notificationsSent, failed: companyResult.errors.length } })
       results.push(companyResult)
     }
 
@@ -289,3 +291,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to process notifications' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/cron/due-date-notifications', 'GET', GETHandler)

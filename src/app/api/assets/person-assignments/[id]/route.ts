@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { applyAssetContext, lockAsset, AssetContextError } from '@/lib/assets/context'
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -66,3 +67,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to remove person assignment' }, { status: 500 })
   }
 }
+
+
+export const PATCH = auditedRoute('/api/assets/person-assignments/[id]', 'PATCH', PATCHHandler)

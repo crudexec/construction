@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // Get maintenance schedules and records for an asset
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -74,7 +75,7 @@ export async function GET(
 }
 
 // Create a new maintenance schedule
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -188,3 +189,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/assets/[id]/maintenance', 'GET', GETHandler)
+export const POST = auditedRoute('/api/assets/[id]/maintenance', 'POST', POSTHandler)

@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { AssetType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
     const user = token ? await validateUser(token) : null
@@ -30,3 +31,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch asset categories' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/asset-categories', 'GET', GETHandler)

@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verify } from 'jsonwebtoken'
@@ -58,7 +59,7 @@ interface CreateTemplateRequest {
   budgetItems?: TemplateBudgetItem[]
 }
 
-export async function POST(request: Request) {
+ async function POSTHandler(request: Request) {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')
@@ -198,7 +199,7 @@ async function createFoldersRecursive(
   }
 }
 
-export async function GET(request: Request) {
+ async function GETHandler(request: Request) {
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')
@@ -246,3 +247,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = auditedRoute('/api/templates', 'POST', POSTHandler)
+export const GET = auditedRoute('/api/templates', 'GET', GETHandler)

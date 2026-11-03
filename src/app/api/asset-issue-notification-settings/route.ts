@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -37,7 +38,7 @@ async function validateRecipientUserIds(companyId: string, recipientUserIds: unk
   return ids
 }
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const user = await getUser(request)
     if (!user) {
@@ -57,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+ async function PATCHHandler(request: NextRequest) {
   try {
     const user = await getUser(request)
     if (!user) {
@@ -96,3 +97,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update asset issue notification settings' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/asset-issue-notification-settings', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/asset-issue-notification-settings', 'PATCH', PATCHHandler)

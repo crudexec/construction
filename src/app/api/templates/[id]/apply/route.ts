@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verify } from 'jsonwebtoken'
@@ -22,7 +23,7 @@ interface ApplyTemplateRequest {
   customFields?: any
 }
 
-export async function POST(
+ async function POSTHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -249,3 +250,5 @@ async function createProjectFoldersFromTemplate(projectId: string, templateId: s
     await createFolderRecursive(folder)
   }
 }
+
+export const POST = auditedRoute('/api/templates/[id]/apply', 'POST', POSTHandler)

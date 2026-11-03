@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { applyAssetContext, lockAsset, AssetContextError } from '@/lib/assets/context'
 
 // PATCH - Remove an asset from a job (sets removedAt)
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -71,3 +72,6 @@ export async function PATCH(
     )
   }
 }
+
+
+export const PATCH = auditedRoute('/api/assets/job-assignments/[id]', 'PATCH', PATCHHandler)

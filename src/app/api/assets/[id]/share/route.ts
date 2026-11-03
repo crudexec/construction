@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { randomBytes } from 'crypto'
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -52,7 +53,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -90,3 +91,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to disable sharing' }, { status: 500 })
   }
 }
+
+
+export const POST = auditedRoute('/api/assets/[id]/share', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/assets/[id]/share', 'DELETE', DELETEHandler)

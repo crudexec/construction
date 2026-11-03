@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -7,7 +8,7 @@ import { getSMSService } from '@/lib/sms'
 import { newLeadSMS } from '@/lib/sms/templates/notifications'
 
 // GET: Get all team members for a project
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -74,7 +75,7 @@ export async function GET(
 }
 
 // POST: Add user to project team
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -255,7 +256,7 @@ export async function POST(
 }
 
 // DELETE: Remove user from project team
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -310,3 +311,7 @@ export async function DELETE(
     )
   }
 }
+
+export const GET = auditedRoute('/api/project/[id]/team', 'GET', GETHandler)
+export const POST = auditedRoute('/api/project/[id]/team', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/project/[id]/team', 'DELETE', DELETEHandler)

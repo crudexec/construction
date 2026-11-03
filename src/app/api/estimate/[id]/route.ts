@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -101,7 +102,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -168,3 +169,6 @@ export async function DELETE(
     )
   }
 }
+
+export const PATCH = auditedRoute('/api/estimate/[id]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/estimate/[id]', 'DELETE', DELETEHandler)

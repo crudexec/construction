@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { comparePassword, generateVendorToken } from '@/lib/vendor-auth'
 
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, password } = body
@@ -26,13 +27,15 @@ export async function POST(request: NextRequest) {
             id: true,
             name: true,
             appName: true,
-            currency: true
+            currency: true,
+            status: true,
+            accessVersion: true
           }
         }
       }
     })
 
-    if (!vendor) {
+    if (!vendor || vendor.company.status !== 'ACTIVE') {
       return NextResponse.json(
         { error: 'Invalid email or password' },
         { status: 401 }
@@ -76,7 +79,8 @@ export async function POST(request: NextRequest) {
       vendorId: vendor.id,
       email: vendor.portalEmail!,
       companyId: vendor.companyId,
-      type: 'vendor'
+      type: 'vendor',
+      companyVersion: vendor.company.accessVersion
     })
 
     // Update last login
@@ -114,3 +118,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/vendor-portal/login', 'POST', POSTHandler)

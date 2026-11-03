@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { access, body, card, cardSelect, clientId, fail, FeedbackError, headers, lockRequest, messageSelect, string, visible } from '@/lib/feedback/server'
 import { statusLabels, statuses } from '@/lib/feedback/types'
 type Context = { params: Promise<{ id: string }> }
-export async function GET(request: NextRequest, context: Context) {
+ async function GETHandler(request: NextRequest, context: Context) {
   try {
     const a = await access(request), { id } = await context.params
     const row = await prisma.feedbackRequest.findFirst({ where: { id, ...visible(a) }, select: cardSelect })
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest, context: Context) {
     return NextResponse.json({ request: card(row), messages: messages.slice(0, 50).reverse(), nextCursor: messages.length > 50 ? messages[49].id : null, canManage: a.canManage }, { headers })
   } catch (error) { return fail(error) }
 }
-export async function POST(request: NextRequest, context: Context) {
+ async function POSTHandler(request: NextRequest, context: Context) {
   try {
     const a = await access(request), { id } = await context.params, input = await body(request)
     const text = string(input.body, 'Message', 4000), key = clientId(input.clientId)
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest, context: Context) {
     return NextResponse.json(result, { status: 201, headers })
   } catch (error) { return fail(error) }
 }
-export async function PATCH(request: NextRequest, context: Context) {
+ async function PATCHHandler(request: NextRequest, context: Context) {
   try {
     const a = await access(request); if (!a.canManage) throw new FeedbackError('Only the platform super admin can change status.', 403)
     const { id } = await context.params, input = await body(request)
@@ -47,3 +48,8 @@ export async function PATCH(request: NextRequest, context: Context) {
     return NextResponse.json(result, { headers })
   } catch (error) { return fail(error) }
 }
+
+
+export const GET = auditedRoute('/api/feedback/[id]', 'GET', GETHandler)
+export const POST = auditedRoute('/api/feedback/[id]', 'POST', POSTHandler)
+export const PATCH = auditedRoute('/api/feedback/[id]', 'PATCH', PATCHHandler)

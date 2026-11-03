@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -23,14 +24,14 @@ export async function PATCH(
     const { id } = await params
     const { role, isActive, newPassword } = await request.json()
 
-    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true } })
+    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true, platformAdmin: true } })
     if (!target) return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
-    if (target.feedbackManager && id !== user.id) {
+    if ((target.feedbackManager || target.platformAdmin) && id !== user.id) {
       return NextResponse.json({ error: 'Company admins cannot modify a platform super admin account.' }, { status: 403 })
     }
 
     // Prevent self-demotion
-    if (id === user.id && role !== 'ADMIN') {
+    if (id === user.id && role !== undefined && role !== 'ADMIN') {
       return NextResponse.json({ error: 'Cannot change your own admin role' }, { status: 400 })
     }
 
@@ -52,12 +53,13 @@ export async function PATCH(
       where: { 
         id,
         companyId: user.companyId,
-        ...(id !== user.id && { feedbackManager: { is: null } })
+        ...(id !== user.id && { feedbackManager: { is: null }, platformAdmin: { is: null } })
       },
       data: {
         ...(role !== undefined && { role }),
         ...(isActive !== undefined && { isActive }),
-        ...(hashedPassword && { password: hashedPassword })
+        ...(hashedPassword && { password: hashedPassword }),
+        ...((hashedPassword || isActive === false || role !== undefined) && { sessionVersion: { increment: 1 } })
       },
       select: {
         id: true,
@@ -79,7 +81,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -103,9 +105,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
-    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true } })
+    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true, platformAdmin: true } })
     if (!target) return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
-    if (target.feedbackManager) {
+    if (target.feedbackManager || target.platformAdmin) {
       return NextResponse.json({ error: 'Company admins cannot remove a platform super admin account.' }, { status: 403 })
     }
 
@@ -114,10 +116,11 @@ export async function DELETE(
       where: { 
         id,
         companyId: user.companyId,
-        feedbackManager: { is: null }
+        feedbackManager: { is: null }, platformAdmin: { is: null }
       },
       data: {
-        isActive: false
+        isActive: false,
+        sessionVersion: { increment: 1 }
       }
     })
 
@@ -130,3 +133,6 @@ export async function DELETE(
     )
   }
 }
+
+export const PATCH = auditedRoute('/api/team/[id]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/team/[id]', 'DELETE', DELETEHandler)

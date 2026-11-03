@@ -1,7 +1,8 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+ async function GETHandler() {
   try {
     // Check database connection
     await prisma.$queryRaw`SELECT 1`
@@ -21,3 +22,5 @@ export async function GET() {
     }, { status: 503 })
   }
 }
+
+export const GET = auditedRoute('/api/health', 'GET', GETHandler)

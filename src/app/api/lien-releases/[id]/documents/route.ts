@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { mkdir, writeFile } from 'fs/promises'
 import path from 'path'
@@ -5,7 +6,7 @@ import { LienReleaseStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -110,3 +111,6 @@ export async function POST(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/lien-releases/[id]/documents', 'POST', POSTHandler)

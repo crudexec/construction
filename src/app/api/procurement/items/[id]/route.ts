@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET /api/procurement/items/[id] - Get a single procurement item
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -96,7 +95,7 @@ export async function GET(
 }
 
 // PATCH /api/procurement/items/[id] - Update a procurement item
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -194,7 +193,7 @@ export async function PATCH(
 }
 
 // DELETE /api/procurement/items/[id] - Soft delete (deactivate) a procurement item
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -246,3 +245,8 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete item' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/procurement/items/[id]', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/procurement/items/[id]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/procurement/items/[id]', 'DELETE', DELETEHandler)

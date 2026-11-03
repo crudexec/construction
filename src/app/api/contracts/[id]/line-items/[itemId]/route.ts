@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
@@ -107,7 +108,7 @@ await prisma.vendorContract.updateMany({
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; itemId: string }> }
 ) {
@@ -177,3 +178,7 @@ await prisma.vendorContract.updateMany({
     )
   }
 }
+
+
+export const PATCH = auditedRoute('/api/contracts/[id]/line-items/[itemId]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/contracts/[id]/line-items/[itemId]', 'DELETE', DELETEHandler)

@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET - Fetch comments for an activity
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -68,7 +69,7 @@ export async function GET(
 }
 
 // POST - Add a comment to an activity
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -136,3 +137,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/schedule-activity/[id]/comments', 'GET', GETHandler)
+export const POST = auditedRoute('/api/schedule-activity/[id]/comments', 'POST', POSTHandler)

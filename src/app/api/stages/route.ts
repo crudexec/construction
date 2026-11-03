@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
@@ -8,7 +9,7 @@ interface DecodedToken {
   role: string
 }
 
-export async function GET(request: Request) {
+ async function GETHandler(request: Request) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '')
     
@@ -37,3 +38,5 @@ export async function GET(request: Request) {
     )
   }
 }
+
+export const GET = auditedRoute('/api/stages', 'GET', GETHandler)

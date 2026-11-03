@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // PUT - Upsert all custom field values for an asset in one request
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -87,3 +88,6 @@ export async function PUT(
     )
   }
 }
+
+
+export const PUT = auditedRoute('/api/assets/[id]/custom-field-values', 'PUT', PUTHandler)

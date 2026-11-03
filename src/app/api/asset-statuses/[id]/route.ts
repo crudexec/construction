@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { AssetStatus, Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -22,7 +23,7 @@ async function getUser(request: NextRequest) {
   return validateUser(token)
 }
 
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -90,7 +91,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -133,3 +134,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete asset status' }, { status: 500 })
   }
 }
+
+
+export const PUT = auditedRoute('/api/asset-statuses/[id]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/asset-statuses/[id]', 'DELETE', DELETEHandler)

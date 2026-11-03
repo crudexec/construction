@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { failure, newReviewToken, privateHeaders, readBody, requestOrigin, requireAdmin, ReviewError } from '@/lib/import-review/server'
 
 type Context = { params: Promise<{ id: string }> }
-export async function GET(request: NextRequest, { params }: Context) {
+ async function GETHandler(request: NextRequest, { params }: Context) {
   try {
     const user = await requireAdmin(request)
     const review = await prisma.assetImportReview.findFirst({ where: { id: (await params).id, companyId: user.companyId }, include: { rows: { orderBy: { position: 'asc' } }, events: { orderBy: { createdAt: 'asc' } } } })
@@ -13,7 +14,7 @@ export async function GET(request: NextRequest, { params }: Context) {
     return NextResponse.json(exported, { headers: { ...privateHeaders, ...(request.nextUrl.searchParams.has('download') ? { 'Content-Disposition': 'attachment; filename="asset-import-review.json"' } : {}) } })
   } catch (error) { return failure(error) }
 }
-export async function POST(request: NextRequest, { params }: Context) {
+ async function POSTHandler(request: NextRequest, { params }: Context) {
   try {
     const user = await requireAdmin(request)
     const body = await readBody(request)
@@ -39,3 +40,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     return NextResponse.json(result, { headers: privateHeaders })
   } catch (error) { return failure(error) }
 }
+
+
+export const GET = auditedRoute('/api/asset-import-reviews/[id]', 'GET', GETHandler)
+export const POST = auditedRoute('/api/asset-import-reviews/[id]', 'POST', POSTHandler)

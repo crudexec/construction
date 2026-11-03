@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 const VALID_SERVICE_TYPES = ['OIL_CHANGE', 'FUEL', 'HYDRAULIC_FLUID', 'FILTER_OIL', 'FILTER_FUEL', 'FILTER_HYDRAULIC', 'OTHER']
 
 // POST - Log a completed maintenance/service record directly (no schedule required)
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -95,3 +96,6 @@ export async function POST(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/assets/[id]/maintenance/records', 'POST', POSTHandler)

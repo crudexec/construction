@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET - List all vendor categories for the company
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST - Create a new vendor category
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -136,3 +137,7 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendor-categories', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendor-categories', 'POST', POSTHandler)

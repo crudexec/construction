@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 const VALID_STATUSES = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED']
 const VALID_URGENCIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -59,7 +60,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -123,3 +124,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update asset issue' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/assets/issues/[id]', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/assets/issues/[id]', 'PATCH', PATCHHandler)

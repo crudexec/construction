@@ -6,13 +6,13 @@ import { GripVertical, MessageSquare, RefreshCw, Search } from 'lucide-react'
 import { FeedbackCard, FeedbackStatus, statusLabels, statuses } from '@/lib/feedback/types'
 import { button, control, Conversation, ErrorMessage, FeedbackDialog, StatusMenu, useFeedbackAccess, useFeedbackList, useMoveFeedback } from '@/components/feedback/shared'
 
-export default function FeedbackBoard() {
+export default function FeedbackBoard({ companyId = '', companyName, unanswered = false }: { companyId?: string; companyName?: string; unanswered?: boolean }) {
   const access = useFeedbackAccess()
   const [search, setSearch] = useState(''), [filter, setFilter] = useState(''), [selected, setSelected] = useState<string | null>(null)
   useEffect(() => { const timeout = setTimeout(() => setFilter(search.trim()), 300); return () => clearTimeout(timeout) }, [search])
-  const todo = useFeedbackList('board', 'TODO', filter, !!access.data?.canManage)
-  const progress = useFeedbackList('board', 'IN_PROGRESS', filter, !!access.data?.canManage)
-  const done = useFeedbackList('board', 'DONE', filter, !!access.data?.canManage)
+  const todo = useFeedbackList('board', 'TODO', filter, !!access.data?.canManage, companyId, unanswered)
+  const progress = useFeedbackList('board', 'IN_PROGRESS', filter, !!access.data?.canManage, companyId, unanswered)
+  const done = useFeedbackList('board', 'DONE', filter, !!access.data?.canManage, companyId, unanswered)
   const lanes = [todo, progress, done], move = useMoveFeedback()
   const refresh = () => { lanes.forEach(lane => { void lane.refetch() }) }
   const onDragEnd = (result: DropResult) => {
@@ -21,7 +21,7 @@ export default function FeedbackBoard() {
     if (request) move.mutate({ request, status: result.destination.droppableId as FeedbackStatus })
   }
   return <div className="mx-auto max-w-[1600px] pb-20 pt-4">
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-gray-900">Feedback board</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">Track feedback, reply to requests, and keep people informed as work progresses.</p>{access.data && <p className="mt-1 text-xs text-gray-600">{access.data.global ? 'All companies' : 'Your company'} · Newest requests first</p>}</div>{access.data?.canManage && <button className={button} onClick={refresh} disabled={lanes.some(lane => lane.isFetching)}><RefreshCw className="h-4 w-4" />Refresh</button>}</div>
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-gray-900">Feedback board</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">Track feedback, reply to requests, and keep people informed as work progresses.</p>{access.data && <p className="mt-1 text-xs text-gray-600">{access.data.global ? (companyId ? companyName || 'Selected company' : 'All companies') : 'Your company'} · Newest requests first</p>}</div>{access.data?.canManage && <button className={button} onClick={refresh} disabled={lanes.some(lane => lane.isFetching)}><RefreshCw className="h-4 w-4" />Refresh</button>}</div>
     <ErrorMessage error={access.error} retry={() => { void access.refetch() }} />
     {access.isPending && <p role="status" className="text-sm text-gray-600">Loading feedback board…</p>}
     {access.data && !access.data.canManage && <div className="rounded-lg border border-gray-200 bg-white p-6"><h2 className="font-semibold">This board is for feedback managers</h2><p className="mt-2 text-sm text-gray-600">Use the feedback button at the bottom right to send a request or view your conversations.</p></div>}

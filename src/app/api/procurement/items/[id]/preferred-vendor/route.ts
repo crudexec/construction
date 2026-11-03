@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // PUT - Set or change preferred vendor for a procurement item
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -119,7 +120,7 @@ export async function PUT(
 }
 
 // DELETE - Remove preferred vendor from procurement item
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -175,3 +176,7 @@ export async function DELETE(
     )
   }
 }
+
+
+export const PUT = auditedRoute('/api/procurement/items/[id]/preferred-vendor', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/procurement/items/[id]/preferred-vendor', 'DELETE', DELETEHandler)

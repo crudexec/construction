@@ -1,12 +1,11 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { EmailService } from '@/lib/email'
 
 // GET /api/company/email-config - Get email configuration
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH /api/company/email-config - Update email configuration
-export async function PATCH(request: NextRequest) {
+ async function PATCHHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -185,3 +184,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update email config' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/company/email-config', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/company/email-config', 'PATCH', PATCHHandler)

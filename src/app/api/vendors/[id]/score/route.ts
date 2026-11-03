@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -23,7 +24,7 @@ interface AggregateScore {
   recentTrend: 'up' | 'down' | 'stable' | null
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -141,3 +142,6 @@ export async function GET(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/score', 'GET', GETHandler)

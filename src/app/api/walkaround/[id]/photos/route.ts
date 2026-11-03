@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { validateUser } from '@/lib/auth';
@@ -5,7 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -90,7 +91,7 @@ export async function POST(
   }
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -133,3 +134,6 @@ export async function GET(
     );
   }
 }
+
+export const POST = auditedRoute('/api/walkaround/[id]/photos', 'POST', POSTHandler)
+export const GET = auditedRoute('/api/walkaround/[id]/photos', 'GET', GETHandler)

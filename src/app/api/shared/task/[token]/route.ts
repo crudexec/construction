@@ -1,7 +1,8 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
@@ -110,7 +111,7 @@ export async function GET(
   }
 }
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
@@ -175,3 +176,6 @@ export async function PATCH(
     )
   }
 }
+
+export const GET = auditedRoute('/api/shared/task/[token]', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/shared/task/[token]', 'PATCH', PATCHHandler)

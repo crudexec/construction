@@ -1,15 +1,16 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { access, body, card, cardSelect, clientId, fail, FeedbackError, headers, pagePath, scope, string } from '@/lib/feedback/server'
 import { statuses } from '@/lib/feedback/types'
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const a = await access(request), params = request.nextUrl.searchParams
     const board = params.get('view') === 'board', status = params.get('status'), search = params.get('search')?.trim().slice(0, 160)
     if (status && !statuses.includes(status as typeof statuses[number])) throw new FeedbackError('Invalid feedback status.')
-    const where: Prisma.FeedbackRequestWhereInput = { ...scope(a, board), ...(status ? { status: status as typeof statuses[number] } : {}), ...(search ? { OR: [{ title: { contains: search, mode: 'insensitive' } }, { createdByName: { contains: search, mode: 'insensitive' } }] } : {}) }
+    const where: Prisma.FeedbackRequestWhereInput = { ...scope(a, board), ...(board && a.global && params.get('companyId') ? { companyId: params.get('companyId')! } : {}), ...(status ? { status: status as typeof statuses[number] } : {}), ...(board && params.get('unanswered') === 'true' ? { AND: [{ status: { not: 'DONE' } }], createdAt: { lt: new Date(Date.now() - 7 * 86400000) }, messages: { none: { fromTeam: true } } } : {}), ...(search ? { OR: [{ title: { contains: search, mode: 'insensitive' } }, { createdByName: { contains: search, mode: 'insensitive' } }] } : {}) }
     const cursor = params.get('cursor')
     if (cursor && !await prisma.feedbackRequest.findFirst({ where: { ...where, id: cursor }, select: { id: true } })) throw new FeedbackError('The list changed. Refresh to continue.', 409)
     const [rows, total] = await prisma.$transaction([
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ items: rows.slice(0, 25).map(card), total, nextCursor: rows.length > 25 ? rows[24].id : null }, { headers })
   } catch (error) { return fail(error) }
 }
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const a = await access(request), input = await body(request)
     const title = string(input.title, 'Subject', 160), text = string(input.body, 'Message', 4000), key = clientId(input.clientId), page = pagePath(input.pagePath)
@@ -34,3 +35,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 201, headers })
   } catch (error) { return fail(error) }
 }
+
+
+export const GET = auditedRoute('/api/feedback', 'GET', GETHandler)
+export const POST = auditedRoute('/api/feedback', 'POST', POSTHandler)

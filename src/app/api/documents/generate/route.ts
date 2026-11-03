@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { validateUser } from '@/lib/auth'
 import { createDocumentGenerator } from '@/lib/documents'
 
 // POST - Generate a document from a template
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -94,3 +95,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/documents/generate', 'POST', POSTHandler)

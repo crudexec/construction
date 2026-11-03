@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import jwt from 'jsonwebtoken'
@@ -21,7 +22,7 @@ async function getUserFromToken(request: Request): Promise<DecodedToken | null> 
   }
 }
 
-export async function GET(
+ async function GETHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -73,7 +74,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+ async function PUTHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -239,7 +240,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -282,3 +283,7 @@ export async function DELETE(
     )
   }
 }
+
+export const GET = auditedRoute('/api/projects/[id]', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/projects/[id]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/projects/[id]', 'DELETE', DELETEHandler)

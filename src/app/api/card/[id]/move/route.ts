@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -79,3 +80,5 @@ export async function PATCH(
     )
   }
 }
+
+export const PATCH = auditedRoute('/api/card/[id]/move', 'PATCH', PATCHHandler)

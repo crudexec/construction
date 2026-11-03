@@ -1,12 +1,11 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { EmailService } from '@/lib/email'
 
 // POST /api/company/email-config/test - Test email configuration
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -98,3 +97,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to test email config' }, { status: 500 })
   }
 }
+
+
+export const POST = auditedRoute('/api/company/email-config/test', 'POST', POSTHandler)

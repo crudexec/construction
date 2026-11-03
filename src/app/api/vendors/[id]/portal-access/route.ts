@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { hashPassword } from '@/lib/vendor-auth'
 
 // GET /api/vendors/[id]/portal-access - Get portal access status
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -60,7 +61,7 @@ export async function GET(
 }
 
 // POST /api/vendors/[id]/portal-access - Enable or update portal access
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -150,7 +151,7 @@ export async function POST(
 }
 
 // DELETE /api/vendors/[id]/portal-access - Disable portal access
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -210,3 +211,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/portal-access', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/[id]/portal-access', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/vendors/[id]/portal-access', 'DELETE', DELETEHandler)

@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET - Get a single vendor category
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -54,7 +55,7 @@ export async function GET(
 }
 
 // PUT - Update a vendor category
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -132,7 +133,7 @@ export async function PUT(
 }
 
 // DELETE - Delete a vendor category
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -195,3 +196,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendor-categories/[id]', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/vendor-categories/[id]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/vendor-categories/[id]', 'DELETE', DELETEHandler)

@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { getAssetHistory } from '@/lib/assets/history-query'
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+ async function GETHandler(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
     const user = token ? await validateUser(token) : null
@@ -18,3 +19,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Failed to fetch asset history' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/assets/[id]/history', 'GET', GETHandler)

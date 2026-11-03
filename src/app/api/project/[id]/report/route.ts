@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { startOfDay, endOfDay, parseISO, format } from 'date-fns'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -345,3 +346,5 @@ export async function GET(
     )
   }
 }
+
+export const GET = auditedRoute('/api/project/[id]/report', 'GET', GETHandler)

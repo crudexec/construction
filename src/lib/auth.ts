@@ -14,6 +14,8 @@ export interface TokenPayload {
   email: string
   role: Role
   companyId: string
+  sessionVersion?: number
+  companyVersion?: number
 }
 
 export function generateToken(payload: TokenPayload): string {
@@ -45,7 +47,7 @@ export async function validateUser(token: string) {
     include: { company: true }
   })
 
-  if (!user || !user.isActive) return null
+  if (!user || !user.isActive || payload.companyId !== user.companyId || payload.role !== user.role || user.company.status !== 'ACTIVE' || (payload.sessionVersion ?? 0) !== user.sessionVersion || (payload.companyVersion ?? 0) !== user.company.accessVersion) return null
 
   return user
 }

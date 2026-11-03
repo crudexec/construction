@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -137,7 +138,7 @@ export async function GET(
 }
 
 // Update activity (for linking to tasks/milestones or updating progress)
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -257,7 +258,7 @@ export async function PATCH(
 }
 
 // Delete all schedule data for project
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -312,3 +313,8 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete schedule' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/project/[id]/schedule', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/project/[id]/schedule', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/project/[id]/schedule', 'DELETE', DELETEHandler)

@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { ContractPaymentAPStatus, ContractPaymentPMStatus, Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -208,7 +209,7 @@ function buildPaymentData(body: Record<string, unknown>) {
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -326,7 +327,7 @@ export async function POST(
   }
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -359,3 +360,7 @@ export async function GET(
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/contracts/[id]/payments', 'POST', POSTHandler)
+export const GET = auditedRoute('/api/contracts/[id]/payments', 'GET', GETHandler)

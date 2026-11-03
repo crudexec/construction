@@ -1,7 +1,8 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
@@ -11,6 +12,7 @@ export async function GET(
     const invite = await prisma.teamInvite.findFirst({
       where: {
         token,
+        company: { status: 'ACTIVE' },
         isAccepted: false,
         expiresAt: {
           gte: new Date()
@@ -46,7 +48,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
@@ -61,6 +63,7 @@ export async function POST(
     const invite = await prisma.teamInvite.findFirst({
       where: {
         token,
+        company: { status: 'ACTIVE' },
         isAccepted: false,
         expiresAt: {
           gte: new Date()
@@ -88,7 +91,7 @@ export async function POST(
     // it while this request is hashing the password, no account may be created.
     const newUser = await prisma.$transaction(async tx => {
       const claimed = await tx.teamInvite.updateMany({
-        where: { id: invite.id, token, isAccepted: false, expiresAt: { gte: new Date() } },
+        where: { id: invite.id, token, company: { status: 'ACTIVE' }, isAccepted: false, expiresAt: { gte: new Date() } },
         data: { isAccepted: true, acceptedAt: new Date() },
       })
       if (!claimed.count) return null
@@ -148,3 +151,7 @@ export async function POST(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/invite/[token]', 'GET', GETHandler)
+export const POST = auditedRoute('/api/invite/[token]', 'POST', POSTHandler)

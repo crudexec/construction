@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET - Get a single tag with its vendors
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -60,7 +61,7 @@ export async function GET(
 }
 
 // PATCH - Update a tag
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -137,7 +138,7 @@ export async function PATCH(
 }
 
 // DELETE - Delete a tag
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -186,3 +187,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendor-tags/[id]', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/vendor-tags/[id]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/vendor-tags/[id]', 'DELETE', DELETEHandler)

@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 const VALID_FIELD_TYPES = ['TEXT', 'NUMBER', 'DATE', 'BOOLEAN', 'SELECT']
 
 // PUT - Update an asset custom field definition
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -80,7 +81,7 @@ export async function PUT(
 }
 
 // DELETE - Delete an asset custom field definition
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -133,3 +134,7 @@ export async function DELETE(
     )
   }
 }
+
+
+export const PUT = auditedRoute('/api/asset-custom-fields/[id]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/asset-custom-fields/[id]', 'DELETE', DELETEHandler)

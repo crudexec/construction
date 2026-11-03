@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -12,7 +13,7 @@ async function validateVendor(vendorId: string, companyId: string) {
   })
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -48,7 +49,7 @@ export async function GET(
   }
 }
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -83,7 +84,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -132,3 +133,8 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete supplier' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/suppliers', 'GET', GETHandler)
+export const POST = auditedRoute('/api/vendors/[id]/suppliers', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/vendors/[id]/suppliers', 'DELETE', DELETEHandler)

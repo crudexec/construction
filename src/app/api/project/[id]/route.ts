@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -492,7 +493,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -601,7 +602,7 @@ export async function PUT(
   }
 }
 
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -669,3 +670,7 @@ export async function PATCH(
     )
   }
 }
+
+export const GET = auditedRoute('/api/project/[id]', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/project/[id]', 'PUT', PUTHandler)
+export const PATCH = auditedRoute('/api/project/[id]', 'PATCH', PATCHHandler)

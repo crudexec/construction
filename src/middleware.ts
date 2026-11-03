@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { validateUser } from '@/lib/auth'
 import type { NextRequest } from 'next/server'
 
 // Public page paths that don't require any authentication
@@ -37,7 +38,7 @@ function isVendorApiPath(pathname: string): boolean {
   return vendorApiPaths.some(path => pathname.startsWith(path))
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
   if (pathname.startsWith('/import-review/') || pathname.startsWith('/api/shared/import-review/')) {
@@ -53,6 +54,12 @@ export function middleware(request: NextRequest) {
                     request.headers.get('authorization')?.replace('Bearer ', '')
   const vendorToken = request.cookies.get('vendor-auth-token')?.value ||
                       request.headers.get('authorization')?.replace('Bearer ', '')
+
+  // Static uploads must also reject revoked or suspended staff sessions.
+  if (pathname.startsWith('/uploads/')) {
+    const user = userToken ? await validateUser(userToken) : null
+    if (!user) return new NextResponse('Unauthorized', { status: 401 })
+  }
 
   // Handle API routes
   if (pathname.startsWith('/api/')) {
@@ -132,6 +139,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     // Include all routes except static files
     '/((?!_next/static|_next/image|favicon.ico).*)',

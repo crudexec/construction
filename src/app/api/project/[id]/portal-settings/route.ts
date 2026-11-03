@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET: Get client portal settings for a project
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -59,7 +60,7 @@ export async function GET(
 }
 
 // PUT: Update client portal settings
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -181,3 +182,6 @@ export async function PUT(
     )
   }
 }
+
+export const GET = auditedRoute('/api/project/[id]/portal-settings', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/project/[id]/portal-settings', 'PUT', PUTHandler)

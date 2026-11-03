@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verify } from 'jsonwebtoken'
 import { prisma } from '@/lib/prisma'
 
-export async function DELETE(
+ async function DELETEHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -48,3 +49,5 @@ export async function DELETE(
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const DELETE = auditedRoute('/api/templates/[id]', 'DELETE', DELETEHandler)

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { NextRequest, NextResponse } from 'next/server'
 import { validateUser } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { hasPlatformSession } from '@/lib/platform/server'
 import { requestOrigin } from '@/lib/import-review/server'
 
 export const headers = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -15,7 +16,9 @@ export async function access(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value || request.headers.get('authorization')?.replace(/^Bearer /, '')
   const user = token ? await validateUser(token) : null
   if (!user) throw new FeedbackError('Please sign in to use feedback.', 401)
-  const global = !!await prisma.feedbackManager.findUnique({ where: { userId: user.id } })
+  const feedbackGrant = await prisma.feedbackManager.findUnique({ where: { userId: user.id } })
+  const platformGrant = await prisma.platformAdmin.findUnique({ where: { userId: user.id } })
+  const global = !!feedbackGrant || (!!platformGrant && await hasPlatformSession(request, user))
   return { user, global, canManage: global }
 }
 export type Access = Awaited<ReturnType<typeof access>>

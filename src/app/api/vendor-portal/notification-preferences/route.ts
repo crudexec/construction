@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateVendor } from '@/lib/vendor-auth'
 
 // GET /api/vendor-portal/notification-preferences - Get vendor notification preferences
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('vendor-token')?.value
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH /api/vendor-portal/notification-preferences - Update vendor notification preferences
-export async function PATCH(request: NextRequest) {
+ async function PATCHHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('vendor-token')?.value
@@ -98,3 +97,7 @@ export async function PATCH(request: NextRequest) {
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendor-portal/notification-preferences', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/vendor-portal/notification-preferences', 'PATCH', PATCHHandler)

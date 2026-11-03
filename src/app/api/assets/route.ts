@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { createProfileData, AssetProfileError } from '@/lib/assets/create-profile'
 import { prisma } from '@/lib/prisma'
@@ -19,7 +20,7 @@ function getRequestToken(request: NextRequest) {
   return normalizedBearerToken || request.cookies.get('auth-token')?.value
 }
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = getRequestToken(request)
 
@@ -112,7 +113,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const token = getRequestToken(request)
 
@@ -251,3 +252,7 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/assets', 'GET', GETHandler)
+export const POST = auditedRoute('/api/assets', 'POST', POSTHandler)

@@ -1,0 +1,2057 @@
+[
+  {
+    "route": "/api/activities",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-categories",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-custom-fields/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-custom-fields/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-custom-fields",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-custom-fields",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-field-layout",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-field-layout",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-import-reviews/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-import-reviews/[id]",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-import-reviews",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-issue-notification-settings",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-issue-notification-settings",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-requests/[id]/approve",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-requests/[id]/reject",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-requests/[id]/return",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-statuses/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-statuses/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-statuses",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-statuses",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-yards",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-yards",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/custom-field-values",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/history",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/inspections",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/inspections",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/issues",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/issues",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/job-assignments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/job-assignments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/maintenance/records",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/maintenance",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/maintenance",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/meter-readings",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/meter-readings",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/person-assignments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/person-assignments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/rental-rates",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/rental-rates",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/requests",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]/requests",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/share",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/[id]/share",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/issues/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/issues/[id]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/issues/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/issues/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/issues/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/issues",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets/job-assignments/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets/person-assignments/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/assets",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/assets",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/auth/login",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/auth/register",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/boq/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/boq/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/budget/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/budget/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/card/[id]/move",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/card/all",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/card",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/category/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/category/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/client/project/[token]/messages",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/client/project/[token]/messages",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/client/project/[token]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/comment/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/comment/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/email-config",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/company/email-config",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/email-config/test",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/logo",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/settings",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/company/settings",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/sms-config",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/company/sms-config",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/company/sms-config/test",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts/[id]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contacts/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contacts/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts/comments/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts/comments/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contacts",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contacts",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]/line-items/[itemId]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]/line-items/[itemId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]/line-items",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]/line-items",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders/[coId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/change-orders",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/documents",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/documents",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/documents",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/lien-releases",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/lien-releases",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/line-items/[itemId]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/line-items/[itemId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/line-items",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/line-items",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments/[paymentId]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments/[paymentId]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments/[paymentId]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments/[paymentId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/payments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/projects",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/projects",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/projects",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/summary",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/suppliers",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/contracts/[id]/suppliers",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/contracts/[id]/suppliers",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/cost-codes/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/cost-codes/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/cost-codes/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/cost-codes/import",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/cost-codes",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/cost-codes",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/cron/check-stock-levels",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/cron/due-date-notifications",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/dailylog/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/dailylog/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/dailylog/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/dashboard",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/document/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document-templates/[id]/duplicate",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document-templates/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/document-templates/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document-templates/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document-templates/[id]/set-default",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/document-templates",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/document-templates",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/documents/generate",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/estimate/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/estimate/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/feedback/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/feedback/[id]",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/feedback/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/feedback/access",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/feedback",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/feedback",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/file-tags/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/file-tags/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/file-tags/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/file-tags",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/file-tags",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/files/[id]",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/folder/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/folder/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/health",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory/[id]/history",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory/[id]/purchase",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/[id]/stock-in",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/[id]/stock-out",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/[id]/transactions",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory/[id]/usage",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory/categories",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory/categories",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/inventory",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/inventory",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/invite/[token]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/invite/[token]",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/lien-releases/[id]/documents",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/lien-releases/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/lien-releases/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/maintenance/[id]/complete",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/milestones/[id]/checklist/[itemId]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/milestones/[id]/checklist/[itemId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/milestones/[id]/checklist",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/milestones/[id]/checklist",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/milestones/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/milestones/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/milestones/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/notifications/check-due-tasks",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/notifications/preferences",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/notifications/preferences",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/notifications",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/notifications",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items/[id]/preferred-vendor",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items/[id]/preferred-vendor",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items/[id]/prices",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/procurement/items/[id]/prices",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/procurement/items/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/items",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/procurement/items",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/prices/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/procurement/prices/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/boq",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/boq",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/budget",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/budget",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/categories",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/categories",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/client-access",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/client-access",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/dailylogs",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/dailylogs",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/estimates",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/estimates",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/files",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/project/[id]/files",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/folders",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/folders",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/messages",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/messages",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/messages/unread",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/milestones",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/milestones",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/portal-settings",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/portal-settings",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/report",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/project/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/schedule/import",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/schedule",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/schedule",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/schedule",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/tasks/reorder",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/tasks",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/tasks",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/team",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/team",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/team",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/timeline",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project/[id]/walkaround",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/project/[id]/walkaround",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/project",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/[id]/inventory",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/projects/[id]/inventory",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/projects/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/[id]/vendors",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/projects/[id]/vendors",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/vendors/[vendorId]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/projects/vendors/[vendorId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders/[id]/approve",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders/[id]/receive",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/purchase-orders/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders/[id]/send",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/purchase-orders",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/purchase-orders",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/schedule-activity/[id]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/schedule-activity/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/shared/asset/[token]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/shared/asset/[token]",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/shared/import-review/[token]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/shared/import-review/[token]",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/shared/task/[token]",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/shared/task/[token]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stage/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stage/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stage",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/stage",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stages",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/stock-alerts/config/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stock-alerts/config/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/stock-alerts/config",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/stock-alerts/config",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/approve",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/attachments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/dependencies",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/dependencies",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/dependencies",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]/duplicate",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/escalate",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/escalate",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/interactions",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]/payments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]/payments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/task/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/share",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/[id]/share",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/attachments/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/task/payments/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/team/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/team/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/team/invite",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/team/invite",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/team/invite",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/templates/[id]/apply",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/templates/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/templates",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/templates",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/test-notifications",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/user-activities",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/users",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor/[id]/files/auto-save",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor/[id]/files",
+    "method": "GET",
+    "coverage": "access-event"
+  },
+  {
+    "route": "/api/vendor/[id]/files",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor/[id]/folders",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor/[id]/folders",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-categories/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-categories/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-categories/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-categories",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-categories",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-document/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-document/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-folder/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-folder/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/contracts",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/dashboard",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/login",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/milestones",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/notification-preferences",
+    "method": "GET",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/notification-preferences",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/ratings",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/tasks/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-portal/tasks",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-portal/tasks",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-tags/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-tags/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-tags/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendor-tags",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendor-tags",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/catalog",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/catalog",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/catalog",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts/[contactId]/comments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts/[contactId]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts/[contactId]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts/[contactId]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts/[contactId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/contacts",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/contracts",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/contracts",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/milestones",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/portal-access",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/portal-access",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/portal-access",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/procurement-stats",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/reviews/[reviewId]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/reviews/[reviewId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/reviews",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/reviews",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/score",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/suppliers",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/suppliers",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/suppliers",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/tags",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/[id]/tags",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/tags",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/tags",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/[id]/tasks",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/comments/[id]/attachments",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors/comments/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/comments/[id]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/comments/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/comments/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/contacts/[contactId]",
+    "method": "PUT",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/contacts/[contactId]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/contacts/comments/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/contacts/comments/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/vendors/options",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/vendors",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/walkaround/[id]/audio",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/walkaround/[id]/complete",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/walkaround/[id]/photos",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/walkaround/[id]/photos",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/work-orders/[id]/attachments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]/attachments",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]/comments",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]/issues",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]/issues",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/work-orders/[id]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders/[id]",
+    "method": "DELETE",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/work-orders",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/work-orders",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  }
+]

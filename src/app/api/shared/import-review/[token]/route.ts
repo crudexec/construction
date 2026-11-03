@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { failure, findReview, privateHeaders, publicRowSelect, readBody, ReviewError, validateAnswer } from '@/lib/import-review/server'
 import type { ReviewField, ReviewOption } from '@/lib/import-review/types'
 
 type Context = { params: Promise<{ token: string }> }
-export async function GET(_request: NextRequest, { params }: Context) {
+ async function GETHandler(_request: NextRequest, { params }: Context) {
   try {
     const review = await findReview((await params).token)
     const [company, rows] = await Promise.all([
@@ -14,7 +15,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
     return NextResponse.json({ id: review.id, title: review.title, companyName: company.name, expiresAt: review.expiresAt, submittedAt: review.submittedAt, submittedBy: review.submittedBy, revision: review.revision, choices: review.choices, rows }, { headers: privateHeaders })
   } catch (error) { return failure(error) }
 }
-export async function POST(request: NextRequest, { params }: Context) {
+ async function POSTHandler(request: NextRequest, { params }: Context) {
   try {
     const token = (await params).token
     const body = await readBody(request)
@@ -47,3 +48,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     return NextResponse.json(result, { headers: privateHeaders })
   } catch (error) { return failure(error) }
 }
+
+
+export const GET = auditedRoute('/api/shared/import-review/[token]', 'GET', GETHandler)
+export const POST = auditedRoute('/api/shared/import-review/[token]', 'POST', POSTHandler)

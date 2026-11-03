@@ -1,8 +1,9 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { failure, privateHeaders, requireAdmin } from '@/lib/import-review/server'
 
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const user = await requireAdmin(request)
     const reviews = await prisma.assetImportReview.findMany({
@@ -12,3 +13,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(reviews.map(({ rows, ...review }) => ({ ...review, total: rows.length, reviewed: rows.filter(row => row.decision).length, questions: rows.filter(row => row.decision === 'question').length })), { headers: privateHeaders })
   } catch (error) { return failure(error) }
 }
+
+
+export const GET = auditedRoute('/api/asset-import-reviews', 'GET', GETHandler)

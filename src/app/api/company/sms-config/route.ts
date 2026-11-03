@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET /api/company/sms-config - Get SMS configuration
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -45,7 +44,7 @@ export async function GET(request: NextRequest) {
 }
 
 // PATCH /api/company/sms-config - Update SMS configuration
-export async function PATCH(request: NextRequest) {
+ async function PATCHHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -161,3 +160,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update SMS config' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/company/sms-config', 'GET', GETHandler)
+export const PATCH = auditedRoute('/api/company/sms-config', 'PATCH', PATCHHandler)

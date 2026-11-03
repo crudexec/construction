@@ -1,5 +1,5 @@
-'use server'
-
+import { recordAudit } from '@/lib/platform/audit'
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { getSMSService, isWithinQuietHours } from '@/lib/sms'
@@ -7,7 +7,7 @@ import { lowStockAlertSMS } from '@/lib/sms/templates/notifications'
 
 // GET /api/cron/check-stock-levels - Check for low stock and send alerts
 // This should be called by a cron job (e.g., Vercel cron)
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     // Verify cron secret for security - REQUIRED
     const authHeader = request.headers.get('authorization')
@@ -26,6 +26,7 @@ export async function GET(request: NextRequest) {
     const lowStockItems = await prisma.inventoryEntry.findMany({
       where: {
         minStockLevel: { not: null },
+        project: { company: { status: 'ACTIVE' } },
       },
       include: {
         item: true,
@@ -184,6 +185,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    for (const [companyId, items] of byCompany) await recordAudit({ companyId, companyName: items[0].project.company.name, actorName: 'Stock-level check job', actorType: 'SYSTEM', module: 'inventory', action: 'scheduled-stock-check', summary: `Checked ${items.length} low-stock entries`, after: { count: items.length } })
+
     return NextResponse.json({
       success: true,
       lowStockCount: alertItems.length,
@@ -196,3 +199,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to check stock levels' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/cron/check-stock-levels', 'GET', GETHandler)

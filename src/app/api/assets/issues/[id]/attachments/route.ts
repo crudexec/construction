@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -6,7 +7,7 @@ import path from 'path'
 
 const MAX_SIZE = 10 * 1024 * 1024
 
-export async function POST(
+ async function POSTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -76,7 +77,7 @@ export async function POST(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -128,3 +129,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete attachment' }, { status: 500 })
   }
 }
+
+
+export const POST = auditedRoute('/api/assets/issues/[id]/attachments', 'POST', POSTHandler)
+export const DELETE = auditedRoute('/api/assets/issues/[id]/attachments', 'DELETE', DELETEHandler)

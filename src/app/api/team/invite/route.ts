@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -6,7 +7,7 @@ import { teamInviteTemplate } from '@/lib/email/templates/notifications'
 import crypto from 'crypto'
 
 // Invitations are separate from users until the recipient accepts.
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
     const user = token ? await validateUser(token) : null
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+ async function DELETEHandler(request: NextRequest) {
   try {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
     const user = token ? await validateUser(token) : null
@@ -71,7 +72,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -105,11 +106,11 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // If user exists but is inactive AND belongs to the same company, reactivate them
       if (!existingUser.isActive && existingUser.companyId === user.companyId) {
-        if (await prisma.feedbackManager.findUnique({ where: { userId: existingUser.id } })) {
+        if (await prisma.feedbackManager.findUnique({ where: { userId: existingUser.id } }) || await prisma.platformAdmin.findUnique({ where: { userId: existingUser.id } })) {
           return NextResponse.json({ error: 'Company admins cannot reactivate a platform super admin account.' }, { status: 403 })
         }
         const reactivatedUser = await prisma.user.update({
-          where: { id: existingUser.id, feedbackManager: { is: null } },
+          where: { id: existingUser.id, feedbackManager: { is: null }, platformAdmin: { is: null } },
           data: {
             isActive: true,
             firstName: firstName || existingUser.firstName,
@@ -273,3 +274,8 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/team/invite', 'GET', GETHandler)
+export const DELETE = auditedRoute('/api/team/invite', 'DELETE', DELETEHandler)
+export const POST = auditedRoute('/api/team/invite', 'POST', POSTHandler)

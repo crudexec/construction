@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // GET /api/procurement/items - List all procurement items
-export async function GET(request: NextRequest) {
+ async function GETHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -93,7 +94,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/procurement/items - Create a new procurement item
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -174,3 +175,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create item' }, { status: 500 })
   }
 }
+
+
+export const GET = auditedRoute('/api/procurement/items', 'GET', GETHandler)
+export const POST = auditedRoute('/api/procurement/items', 'POST', POSTHandler)

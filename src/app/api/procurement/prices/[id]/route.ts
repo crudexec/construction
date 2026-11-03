@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // PATCH /api/procurement/prices/[id] - Update a price comparison
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -67,7 +66,7 @@ export async function PATCH(
 }
 
 // DELETE /api/procurement/prices/[id] - Delete a price comparison
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -102,3 +101,7 @@ export async function DELETE(
     return NextResponse.json({ error: 'Failed to delete price' }, { status: 500 })
   }
 }
+
+
+export const PATCH = auditedRoute('/api/procurement/prices/[id]', 'PATCH', PATCHHandler)
+export const DELETE = auditedRoute('/api/procurement/prices/[id]', 'DELETE', DELETEHandler)

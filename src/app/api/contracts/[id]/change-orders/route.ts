@@ -1,10 +1,11 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { changeOrderRequest } from '@/lib/change-orders/http'
 import { changeOrderInclude, createChangeOrder, requireContract } from '@/lib/change-orders/workflow'
 
 type Context = { params: Promise<{ id: string }> }
-export async function GET(request: NextRequest, { params }: Context) {
+ async function GETHandler(request: NextRequest, { params }: Context) {
   return changeOrderRequest(request, async user => {
     const { id: contractId } = await params
     await requireContract(prisma, user.companyId, contractId)
@@ -16,6 +17,10 @@ export async function GET(request: NextRequest, { params }: Context) {
     }
   })
 }
-export async function POST(request: NextRequest, { params }: Context) {
+ async function POSTHandler(request: NextRequest, { params }: Context) {
   return changeOrderRequest(request, async user => createChangeOrder(user, (await params).id, await request.json()), 201)
 }
+
+
+export const GET = auditedRoute('/api/contracts/[id]/change-orders', 'GET', GETHandler)
+export const POST = auditedRoute('/api/contracts/[id]/change-orders', 'POST', POSTHandler)

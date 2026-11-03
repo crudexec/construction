@@ -1,12 +1,11 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { SMSService, normalizePhoneNumber, isValidPhoneNumber } from '@/lib/sms'
 
 // POST /api/company/sms-config/test - Test SMS configuration
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const token = request.headers.get('Authorization')?.split(' ')[1]
     const user = await validateUser(token || '')
@@ -104,3 +103,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to test SMS config' }, { status: 500 })
   }
 }
+
+
+export const POST = auditedRoute('/api/company/sms-config/test', 'POST', POSTHandler)

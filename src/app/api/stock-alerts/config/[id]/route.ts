@@ -1,11 +1,10 @@
-'use server'
-
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 
 // DELETE /api/stock-alerts/config/[id] - Delete a stock alert config
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -47,7 +46,7 @@ export async function DELETE(
 }
 
 // PATCH /api/stock-alerts/config/[id] - Toggle active status
-export async function PATCH(
+ async function PATCHHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -113,3 +112,7 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update config' }, { status: 500 })
   }
 }
+
+
+export const DELETE = auditedRoute('/api/stock-alerts/config/[id]', 'DELETE', DELETEHandler)
+export const PATCH = auditedRoute('/api/stock-alerts/config/[id]', 'PATCH', PATCHHandler)

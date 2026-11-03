@@ -19,11 +19,11 @@ export function useFeedbackAccess() {
   const id = useAuthStore(s => s.user?.id)
   return useQuery({ queryKey: ['feedback-access', id], queryFn: () => api<{ canManage: boolean; global: boolean; userId: string }>('/api/feedback/access'), enabled: !!id, retry: false, staleTime: 60000 })
 }
-export function useFeedbackList(view: 'mine' | 'board', status?: FeedbackStatus, search = '', enabled = true) {
+export function useFeedbackList(view: 'mine' | 'board', status?: FeedbackStatus, search = '', enabled = true, companyId = '', unanswered = false) {
   const userId = useAuthStore(s => s.user?.id)
   return useInfiniteQuery({
-    queryKey: ['feedback', 'list', userId, view, status, search], initialPageParam: '', enabled: enabled && !!userId,
-    queryFn: ({ pageParam }) => api<FeedbackList>(`/api/feedback?${new URLSearchParams({ view, ...(status ? { status } : {}), ...(search ? { search } : {}), ...(pageParam ? { cursor: pageParam } : {}) })}`),
+    queryKey: ['feedback', 'list', userId, view, status, search, companyId, unanswered], initialPageParam: '', enabled: enabled && !!userId,
+    queryFn: ({ pageParam }) => api<FeedbackList>(`/api/feedback?${new URLSearchParams({ view, ...(companyId ? { companyId } : {}), ...(unanswered ? { unanswered: 'true' } : {}), ...(status ? { status } : {}), ...(search ? { search } : {}), ...(pageParam ? { cursor: pageParam } : {}) })}`),
     getNextPageParam: last => last.nextCursor || undefined, refetchInterval: enabled ? 30000 : false, refetchOnWindowFocus: true, retry: false,
   })
 }

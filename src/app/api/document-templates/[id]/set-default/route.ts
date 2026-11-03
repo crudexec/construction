@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 type Params = { params: Promise<{ id: string }> }
 
 // POST - Set a template as the default for its type
-export async function POST(request: NextRequest, { params }: Params) {
+ async function POSTHandler(request: NextRequest, { params }: Params) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -79,3 +80,6 @@ export async function POST(request: NextRequest, { params }: Params) {
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/document-templates/[id]/set-default', 'POST', POSTHandler)

@@ -12,6 +12,7 @@ export interface VendorTokenPayload {
   vendorId: string
   email: string
   companyId: string
+  companyVersion?: number
   type: 'vendor'
 }
 
@@ -66,12 +67,15 @@ export async function validateVendor(token: string) {
         select: {
           id: true,
           name: true,
-          appName: true
+          appName: true,
+          status: true,
+          accessVersion: true
         }
       }
     }
   })
 
+  if (!vendor || vendor.company.status !== 'ACTIVE' || (payload.companyVersion ?? 0) !== vendor.company.accessVersion) return null
   return vendor
 }
 

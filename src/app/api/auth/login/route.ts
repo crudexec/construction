@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { comparePassword, generateToken } from '@/lib/auth'
@@ -14,7 +15,7 @@ export async function OPTIONS(request: NextRequest) {
   })
 }
 
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const body = await request.json()
     const { email, password } = body
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!user.isActive) {
+    if (!user.isActive || user.company.status !== 'ACTIVE') {
       return NextResponse.json(
         { error: 'Account is disabled' },
         { 
@@ -86,7 +87,9 @@ export async function POST(request: NextRequest) {
       userId: user.id,
       email: user.email,
       role: user.role,
-      companyId: user.companyId
+      companyId: user.companyId,
+      sessionVersion: user.sessionVersion,
+      companyVersion: user.company.accessVersion
     })
 
     await prisma.user.update({
@@ -155,3 +158,5 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+export const POST = auditedRoute('/api/auth/login', 'POST', POSTHandler)

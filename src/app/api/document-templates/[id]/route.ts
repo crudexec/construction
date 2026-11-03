@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -5,7 +6,7 @@ import { validateUser } from '@/lib/auth'
 type Params = { params: Promise<{ id: string }> }
 
 // GET - Get a single template
-export async function GET(request: NextRequest, { params }: Params) {
+ async function GETHandler(request: NextRequest, { params }: Params) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 // PUT - Update a template
-export async function PUT(request: NextRequest, { params }: Params) {
+ async function PUTHandler(request: NextRequest, { params }: Params) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -150,7 +151,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 // DELETE - Delete a template
-export async function DELETE(request: NextRequest, { params }: Params) {
+ async function DELETEHandler(request: NextRequest, { params }: Params) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -221,3 +222,8 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/document-templates/[id]', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/document-templates/[id]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/document-templates/[id]', 'DELETE', DELETEHandler)

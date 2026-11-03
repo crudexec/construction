@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import Papa from 'papaparse'
 import ExcelJS from 'exceljs'
@@ -99,7 +100,7 @@ async function parseExcel(buffer: ArrayBuffer): Promise<{ rows: ParsedRow[]; war
   return { rows, warnings }
 }
 
-export async function POST(request: NextRequest) {
+ async function POSTHandler(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization')
     const token = authHeader?.replace('Bearer ', '') || request.cookies.get('auth-token')?.value
@@ -226,3 +227,6 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+export const POST = auditedRoute('/api/cost-codes/import', 'POST', POSTHandler)

@@ -1,3 +1,4 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
@@ -16,7 +17,7 @@ interface FileDocument {
   companyId: string
 }
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -150,3 +151,5 @@ export async function GET(
     )
   }
 }
+
+export const GET = auditedRoute('/api/files/[id]', 'GET', GETHandler)

@@ -1,9 +1,10 @@
+import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { validateUser } from '@/lib/auth'
 import { saveVendorContact, RelationshipError } from '@/lib/vendors/relationships'
 
-export async function GET(
+ async function GETHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
@@ -69,7 +70,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
+ async function PUTHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
@@ -127,7 +128,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
+ async function DELETEHandler(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; contactId: string }> }
 ) {
@@ -184,3 +185,8 @@ export async function DELETE(
     )
   }
 }
+
+
+export const GET = auditedRoute('/api/vendors/[id]/contacts/[contactId]', 'GET', GETHandler)
+export const PUT = auditedRoute('/api/vendors/[id]/contacts/[contactId]', 'PUT', PUTHandler)
+export const DELETE = auditedRoute('/api/vendors/[id]/contacts/[contactId]', 'DELETE', DELETEHandler)
