@@ -2,13 +2,14 @@
 
 Signed-in dashboard users open the feedback button at the bottom right. Each new subject and message creates one request in **To do**, with a private conversation. The widget lists the submitter's requests and their current status. Users can add details and return to read replies. Sending text is explicit; Enter adds a new line in the reply composer.
 
-Managers open **Settings → Feedback** (`/dashboard/settings?tab=feedback`). The former `/dashboard/feedback` URL redirects there. The board has **To do**, **In progress**, and **Done** lanes. Cards move between lanes using pointer or keyboard drag-and-drop, or the status menu. Opening a card shows the conversation and allows a reply. Every status change records the actor and transition in the conversation. Cards are ordered newest first; dragging within a lane does not reorder them.
+Platform super admins open **Settings → Feedback** (`/dashboard/settings?tab=feedback`). The former `/dashboard/feedback` URL redirects there. The board has **To do**, **In progress**, and **Done** lanes. Cards move between lanes using pointer or keyboard drag-and-drop, or the status menu. Opening a card shows the conversation and allows a reply. Every status change records the actor and transition in the conversation. Cards are ordered newest first; dragging within a lane does not reorder them.
 
 ## Access
 
-- Active users see only their own requests and conversations.
-- Company admins manage feedback from their own company.
-- Explicit `FeedbackManager` records grant platform-wide feedback management. There is no public endpoint to grant this permission. Grant it only to a verified account authorized by the application owner; removing the record revokes access on the next request.
+- Company users, including company admins, see their own requests and conversations. They can add comments and read replies, but cannot change status or open the management board.
+- Platform super admins see requests from every company, reply, and update status. Company names appear on their board cards.
+- Explicit `FeedbackManager` records grant this platform super admin permission for feedback. Company roles, including `ADMIN`, never grant it. This permission applies to feedback; other application modules keep their existing company scope. There is no public endpoint to grant this permission. Grant it only to a verified account authorized by the application owner; removing the record revokes access on the next request.
+- Company team-management routes cannot reset, edit, remove, or reactivate another platform super admin account.
 - Membership and active state are verified server-side on every API call. UI state and JWT role claims do not grant access by themselves.
 - Deleted users' conversations retain their author-name snapshots. Company deletion removes its feedback.
 

@@ -43,30 +43,32 @@ test('authentication, per-user privacy and company boundaries apply to reads and
   const { id } = await create()
   assert.equal((await collection.GET(request(null))).status, 401)
   assert.equal((await collection.GET(request('staff', '?view=board'))).status, 403)
-  for (const other of ['peer', 'foreign']) {
+  for (const other of ['peer', 'admin', 'foreign']) {
     assert.equal((await detail.GET(request(other, `/${id}`), context(id))).status, 404)
     assert.equal((await detail.POST(request(other, `/${id}`, { body: 'Should fail', clientId: randomUUID() }), context(id))).status, 404)
   }
   const mine = await (await collection.GET(request('peer'))).json(); assert.equal(mine.total, 0)
-  assert.equal((await detail.GET(request('admin', `/${id}`), context(id))).status, 200)
+  assert.equal((await permissions.GET(request('admin'))).status, 200)
+  assert.equal((await (await permissions.GET(request('admin'))).json()).canManage, false)
   assert.equal((await detail.GET(request('operator', `/${id}`), context(id))).status, 200)
 })
 test('replies persist, are idempotent under concurrency and have server-controlled attribution', async () => {
   const { id } = await create(), input = { body: 'We are investigating this.', clientId: randomUUID(), authorId: actors.foreign.id, fromTeam: false }
-  const replies = await Promise.all([1, 2].map(() => detail.POST(request('admin', `/${id}`, input), context(id))))
+  const replies = await Promise.all([1, 2].map(() => detail.POST(request('operator', `/${id}`, input), context(id))))
   assert.ok(replies.every(r => r.status === 201))
   const messages = await prisma.feedbackMessage.findMany({ where: { requestId: id } }); assert.equal(messages.length, 2)
-  const reply = messages.find(m => m.authorId === actors.admin.id)!; assert.equal(reply.fromTeam, true); assert.equal(reply.body, input.body)
-  assert.equal((await detail.POST(request('admin', `/${id}`, { ...input, body: 'Changed' }), context(id))).status, 409)
+  const reply = messages.find(m => m.authorId === actors.operator.id)!; assert.equal(reply.fromTeam, true); assert.equal(reply.body, input.body)
+  assert.equal((await detail.POST(request('operator', `/${id}`, { ...input, body: 'Changed' }), context(id))).status, 409)
 })
 test('status changes require management access and reject stale versions; history is visible to submitter', async () => {
   const { id } = await create()
   const move = { status: 'IN_PROGRESS', version: 0 }
   assert.equal((await detail.PATCH(request('staff', `/${id}`, move, 'PATCH'), context(id))).status, 403)
-  assert.equal((await detail.PATCH(request('foreign', `/${id}`, move, 'PATCH'), context(id))).status, 404)
-  assert.equal((await detail.PATCH(request('admin', `/${id}`, move, 'PATCH'), context(id))).status, 200)
-  assert.equal((await detail.PATCH(request('admin', `/${id}`, { status: 'DONE', version: 0 }, 'PATCH'), context(id))).status, 409)
-  assert.equal((await detail.PATCH(request('admin', `/${id}`, { status: 'DONE', version: 1 }, 'PATCH'), context(id))).status, 200)
+  assert.equal((await detail.PATCH(request('foreign', `/${id}`, move, 'PATCH'), context(id))).status, 403)
+  assert.equal((await detail.PATCH(request('admin', `/${id}`, move, 'PATCH'), context(id))).status, 403)
+  assert.equal((await detail.PATCH(request('operator', `/${id}`, move, 'PATCH'), context(id))).status, 200)
+  assert.equal((await detail.PATCH(request('operator', `/${id}`, { status: 'DONE', version: 0 }, 'PATCH'), context(id))).status, 409)
+  assert.equal((await detail.PATCH(request('operator', `/${id}`, { status: 'DONE', version: 1 }, 'PATCH'), context(id))).status, 200)
   const response = await detail.GET(request('staff', `/${id}`), context(id)); assert.match(response.headers.get('cache-control')!, /no-store/)
   const result = await response.json(); assert.equal(result.request.status, 'DONE'); assert.equal(result.messages.filter((m: { kind: string }) => m.kind === 'STATUS').length, 2)
   assert.ok(!JSON.stringify(result).includes('password'))
@@ -76,19 +78,57 @@ test('validation rejects oversized content, unsafe page URLs, foreign origins an
   for (const extra of [{ title: ' ' }, { body: 'x'.repeat(4001) }, { pagePath: '//evil.test' }, { pagePath: '/dashboard/assets?token=private' }, { clientId: 'short' }]) assert.equal((await collection.POST(request('staff', '', { ...input, ...extra }))).status, 400)
   assert.equal((await collection.POST(request('staff', '', input, 'POST', 'https://other.test'))).status, 403)
   assert.equal((await collection.POST(request('staff', '', { ...input, body: 'x'.repeat(25000) }))).status, 413)
-  const { id } = await create(); assert.equal((await detail.PATCH(request('admin', `/${id}`, { status: 'UNKNOWN', version: 0 }, 'PATCH'), context(id))).status, 400)
+  const { id } = await create(); assert.equal((await detail.PATCH(request('operator', `/${id}`, { status: 'UNKNOWN', version: 0 }, 'PATCH'), context(id))).status, 400)
 })
-test('board and conversations paginate without exposing other companies or losing earlier messages', async () => {
+test('super admin board and conversations paginate while company board access stays denied', async () => {
   const { id } = await create()
   await prisma.feedbackRequest.createMany({ data: Array.from({ length: 28 }, (_, i) => ({ companyId: companies[0], createdById: actors.staff.id, createdByName: 'staff Tester', clientId: randomUUID(), title: `Pagination sample ${i}` })) })
-  const first = await (await collection.GET(request('admin', '?view=board&status=TODO&search=Pagination'))).json(); assert.equal(first.items.length, 25); assert.equal(first.total, 28)
-  const next = await (await collection.GET(request('admin', `?view=board&status=TODO&search=Pagination&cursor=${first.nextCursor}`))).json(); assert.equal(next.items.length, 3); assert.equal(new Set([...first.items, ...next.items].map((x: { id: string }) => x.id)).size, 28)
-  assert.equal((await (await collection.GET(request('foreign', '?view=board&search=Pagination'))).json()).total, 0)
+  const first = await (await collection.GET(request('operator', '?view=board&status=TODO&search=Pagination'))).json(); assert.equal(first.items.length, 25); assert.equal(first.total, 28)
+  const next = await (await collection.GET(request('operator', `?view=board&status=TODO&search=Pagination&cursor=${first.nextCursor}`))).json(); assert.equal(next.items.length, 3); assert.equal(new Set([...first.items, ...next.items].map((x: { id: string }) => x.id)).size, 28)
+  assert.equal((await collection.GET(request('foreign', '?view=board&search=Pagination'))).status, 403)
   await prisma.feedbackMessage.createMany({ data: Array.from({ length: 54 }, (_, i) => ({ requestId: id, authorId: actors.staff.id, authorName: 'staff Tester', clientId: randomUUID(), body: `Message ${i}` })) })
   const latest = await (await detail.GET(request('staff', `/${id}`), context(id))).json(); assert.equal(latest.messages.length, 50)
   const older = await (await detail.GET(request('staff', `/${id}?before=${latest.nextCursor}`), context(id))).json(); assert.equal(older.messages.length, 5)
   assert.equal(new Set([...latest.messages, ...older.messages].map((m: { id: string }) => m.id)).size, 55)
 })
+
+test('company users including admins can add context to their own requests without changing status', async () => {
+  for (const actor of ['staff', 'admin']) {
+    const { id } = await create(actor)
+    const reply = await detail.POST(request(actor, `/${id}`, { body: 'More context for this request.', clientId: randomUUID(), status: 'DONE', fromTeam: true }), context(id))
+    assert.equal(reply.status, 201)
+    assert.equal((await reply.json()).fromTeam, false)
+    assert.equal((await detail.PATCH(request(actor, `/${id}`, { status: 'DONE', version: 0 }, 'PATCH'), context(id))).status, 403)
+    const thread = await (await detail.GET(request(actor, `/${id}`), context(id))).json()
+    assert.equal(thread.canManage, false); assert.equal(thread.request.status, 'TODO')
+    assert.ok(thread.messages.some((m: { body: string }) => m.body === 'More context for this request.'))
+    assert.equal((await collection.GET(request(actor, '?view=board'))).status, 403)
+  }
+})
+test('super admin sees and manages requests across companies with company attribution', async () => {
+  const first = await create('staff', { title: 'Cross-company request A' }), second = await create('foreign', { title: 'Cross-company request B' })
+  const board = await (await collection.GET(request('operator', '?view=board&search=Cross-company'))).json()
+  assert.deepEqual(new Set(board.items.map((r: { id: string }) => r.id)), new Set([first.id, second.id]))
+  assert.deepEqual(new Set(board.items.map((r: { company: { name: string } }) => r.company.name)), new Set(['Feedback test 0', 'Feedback test 1']))
+  for (const { id } of [first, second]) assert.equal((await detail.PATCH(request('operator', `/${id}`, { status: 'IN_PROGRESS', version: 0 }, 'PATCH'), context(id))).status, 200)
+})
+
+test('company admins cannot reset, disable, remove or reactivate a super admin account', async () => {
+  const team = await import('../src/app/api/team/[id]/route')
+  const invite = await import('../src/app/api/team/invite/route')
+  const target = actors.operator.id
+  for (const change of [{ newPassword: 'Unwanted-password-123' }, { isActive: false }, { role: 'ADMIN' }]) {
+    assert.equal((await team.PATCH(request('foreign', '', change, 'PATCH'), context(target))).status, 403)
+  }
+  assert.equal((await team.DELETE(request('foreign'), context(target))).status, 403)
+  await prisma.user.update({ where: { id: target }, data: { isActive: false } })
+  try {
+    const u = await prisma.user.findUniqueOrThrow({ where: { id: target } })
+    assert.equal((await invite.POST(request('foreign', '', { email: u.email, firstName: 'Operator', lastName: 'Test', role: 'ADMIN' }))).status, 403)
+    assert.equal((await prisma.user.findUniqueOrThrow({ where: { id: target } })).isActive, false)
+  } finally { await prisma.user.update({ where: { id: target }, data: { isActive: true } }) }
+})
+
 test('disabled users and revoked platform-manager access lose access immediately', async () => {
   const { id } = await create()
   await prisma.feedbackManager.delete({ where: { userId: actors.operator.id } })

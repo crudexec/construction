@@ -16,13 +16,13 @@ export async function access(request: NextRequest) {
   const user = token ? await validateUser(token) : null
   if (!user) throw new FeedbackError('Please sign in to use feedback.', 401)
   const global = !!await prisma.feedbackManager.findUnique({ where: { userId: user.id } })
-  return { user, global, canManage: global || user.role === 'ADMIN' }
+  return { user, global, canManage: global }
 }
 export type Access = Awaited<ReturnType<typeof access>>
 export function scope(a: Access, board = false): Prisma.FeedbackRequestWhereInput {
   if (board) {
     if (!a.canManage) throw new FeedbackError('You do not have access to the feedback board.', 403)
-    return a.global ? {} : { companyId: a.user.companyId }
+    return {}
   }
   return { companyId: a.user.companyId, createdById: a.user.id }
 }

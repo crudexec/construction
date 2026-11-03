@@ -7,15 +7,17 @@ const url = process.env.FEEDBACK_TEST_DATABASE_URL
 test.use({ actionTimeout: 15000 })
 test.skip(!url || !['localhost', '127.0.0.1'].includes(new URL(url).hostname), 'Explicit disposable local database required')
 const prisma = new PrismaClient({ datasources: { db: { url: url || 'postgresql://invalid@127.0.0.1:1/invalid' } } })
-let companyId: string, staff: any, admin: any
+let companyId: string, platformCompanyId: string, staff: any, admin: any, companyAdmin: any
 test.beforeAll(async () => {
   companyId = (await prisma.company.create({ data: { name: 'Construction demo' } })).id
   for (const role of ['STAFF', 'ADMIN'] as const) {
     const user = await prisma.user.create({ data: { companyId, email: `${randomUUID()}@example.test`, role, firstName: role === 'STAFF' ? 'Alex' : 'Morgan', lastName: role === 'STAFF' ? 'Parker' : 'Lee', password: 'unused' }, include: { company: true } })
-    if (role === 'STAFF') staff = user; else admin = user
+    if (role === 'STAFF') staff = user; else companyAdmin = user
   }
+  platformCompanyId = (await prisma.company.create({ data: { name: 'Buildflo Platform' } })).id
+  admin = await prisma.user.create({ data: { companyId: platformCompanyId, email: `${randomUUID()}@example.test`, role: 'STAFF', firstName: 'Platform', lastName: 'Admin', password: 'unused', feedbackManager: { create: {} } }, include: { company: true } })
 })
-test.afterAll(async () => { if (companyId) await prisma.company.delete({ where: { id: companyId } }); await prisma.$disconnect() })
+test.afterAll(async () => { if (companyId) await prisma.company.delete({ where: { id: companyId } }); if (platformCompanyId) await prisma.company.delete({ where: { id: platformCompanyId } }); await prisma.$disconnect() })
 async function signIn(page: Page, user: any) {
   const token = jwt.sign({ userId: user.id, email: user.email, role: user.role, companyId: user.companyId }, 'local-verification-only')
   await page.context().addCookies([{ name: 'auth-token', value: token, url: 'http://127.0.0.1:3000' }])
@@ -53,6 +55,11 @@ test('staff submits feedback, manager moves and replies, submitter sees persiste
   await page.getByRole('dialog').getByRole('button', { name: /Find equipment by serial number/ }).click()
   await expect(page.getByRole('dialog').getByText('Thanks, Alex. We have started working on this.')).toBeVisible()
   await expect(page.getByRole('dialog').getByText('In progress', { exact: true })).toBeVisible()
+  await expect(page.getByRole('dialog').getByRole('combobox')).toHaveCount(0)
+  await page.getByRole('dialog').getByLabel('Reply', { exact: true }).fill('Additional context: this affects retired equipment too.')
+  await page.getByRole('button', { name: 'Send reply' }).click()
+  await expect(page.getByRole('dialog').getByLabel('Reply', { exact: true })).toHaveValue('')
+  await expect(page.getByRole('dialog').getByText('Additional context: this affects retired equipment too.')).toBeVisible()
   expect((await prisma.feedbackRequest.findUniqueOrThrow({ where: { id: row.id } })).status).toBe('IN_PROGRESS')
   await managerContext.close()
 })
@@ -102,4 +109,22 @@ for (const width of [1440, 390]) test(`feedback board and chat fit at ${width}px
   const bounds = await page.getByRole('dialog').boundingBox(); expect(bounds!.x).toBeGreaterThanOrEqual(0); expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
   expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(1000)
   await prisma.feedbackRequest.deleteMany({ where: { id: { in: rows.map(row => row.id) } } })
+})
+
+test('company admin can comment on their request but has no board or status controls', async ({ page }) => {
+  const row = await prisma.feedbackRequest.create({ data: { companyId, createdById: companyAdmin.id, createdByName: 'Morgan Lee', clientId: randomUUID(), title: 'Company admin feedback' } })
+  await signIn(page, companyAdmin); await page.goto('/dashboard/settings?tab=feedback')
+  await expect(page.getByText('This board is for feedback managers')).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Settings categories' }).getByRole('link', { name: 'Feedback', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Open feedback chat' }).click()
+  await expect(page.getByRole('link', { name: 'Open feedback board' })).toHaveCount(0)
+  await page.getByRole('dialog').getByRole('button', { name: /Company admin feedback/ }).click()
+  await expect(page.getByRole('dialog').getByRole('combobox')).toHaveCount(0)
+  await page.getByLabel('Reply', { exact: true }).fill('Extra detail from the company admin.')
+  await page.getByRole('button', { name: 'Send reply' }).click()
+  await expect(page.getByLabel('Reply', { exact: true })).toHaveValue('')
+  await page.reload(); await page.getByRole('button', { name: 'Open feedback chat' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: /Company admin feedback/ }).click()
+  await expect(page.getByText('Extra detail from the company admin.', { exact: true })).toBeVisible()
+  expect((await prisma.feedbackRequest.findUniqueOrThrow({ where: { id: row.id } })).status).toBe('TODO')
 })

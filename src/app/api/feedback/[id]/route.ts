@@ -32,7 +32,7 @@ export async function POST(request: NextRequest, context: Context) {
 }
 export async function PATCH(request: NextRequest, context: Context) {
   try {
-    const a = await access(request); if (!a.canManage) throw new FeedbackError('Only feedback managers can change status.', 403)
+    const a = await access(request); if (!a.canManage) throw new FeedbackError('Only the platform super admin can change status.', 403)
     const { id } = await context.params, input = await body(request)
     if (!statuses.includes(input.status as typeof statuses[number]) || !Number.isSafeInteger(input.version)) throw new FeedbackError('Invalid status or version.')
     const status = input.status as typeof statuses[number]

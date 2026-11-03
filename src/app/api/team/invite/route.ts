@@ -105,8 +105,11 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       // If user exists but is inactive AND belongs to the same company, reactivate them
       if (!existingUser.isActive && existingUser.companyId === user.companyId) {
+        if (await prisma.feedbackManager.findUnique({ where: { userId: existingUser.id } })) {
+          return NextResponse.json({ error: 'Company admins cannot reactivate a platform super admin account.' }, { status: 403 })
+        }
         const reactivatedUser = await prisma.user.update({
-          where: { id: existingUser.id },
+          where: { id: existingUser.id, feedbackManager: { is: null } },
           data: {
             isActive: true,
             firstName: firstName || existingUser.firstName,

@@ -23,6 +23,12 @@ export async function PATCH(
     const { id } = await params
     const { role, isActive, newPassword } = await request.json()
 
+    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true } })
+    if (!target) return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
+    if (target.feedbackManager && id !== user.id) {
+      return NextResponse.json({ error: 'Company admins cannot modify a platform super admin account.' }, { status: 403 })
+    }
+
     // Prevent self-demotion
     if (id === user.id && role !== 'ADMIN') {
       return NextResponse.json({ error: 'Cannot change your own admin role' }, { status: 400 })
@@ -45,7 +51,8 @@ export async function PATCH(
     const updatedUser = await prisma.user.update({
       where: { 
         id,
-        companyId: user.companyId // Ensure user belongs to same company
+        companyId: user.companyId,
+        ...(id !== user.id && { feedbackManager: { is: null } })
       },
       data: {
         ...(role !== undefined && { role }),
@@ -96,11 +103,18 @@ export async function DELETE(
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
+    const target = await prisma.user.findFirst({ where: { id, companyId: user.companyId }, select: { feedbackManager: true } })
+    if (!target) return NextResponse.json({ error: 'Team member not found' }, { status: 404 })
+    if (target.feedbackManager) {
+      return NextResponse.json({ error: 'Company admins cannot remove a platform super admin account.' }, { status: 403 })
+    }
+
     // Soft delete - just set isActive to false
     await prisma.user.update({
       where: { 
         id,
-        companyId: user.companyId
+        companyId: user.companyId,
+        feedbackManager: { is: null }
       },
       data: {
         isActive: false
