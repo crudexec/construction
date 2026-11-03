@@ -35,6 +35,7 @@ model Company {
   contacts            Contact[]
   assets              Asset[]
   assetImportReviews  AssetImportReview[]
+  feedbackRequests    FeedbackRequest[]
   assetYards          AssetYard[]
   procurementItems    ProcurementItem[]
   stockAlertConfigs   StockAlertConfig[]
@@ -79,6 +80,58 @@ model Company {
 
   // Lien Releases
   lienReleases LienRelease[]
+}
+
+enum FeedbackStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+// Platform feedback access is granted explicitly, never through a public API.
+model FeedbackManager {
+  userId    String @id
+  createdAt DateTime @default(now())
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FeedbackRequest {
+  id            String @id @default(cuid())
+  companyId     String
+  createdById   String?
+  createdByName String
+  clientId      String
+  title         String
+  pagePath      String?
+  status        FeedbackStatus @default(TODO)
+  version       Int @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  messages      FeedbackMessage[]
+
+  @@unique([createdById, clientId])
+  @@index([companyId, status, createdAt, id])
+  @@index([createdById, createdAt, id])
+  @@index([status, createdAt, id])
+}
+
+model FeedbackMessage {
+  id           String @id @default(cuid())
+  requestId    String
+  authorId     String?
+  authorName   String
+  fromTeam     Boolean @default(false)
+  clientId     String
+  body         String
+  kind         String @default("MESSAGE")
+  createdAt    DateTime @default(now())
+  request      FeedbackRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author       User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@unique([authorId, clientId])
+  @@index([requestId, createdAt, id])
 }
 
 // Temporary, capability-link review workspace. Decisions are staged, never
@@ -153,6 +206,9 @@ model User {
   avatar           String?
   role             Role      @default(STAFF)
   isActive         Boolean   @default(true)
+  feedbackManager  FeedbackManager?
+  feedbackRequests FeedbackRequest[]
+  feedbackMessages FeedbackMessage[]
   lastLogin        DateTime?
   resetToken       String?
   resetTokenExpiry DateTime?

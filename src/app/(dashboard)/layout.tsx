@@ -4,9 +4,11 @@ import { useEffect } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { Sidebar, SidebarProvider, useSidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
+import { FeedbackWidget } from '@/components/feedback/widget'
 
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed } = useSidebar()
+  const userId = useAuthStore(state => state.user?.id)
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -21,6 +23,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+      <FeedbackWidget key={userId || 'anonymous'} />
     </div>
   )
 }

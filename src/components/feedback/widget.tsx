@@ -1,0 +1,29 @@
+'use client'
+
+import { useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
+import Link from 'next/link'
+import { MessageSquare, Plus, Send } from 'lucide-react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/auth'
+import { api, button, control, Conversation, ErrorMessage, FeedbackDialog, primary, Status, useFeedbackAccess, useFeedbackList } from './shared'
+
+export function FeedbackWidget() {
+  const user = useAuthStore(s => s.user), path = usePathname(), client = useQueryClient()
+  const [open, setOpen] = useState(false), [view, setView] = useState<'list' | 'new' | string>('list')
+  const [subject, setSubject] = useState(''), [message, setMessage] = useState(''), [sourcePath, setSourcePath] = useState('')
+  const key = useRef<string | null>(null)
+  const access = useFeedbackAccess(), list = useFeedbackList('mine', undefined, '', open && view === 'list')
+  const send = useMutation({ mutationFn: () => { key.current ||= crypto.randomUUID(); return api<{ id: string }>('/api/feedback', { title: subject, body: message, pagePath: sourcePath, clientId: key.current }) }, onSuccess: async data => { setSubject(''); setMessage(''); key.current = null; setView(data.id); await client.invalidateQueries({ queryKey: ['feedback'] }) } })
+  if (!user || !path.startsWith('/dashboard')) return null
+  const newRequest = () => { if (!subject && !message) setSourcePath(path); setView('new'); send.reset() }
+  return <>
+    <button aria-label="Open feedback chat" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-[60] flex h-14 w-14 items-center justify-center rounded-full bg-primary-600 text-white shadow-lg transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2"><MessageSquare className="h-6 w-6" /><span className="sr-only">Feedback</span></button>
+    <FeedbackDialog open={open} close={() => setOpen(false)} title={view === 'list' ? 'Feedback' : view === 'new' ? 'New feedback' : 'Conversation'} back={view === 'list' ? undefined : () => setView('list')}>
+      {view === 'list' ? <>
+        <div className="shrink-0 space-y-3 border-b border-gray-200 p-4"><p className="text-sm leading-6 text-gray-600">Tell us what could work better. Your request goes straight to the feedback board.</p><button onClick={newRequest} className={`${primary} w-full`}><Plus className="h-4 w-4" />New feedback</button>{access.data?.canManage && <Link href="/dashboard/feedback" onClick={() => setOpen(false)} className="inline-flex min-h-11 items-center text-sm font-medium text-primary-700 underline underline-offset-4">Open feedback board</Link>}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-4"><h3 className="mb-3 text-sm font-semibold">Your requests</h3><ErrorMessage error={list.error} retry={() => { void list.refetch() }} />{list.isPending && <p className="text-sm text-gray-600" role="status">Loading your feedback…</p>}{list.data?.pages[0].total === 0 && <div className="py-8 text-sm leading-6 text-gray-600"><p className="font-medium text-gray-900">What would make Buildflo better?</p><p className="mt-1">Share an issue or suggestion. Your conversations and their progress will appear here.</p></div>}<div className="divide-y divide-gray-200">{list.data?.pages.flatMap(p => p.items).map(item => <button key={item.id} onClick={() => setView(item.id)} className="w-full rounded-md px-1 py-4 text-left hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"><div className="flex items-start justify-between gap-3"><span className="min-w-0 break-words text-sm font-medium">{item.title}</span><Status value={item.status} /></div><p className="mt-2 line-clamp-2 break-words text-sm text-gray-600">{item.preview}</p><p className="mt-2 text-xs text-gray-600">Updated {new Date(item.updatedAt).toLocaleDateString()}</p></button>)}</div>{list.hasNextPage && <button className={`${button} mt-3 w-full`} disabled={list.isFetchingNextPage} onClick={() => { void list.fetchNextPage() }}>Load more requests</button>}</div>
+      </> : view === 'new' ? <form className="flex min-h-0 flex-1 flex-col" onSubmit={event => { event.preventDefault(); if (!send.isPending) send.mutate() }}><div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"><p className="text-sm leading-6 text-gray-600">Describe one issue or suggestion per request. We’ll reply in this conversation.</p><ErrorMessage error={send.error} /><div><label htmlFor="feedback-subject" className="mb-2 block text-sm font-medium">Subject</label><input autoFocus id="feedback-subject" required maxLength={160} className={control} value={subject} disabled={send.isPending} placeholder="A short summary of your feedback" onChange={e => { setSubject(e.target.value); key.current = null; send.reset() }} /></div><div><label htmlFor="feedback-message" className="mb-2 block text-sm font-medium">What would you like us to know?</label><textarea id="feedback-message" required rows={7} maxLength={4000} className={`${control} resize-y`} value={message} disabled={send.isPending} placeholder="What happened? What did you expect?" onChange={e => { setMessage(e.target.value); key.current = null; send.reset() }} /><p className="mt-1 text-right text-xs text-gray-600">{message.length.toLocaleString()}/4,000</p></div><p className="break-all text-xs text-gray-600">Page included: {sourcePath.replace('/dashboard', '') || 'Dashboard'}</p></div><footer className="shrink-0 border-t border-gray-200 p-4"><button className={`${primary} w-full`} disabled={!subject.trim() || !message.trim() || send.isPending}><Send className="h-4 w-4" />{send.isPending ? 'Sending…' : 'Send feedback'}</button></footer></form> : <Conversation key={view} id={view} active={open} />}
+    </FeedbackDialog>
+  </>
+}
