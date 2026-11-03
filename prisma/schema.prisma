@@ -34,6 +34,7 @@ model Company {
   vendors             Vendor[]
   contacts            Contact[]
   assets              Asset[]
+  assetImportReviews  AssetImportReview[]
   assetYards          AssetYard[]
   procurementItems    ProcurementItem[]
   stockAlertConfigs   StockAlertConfig[]
@@ -78,6 +79,68 @@ model Company {
 
   // Lien Releases
   lienReleases LienRelease[]
+}
+
+// Temporary, capability-link review workspace. Decisions are staged, never
+// automatically applied to live assets. Only token hashes are retained.
+model AssetImportReview {
+  id            String   @id @default(cuid())
+  companyId     String
+  title         String
+  sourceDigest  String
+  tokenHash     String   @unique
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  submittedAt   DateTime?
+  submittedBy   String?
+  revision      Int      @default(0)
+  choices       Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rows          AssetImportReviewRow[]
+  events        AssetImportReviewEvent[]
+
+  @@unique([companyId, sourceDigest])
+  @@index([companyId, createdAt])
+}
+
+model AssetImportReviewRow {
+  id            String   @id @default(cuid())
+  reviewId      String
+  position      Int
+  sourceFile    String
+  sourceRow     Int
+  sourceId      String?
+  kind          String
+  title         String
+  reason        String
+  context       Json
+  fields        Json
+  source        Json
+  decision      String?
+  values        Json     @default("{}")
+  notes         String   @default("")
+  reviewer      String?
+  revision      Int      @default(0)
+  updatedAt     DateTime @updatedAt
+  review        AssetImportReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, sourceFile, sourceRow])
+  @@index([reviewId, position])
+}
+
+model AssetImportReviewEvent {
+  id            String   @id @default(cuid())
+  reviewId      String
+  rowId         String?
+  action        String
+  actor         String
+  payload       Json
+  createdAt     DateTime @default(now())
+  review        AssetImportReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
 }
 
 model User {

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useCurrency } from '@/hooks/useCurrency'
 import { AssetFilterSelect } from '@/components/assets/asset-filter-select'
 import { fetchAssetCategories } from '@/components/assets/asset-category-field'
+import { useAuthStore } from '@/store/auth'
 
 import type { AssetListItem as Asset, AssetListResponse } from '@/lib/assets/list'
 
@@ -91,6 +92,7 @@ const DEFAULT_STATUSES = STATUS_OPTIONS.filter(option => option.value !== 'RETIR
 
 export default function AssetsPage() {
   const router = useRouter()
+  const user = useAuthStore(state => state.user)
   const [searchTerm, setSearchTerm] = useState('')
   const [search, setSearch] = useState('')
   const [filterType, setFilterType] = useState<string[] | null>(null)
@@ -203,6 +205,7 @@ export default function AssetsPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
             <p className="text-sm text-gray-600">Manage equipment, vehicles, tools, and service history</p>
+            {user?.role === 'ADMIN' && <Link href="/dashboard/assets/import-reviews" className="inline-flex min-h-8 items-center text-xs text-primary-700 underline underline-offset-2">Import reviews</Link>}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">

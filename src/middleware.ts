@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Public page paths that don't require any authentication
-const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/vendor/login', '/client', '/invite']
+const publicPaths = ['/', '/login', '/register', '/forgot-password', '/reset-password', '/vendor/login', '/client', '/invite', '/import-review']
 // Paths for authenticated users to be redirected away from
 const authPaths = ['/login', '/register']
 // Vendor portal paths (require vendor auth token)
@@ -39,6 +39,14 @@ function isVendorApiPath(pathname: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl
+
+  if (pathname.startsWith('/import-review/') || pathname.startsWith('/api/shared/import-review/')) {
+    const response = NextResponse.next()
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0')
+    response.headers.set('Referrer-Policy', 'no-referrer')
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    return response
+  }
 
   // Get tokens
   const userToken = request.cookies.get('auth-token')?.value ||
