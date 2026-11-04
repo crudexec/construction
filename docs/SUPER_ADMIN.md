@@ -4,7 +4,7 @@ Implementation branch: `feature/super-admin-dashboard`. This work is for local r
 
 ## Navigation and scope
 
-The entry is **Settings → Platform administration**, available only to explicit platform administrators. `/dashboard/platform` contains Overview, Companies, Feedback, and Audit. Each company has Overview, Users & invitations, Activity, Feedback, and Settings tabs. Normal company navigation remains unchanged.
+The entry is **Settings → Platform administration**, available only to explicit platform administrators. `/dashboard/platform` contains Overview, Companies, Feedback, and Audit. Each company has Overview, Users & invitations, Activity, Feedback, AI assistant, and Settings tabs. Normal company navigation remains unchanged.
 
 Platform access is a `PlatformAdmin` record. It is independent of `User.role` and the pre-existing `FeedbackManager` grant. A company administrator or feedback manager does not automatically become a platform administrator. No HTTP endpoint can grant platform access. The existing feedback-only permission continues to work independently; a verified platform administrator can also manage feedback across companies.
 
@@ -30,6 +30,8 @@ Pre-existing design drift remains: global CSS declares a copper/steel palette an
 ## Company operations
 
 Company creation atomically creates the account, its initial ADMIN invitation, and an audit record. Existing accounts and unexpired email reservations are checked before creation. No password is generated or sent. The operator can copy the invitation link; the company Users & invitations tab supports new invitations, link renewal/resend, and revocation of pending duplicates. Explicit email sends use the platform administrator's company's configured email service. Failed email delivery leaves the invitation available for manual delivery and appears in the audit feed.
+
+The **AI assistant** company tab (`/dashboard/platform?company=<id>&tab=ai`) lets verified platform administrators choose an OpenRouter model, edit and test an unsaved company system prompt, set the daily request limit, and enable or disable company data chat. Company administrators use the **Company data** tab in the bottom-right chat for their own company; they cannot edit these platform settings. Feedback grants remain independent. See [Company data assistant](DATA_ASSISTANT.md) for data scope, credentials, limits, migration, and verification.
 
 Company details, user roles/activation, company suspension/reactivation, and session revocation require an audit reason. Sensitive controls explain their effect and ask for confirmation inside the app. Platform grants and MFA recovery remain offline operator actions.
 
@@ -65,4 +67,4 @@ Overview shows company counts, active/suspended accounts, users signed in over s
 
 Desktop/mobile screenshots are local review artifacts under `.impeccable/review/super-admin/`. No production data or messages are created by these tests.
 
-Local verification completed on the feature branch: 11 platform integration tests, 10 existing feedback integration tests, 19 browser workflow/regression tests, and two desktop/mobile smoke tests against the production standalone build passed. `npx tsc --noEmit`, `npm run build`, and whitespace checks passed. The UI finish review is recorded separately in the local review artifacts; these checks do not deploy or grant production access.
+Before the company data assistant extension, local verification completed on the feature branch: 11 platform integration tests, 10 existing feedback integration tests, 19 browser workflow/regression tests, and two desktop/mobile smoke tests against the production standalone build passed. `npx tsc --noEmit`, `npm run build`, and whitespace checks passed. The UI finish review is recorded separately in the local review artifacts; these checks do not deploy or grant production access.

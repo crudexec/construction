@@ -1,14 +1,14 @@
 # In-app feedback
 
-Signed-in dashboard users open the feedback button at the bottom right. Each new subject and message creates one request in **To do**, with a private conversation. The widget lists the submitter's requests and their current status. Users can add details and return to read replies. Sending text is explicit; Enter adds a new line in the reply composer.
+Signed-in dashboard users open the bottom-right chat button. Company administrators see **Feedback** and **Company data** tabs; other company users open feedback directly. The Feedback tab remains the private request workflow described here. See [Company data assistant](DATA_ASSISTANT.md) for the separate read-only AI chat. Each new subject and message creates one request in **To do**, with a private conversation. The widget lists the submitter's requests and their current status. Users can add details and return to read replies. Sending text is explicit; Enter adds a new line in the reply composer.
 
 Authorized feedback managers open **Settings → Feedback** (`/dashboard/settings?tab=feedback`). The former `/dashboard/feedback` URL redirects there. Verified platform administrators can also open the board from **Settings → Platform administration → Feedback**, or a company's Feedback tab. The board has **To do**, **In progress**, and **Done** lanes. Cards move between lanes using pointer or keyboard drag-and-drop, or the status menu. Opening a card shows the conversation and allows a reply. Every status change records the actor and transition in the conversation. Cards are ordered newest first; dragging within a lane does not reorder them.
 
 ## Access
 
-- Company users, including company admins, see their own requests and conversations. They can add comments and read replies, but cannot change status or open the management board.
+- Company users, including company admins, see their own feedback requests and conversations. They can add comments and read replies, but cannot change status or open the management board.
 - Authorized feedback managers see requests from every company, reply, and update status. Company names appear on their board cards. Platform company filters narrow the displayed requests, and the board names the selected company; the unfiltered board says **All companies**.
-- An explicit `FeedbackManager` record independently grants feedback management. This existing permission does not require platform MFA and does not grant platform administration. Company roles, including `ADMIN`, never grant feedback management. There is no public endpoint to grant this permission; grant it only to a verified account authorized by the application owner.
+- An explicit `FeedbackManager` record independently grants feedback management. This existing permission does not require platform MFA and does not grant platform administration. Company roles, including `ADMIN`, never grant feedback management. The separate company data assistant requires the company `ADMIN` role; a feedback-manager grant does not provide that access. There is no public endpoint to grant this permission; grant it only to a verified account authorized by the application owner.
 - An explicit `PlatformAdmin` record with a valid, MFA-verified platform session also grants feedback management. A platform grant alone is insufficient. Platform session expiry or revocation removes this route to feedback management on the next request; an independent `FeedbackManager` grant continues to apply. Removing either grant does not remove the other. See [Platform administration](SUPER_ADMIN.md) for enrollment, grant, and recovery procedures.
 - Company team-management routes protect other accounts holding either a `FeedbackManager` or `PlatformAdmin` grant from reset, edit, removal, or reactivation.
 - Membership and active state are verified server-side on every API call. UI state and JWT role claims do not grant access by themselves.
@@ -16,7 +16,7 @@ Authorized feedback managers open **Settings → Feedback** (`/dashboard/setting
 
 ## Behavior and limits
 
-Requests and replies are stored in PostgreSQL. The board and open request list refresh every 30 seconds; open conversations refresh every 15 seconds and on window focus. This is asynchronous feedback, not an AI chatbot or a staffed live-chat promise. No email, SMS, attachments, or external integration is included.
+Requests and replies are stored in PostgreSQL. The board and open request list refresh every 30 seconds; open conversations refresh every 15 seconds and on window focus. The Feedback tab provides asynchronous feedback, without a staffed live-chat promise. AI answers are available only in the separate Company data tab for company administrators. Feedback includes no email, SMS, attachments, or external integration.
 
 List endpoints return 25 requests at a time, and conversation endpoints return 50 messages at a time with an older-message cursor. Search matches subjects and submitter names. The first message records only the dashboard pathname, without query parameters or URL fragments. Subjects are limited to 160 characters and messages to 4,000 characters. Writes require same-origin JSON and are capped at 24 KiB. Responses are private and uncached.
 

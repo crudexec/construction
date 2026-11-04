@@ -45,6 +45,9 @@ model Company {
   assets              Asset[]
   assetImportReviews  AssetImportReview[]
   feedbackRequests    FeedbackRequest[]
+  aiConfig            CompanyAiConfig?
+  aiConversations     AiConversation[]
+  aiRuns              AiRun[]
   assetYards          AssetYard[]
   procurementItems    ProcurementItem[]
   stockAlertConfigs   StockAlertConfig[]
@@ -220,6 +223,7 @@ model User {
   feedbackManager  FeedbackManager?
   feedbackRequests FeedbackRequest[]
   feedbackMessages FeedbackMessage[]
+  aiConversations  AiConversation[]
   lastLogin        DateTime?
   resetToken       String?
   resetTokenExpiry DateTime?
@@ -4234,4 +4238,55 @@ model AuditEvent {
   @@index([actorId, createdAt])
   @@index([module, createdAt])
   @@index([outcome, createdAt])
+}
+
+// Read-only data assistant. Credentials are deployment secrets, never company settings.
+model CompanyAiConfig {
+  companyId         String @id
+  enabled           Boolean @default(false)
+  model             String @default("")
+  systemPrompt      String @default("")
+  version           Int @default(1)
+  dailyRequestLimit Int @default(100)
+  updatedById       String
+  updatedAt         DateTime @updatedAt
+  company           Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model AiConversation {
+  id        String @id @default(cuid())
+  companyId String
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  runs      AiRun[]
+  @@index([companyId, userId, updatedAt])
+}
+
+model AiRun {
+  id             String @id @default(cuid())
+  companyId      String
+  userId         String
+  clientId       String
+  conversationId String?
+  purpose        String
+  status         String @default("RUNNING")
+  question       String
+  answer         String?
+  sources        Json?
+  model          String
+  promptVersion  Int
+  totalTokens    Int @default(0)
+  errorCode      String?
+  createdAt      DateTime @default(now())
+  finishedAt     DateTime?
+  company        Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  @@unique([companyId, userId, clientId])
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([conversationId, createdAt])
 }

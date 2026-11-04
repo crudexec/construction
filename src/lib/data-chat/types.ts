@@ -1,0 +1,5 @@
+export const defaultPrompt = 'You are the company’s Buildflo operations assistant. Give concise, practical answers using current company records. Explain what you checked, distinguish missing data from zero, and suggest useful follow-up questions. Use the company’s terminology.'
+export type AiSettings = { enabled: boolean; model: string; systemPrompt: string; version: number; dailyRequestLimit: number; keyConfigured: boolean; usedToday: number }
+export type ModelOption = { id: string; name: string; contextLength: number; promptPrice: string; completionPrice: string }
+export type Source = { dataset: string; operation: string; total: number; returned: number; groups?: { label: string; count: number }[]; filters: Record<string, unknown>; records: { id: string; label: string; href?: string }[] }
+export type ChatRun = { id: string; conversationId: string | null; question: string; answer: string | null; status: string; sources: Source[] | null; model: string; promptVersion: number; totalTokens: number; errorCode: string | null; createdAt: string }

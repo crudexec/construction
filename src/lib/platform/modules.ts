@@ -26,6 +26,7 @@ export const auditModules = [
   "cost-codes",
   "cron",
   "dailylog",
+  "data-chat",
   "dashboard",
   "document",
   "document-templates",

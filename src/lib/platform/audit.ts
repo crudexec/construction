@@ -14,7 +14,7 @@ const fields = new Set(['id', 'name', 'title', 'status', 'role', 'isActive', 'fi
   'equipmentId', 'assetType', 'category', 'priority', 'dueDate', 'completedAt', 'isAccepted',
   'expiresAt', 'emailSent', 'renewed', 'resent', 'count', 'imported', 'skipped', 'failed', 'total',
   'appName', 'currency', 'website', 'phone', 'email', 'city', 'state', 'country', 'zipCode',
-  'address', 'currentAssigneeId', 'currentYardId', 'currentProjectId', 'currentLocation', 'assetId', 'yardId', 'assignedToId', 'version', 'action', 'companyId', 'userId'])
+  'address', 'currentAssigneeId', 'currentYardId', 'currentProjectId', 'currentLocation', 'assetId', 'yardId', 'assignedToId', 'version', 'enabled', 'model', 'dailyRequestLimit', 'action', 'companyId', 'userId'])
 export function safeSnapshot(value: unknown): Prisma.InputJsonObject {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const result: Record<string, Prisma.InputJsonValue | null> = {}

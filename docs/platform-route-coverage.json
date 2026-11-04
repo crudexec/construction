@@ -2053,5 +2053,20 @@
     "route": "/api/work-orders",
     "method": "POST",
     "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/data-chat",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/data-chat",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/data-chat/[id]",
+    "method": "GET",
+    "coverage": "authorization"
   }
 ]
