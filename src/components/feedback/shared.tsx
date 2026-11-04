@@ -34,12 +34,12 @@ export function ErrorMessage({ error, retry }: { error: Error | null; retry?: ()
   if (!error) return null
   return <div role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800"><p>{error.message}</p>{retry && <button className="mt-2 min-h-11 font-medium underline underline-offset-4" onClick={retry}>Try again</button>}</div>
 }
-export function FeedbackDialog({ open, close, title, children, back }: { open: boolean; close: () => void; title: string; children: React.ReactNode; back?: () => void }) {
+export function FeedbackDialog({ open, close, title, children, back, spacious = false, headerContent }: { open: boolean; close: () => void; title: string; children: React.ReactNode; back?: () => void; spacious?: boolean; headerContent?: React.ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => { if (open && !ref.current?.open) ref.current?.showModal(); else if (!open && ref.current?.open) ref.current?.close() }, [open])
-  return <dialog ref={ref} aria-label={title} onCancel={event => { event.preventDefault(); close() }} className="fixed inset-auto bottom-4 right-4 m-0 h-[min(680px,calc(100dvh-2rem))] max-h-none w-[calc(100vw-2rem)] max-w-[440px] overflow-hidden rounded-xl bg-white p-0 text-gray-900 shadow-xl backdrop:bg-slate-900/20 sm:bottom-6 sm:right-6">
+  return <dialog ref={ref} aria-label={title} onCancel={event => { event.preventDefault(); close() }} className={`fixed inset-auto bottom-4 right-4 m-0 max-h-none w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-white p-0 text-gray-900 shadow-xl backdrop:bg-slate-900/20 sm:bottom-6 sm:right-6 ${spacious ? 'h-[calc(100dvh-2rem)] max-w-[640px] sm:h-[min(800px,calc(100dvh-3rem))]' : 'h-[min(680px,calc(100dvh-2rem))] max-w-[440px]'}`}>
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center gap-2 border-b border-gray-200 px-4 py-3">{back && <button className={`${button} shrink-0 border-0 px-2`} aria-label="Back to feedback" onClick={back}><ArrowLeft className="h-5 w-5" /></button>}<h2 className="min-w-0 flex-1 truncate text-base font-semibold">{title}</h2><button className={`${button} shrink-0 border-0 px-2`} onClick={close} aria-label="Close feedback"><X className="h-5 w-5" /></button></header>
+      <header className="flex shrink-0 items-center gap-2 border-b border-gray-200 px-4 py-3">{back && <button className={`${button} shrink-0 border-0 px-2`} aria-label="Back to feedback" onClick={back}><ArrowLeft className="h-5 w-5" /></button>}<div className="min-w-0 flex-1">{headerContent || <h2 className="truncate text-base font-semibold">{title}</h2>}</div><button className={`${button} shrink-0 border-0 px-2`} onClick={close} aria-label={headerContent ? 'Close chat' : 'Close feedback'}><X className="h-5 w-5" /></button></header>
       {children}
     </div>
   </dialog>

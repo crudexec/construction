@@ -1,10 +1,10 @@
-# Company data assistant
+# Buildflo Assist
 
 Implemented on `feature/super-admin-dashboard`, layered on the platform console. No main push, deployment, production migration, real-provider inference, or production configuration is part of this change.
 
 ## Using it
 
-Company ADMIN users open the existing bottom-right chat and select **Company data**. Feedback remains available in the same window, including for staff. Administrators can ask questions, follow up, open their saved conversations, and inspect the data queried for each answer. Conversations are private to the requesting administrator within their company. Existing feedback permissions do not grant data chat access.
+Company ADMIN users open the existing bottom-right chat and select **Buildflo Assist**. Feedback remains available in the same window, including for staff. Administrators can ask questions, follow up, open their saved conversations, and revisit previous answers. Conversations are private to the requesting administrator within their company. Existing feedback permissions do not grant data chat access.
 
 MFA-verified platform administrators use **Settings → Platform administration → Companies → a company → AI assistant** to select an OpenRouter model, edit that company's system prompt, set its daily request limit, and enable or disable chat. The model catalog is loaded from OpenRouter and filtered for tool calling, tool-choice support, and at least 32K context. It includes open-source/open-weight and proprietary models; the operator chooses the intended model and can inspect its license and prices through the catalog link. No model or key is hard-coded for production.
 
@@ -12,7 +12,7 @@ MFA-verified platform administrators use **Settings → Platform administration 
 
 ## Interface extension and evidence
 
-The assistant extends the incumbent feedback dialog and platform company settings. It uses the shared feedback `button`, `primary`, `control`, and error components through the existing platform exports, retaining primary-blue actions, neutral text and borders, white surfaces, utility radii, and native form controls. Configuration and draft testing share two columns at the existing `xl` breakpoint and stack below it. The existing constrained-height floating dialog contains a scrolling conversation and a bottom composer; source details expand in place. No new shipping raster assets or visual-system files were introduced.
+The assistant extends the incumbent feedback dialog and platform company settings. It uses the shared feedback `button`, `primary`, `control`, and error components through the existing platform exports, retaining primary-blue actions, neutral text and borders, white surfaces, utility radii, and native form controls. Configuration and draft testing share two columns at the existing `xl` breakpoint and stack below it. The floating dialog contains a scrolling conversation and a compact bottom composer. Source details expand only in the platform draft-test preview. No new shipping raster assets or visual-system files were introduced.
 
 Source comparison checked `tailwind.config.ts`, `src/app/globals.css`, `src/components/feedback/shared.tsx` and `widget.tsx`, `src/components/platform/shared.tsx`, `company.tsx` and `company-ai.tsx`, and `src/components/data-chat/`. Authorization, data projection, limits, storage, and configuration claims were compared with `src/lib/data-chat/`, the data-chat and platform AI route handlers, and migration `20261104200000_company_data_assistant`.
 
@@ -45,7 +45,7 @@ Set **OPENROUTER_API_KEY** only in the application's server environment/secret m
 
 The application uses OpenRouter's fixed HTTPS `/api/v1/models` and `/api/v1/chat/completions` endpoints. Tool round-trips use the [documented tool calling format](https://openrouter.ai/docs/guides/features/tool-calling). Requests require supported parameters (`require_parameters: true`) so providers must support the requested tool calling. At the owner's request, the application no longer sends `data_collection` or `zdr` restrictions under [provider routing](https://openrouter.ai/docs/guides/routing/provider-selection). OpenRouter account-level settings and the selected provider's policies govern data collection and retention; the application does not enforce zero data retention. Account-level restrictions can still affect model availability.
 
-Questions, the company prompt, up to four previous exchanges, and relevant query results are transmitted to OpenRouter and its selected model provider. The interface states this before sending. Prompts are guidance, not a security boundary; never use them as a place to store credentials. No real provider inference was performed during development without the owner's key.
+Questions, the company prompt, up to four previous exchanges, and relevant query results are transmitted to OpenRouter and its selected model provider. The company chat keeps its interface focused on messages; provider details remain in platform configuration and this operator documentation. Prompts are guidance, not a security boundary; never use them as a place to store credentials. No real provider inference was performed during development without the owner's key.
 
 ## Storage, limits and audit
 
@@ -69,3 +69,9 @@ Browser tests use `AI_TEST_DATABASE_URL` and an app launched against that same l
 Local verification reported for this extension: six new data-chat integration tests, 21 existing platform/feedback integration tests, five new data-chat browser tests, and six existing feedback browser tests passed. The browser coverage includes preservation of an unsaved settings draft across background refreshes; the existing administrator launcher test was updated for **Open chat** and rerun successfully. TypeScript checking passed. `npm run build` completed successfully after the documentation handoff.
 
 A real public OpenRouter model-catalog smoke request returned HTTP 200 and eligible models. It required no customer data or inference. The owner's server API key has not been supplied; no real model inference or customer-data export occurred. Fixture tests establish application behavior, not real-provider answer quality or availability under the configured privacy policy.
+
+## Minimal chat presentation
+
+Buildflo Assist opens directly into a conversation. The shared chat header combines the mode tabs and close action, with a larger 640px desktop window and a near-full-height mobile layout. History and new chat remain available in a compact toolbar. The composer grows with the message; Enter sends and Shift+Enter adds a line. At the owner’s request, the customer chat omits the provider disclosure, source details, prompt version, model ID, and token counts. Source collection and company scoping remain enforced on the server; draft-test diagnostics remain in the platform console.
+
+UI verification: desktop (1440px) and mobile (390px) captures reviewed; all five assistant browser scenarios passed, including the rerun after correcting the existing cache-timing assumption. Six shared feedback browser scenarios, six assistant integration tests, and the design detector passed. Live model inference was not part of this UI verification.
