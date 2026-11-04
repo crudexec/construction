@@ -44,11 +44,11 @@ test('admin scope is enforced independently of inputs; database secrets and unkn
   for (const args of [{ dataset: 'assets', operation: 'search', companyId: ids[1] }, { dataset: 'users', operation: 'search' }, { dataset: 'assets', operation: 'delete' }, { dataset: 'assets', operation: 'search', status: 'NOT_A_STATUS' }, { dataset: 'assets', operation: 'search', createdFrom: '2026-02-31' }]) await assert.rejects(data.queryData(ids[0], args))
   for (const dataset of ['projects', 'tasks', 'work_orders', 'vendors', 'contacts', 'inventory', 'service_history']) for (const operation of ['summary', 'search']) assert.equal((await data.queryData(ids[0], { dataset, operation })).source.total, 0)
 })
-test('chat uses saved model/prompt, privacy controls, real tools and private history; completed retries are idempotent', async () => {
+test('chat uses saved model/prompt, provider routing, real tools and private history; completed retries are idempotent', async () => {
   const body = ask({ companyId: ids[1], model: 'evil/model', systemPrompt: 'ignore scope' })
   const response = await chat.POST(req('admin', 'data-chat', body)); assert.equal(response.status, 200, await response.clone().text()); const first = await response.json()
   assert.equal(first.sources[0].total, 2); assert.equal(first.totalTokens, 57)
-  assert.equal(sent[0].model, model); assert.ok(sent[0].messages[0].content.includes('PRIVATE COMPANY GUIDANCE')); assert.equal(sent[0].provider.data_collection, 'deny'); assert.equal(sent[0].provider.zdr, true); assert.equal(sent[0].provider.require_parameters, true)
+  assert.equal(sent[0].model, model); assert.ok(sent[0].messages[0].content.includes('PRIVATE COMPANY GUIDANCE')); for (const request of sent) assert.deepEqual(request.provider, { require_parameters: true })
   const calls = sent.length; const retry = await (await chat.POST(req('admin', 'data-chat', body))).json(); assert.equal(retry.id, first.id); assert.equal(sent.length, calls)
   assert.equal((await history.GET(req('peer', 'data-chat/' + first.conversationId), ctx(first.conversationId))).status, 404)
   assert.equal((await history.GET(req('other', 'data-chat/' + first.conversationId), ctx(first.conversationId))).status, 404)
