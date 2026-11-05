@@ -141,7 +141,7 @@ export default function VendorPortalLayout({
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-6">
+        <main className="app-workspace p-4 lg:p-6">
           {children}
         </main>
       </div>

@@ -136,6 +136,7 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
         },
         _count: {
           select: {
+            requests: true,
             issues: {
               where: { status: { in: ['OPEN', 'IN_PROGRESS'] } }
             }
@@ -148,7 +149,8 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
       return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
     }
 
-    return NextResponse.json(asset)
+    const pendingRequestCount = await prisma.assetRequest.count({ where: { assetId: id, status: 'PENDING' } })
+    return NextResponse.json({ ...asset, pendingRequestCount })
 
   } catch (error) {
     if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })

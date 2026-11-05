@@ -228,6 +228,7 @@ export default function ProjectsPage() {
   return (
     <>
       <div className="space-y-2">
+        <header className="mb-4"><h1 className="text-2xl font-semibold text-gray-900">Projects</h1><p className="mt-1 text-sm text-gray-600">Manage projects, budgets and progress</p></header>
         {/* Compact Toolbar */}
         <div className="bg-white border border-gray-300 rounded px-2 py-1.5 flex flex-wrap items-center gap-2">
           {/* Search */}

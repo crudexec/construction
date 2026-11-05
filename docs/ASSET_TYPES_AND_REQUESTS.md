@@ -29,3 +29,13 @@ The **Import reviews** link was removed from the Assets heading. Existing review
 Validation: the ten asset-list browser scenarios and five existing request/type browser scenarios passed. The new request-entry scenario also passed after allowing for cold development compilation, including actual database persistence of the pending request and selected dates. Desktop/mobile picker and form captures were reviewed. TypeScript passed. No new database migration is required for these UI changes.
 
 For invitation-delay investigations, compare invitation creation with the provider's email creation timestamp. Provider acceptance and its latest event do not establish the exact time a message appeared in the recipient's inbox; that requires provider delivery history or recipient mail-system logs. No invitation emails are sent by the UI verification tests.
+
+## Consistent request workflow and Overview widget
+
+The New Request asset picker now matches the main Assets grid: equipment ID, asset name/serial, make/model, type, category, status, location, assignment and cost. It supports server-side type/category filters, search, column sorting and 25/50/100-row pages. Only available assets are eligible; its Request action remains visible while scrolling horizontally on mobile.
+
+Choosing an asset opens the shared compact `AssetRequestDialog` in place. The same form is used from asset details and the Overview Requests widget. Submission refreshes the request list and asset summary. Closing restores focus, errors preserve the entered form, and controls cannot dismiss a submission while it is in progress.
+
+The asset Overview widget displays full total/pending counts, with View requests and New Request actions. Counts are computed independently from the limited recent-request preview. The asset-specific Requests tab now uses the server-paginated `/api/asset-requests?assetId=...` endpoint, retaining company isolation and avoiding the former ten-row limit. Unavailable assets explain why a new request cannot be made.
+
+Shared typography and density live in `src/app/workspace.css`; see `docs/WORKSPACE_UI.md`. No schema migration is required.

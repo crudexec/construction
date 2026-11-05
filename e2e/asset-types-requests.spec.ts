@@ -82,12 +82,12 @@ for (const width of [1440, 390]) test(`settings and request list fit ${width}px`
 })
 
 
-test('new request entry searches available assets and opens the existing submission form', async ({ page }) => {
+test('new request entry searches available assets and submits in place with the shared form', async ({ page }) => {
   await page.goto('/dashboard/assets/requests')
   await page.getByRole('button', { name: 'New Request', exact: true }).click()
   await page.getByRole('textbox', { name: 'Search available assets' }).fill('IT-001')
-  const choice = page.getByRole('link').filter({ hasText: 'IT-001' })
-  await expect(choice).toBeVisible()
+  const choice = page.getByRole('button', { name: 'Request IT-001', exact: true })
+  await expect(choice).toBeVisible({ timeout: 30000 })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.getByRole('region', { name: 'New asset request' }).screenshot({ path: `${screenshots}/new-request-picker-${width}.png` })
@@ -107,8 +107,71 @@ test('new request entry searches available assets and opens the existing submiss
   await expect(dialog).not.toBeVisible()
   await expect(page.getByText('Request submitted for approval.', { exact: true })).toBeVisible()
   const saved = await prisma.assetRequest.findFirstOrThrow({ where: { assetId, purpose: 'New request entry regression' } })
+  expect(new URL(page.url()).pathname).toBe('/dashboard/assets/requests')
   expect(saved.status).toBe('PENDING')
   expect(saved.requesterId).toBe(user.id)
   expect(saved.startDate?.toISOString().slice(0, 10)).toBe('2026-11-10')
   expect(saved.endDate?.toISOString().slice(0, 10)).toBe('2026-11-12')
+})
+
+
+test('asset overview requests widget opens the compact request table and shared form', async ({ page }) => {
+  await page.goto(`/dashboard/assets/${assetId}`)
+  const widget = page.getByRole('region', { name: 'Asset requests summary' })
+  await expect(widget).toContainText(`${await prisma.assetRequest.count({ where: { assetId } })} total`)
+  await expect(widget).toContainText('pending approval')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await widget.screenshot({ path: `${screenshots}/requests-widget-${width}.png` })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+  }
+  await widget.getByRole('button', { name: 'View requests' }).click()
+  await expect(page.getByRole('region', { name: 'Requests for this asset' })).toBeVisible()
+  const pager = page.getByRole('navigation', { name: 'Asset request pages' })
+  await expect(pager).toContainText('Page 1 of 2')
+  await pager.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(pager).toContainText('Page 2 of 2')
+  await pager.getByRole('button', { name: 'Previous', exact: true }).click()
+  await expect(pager).toContainText('Page 1 of 2')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.evaluate(() => window.scrollTo(0, 0))
+    await page.screenshot({ path: `${screenshots}/asset-detail-requests-${width}.png`, fullPage: true })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+  }
+  await page.getByRole('button', { name: 'Overview', exact: true }).click()
+  await widget.getByRole('button', { name: 'New Request', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Request Asset', exact: true })).toBeVisible()
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
+  await expect(widget.getByRole('button', { name: 'New Request', exact: true })).toBeFocused()
+})
+
+test('shared workspace sizing reaches core modules and preserves document content', async ({ page }) => {
+  test.setTimeout(300000)
+  await prisma.vendor.create({ data: { companyId, name: 'UI review vendor', companyName: 'UI review vendor' } })
+  await prisma.inventoryMaterial.create({ data: { companyId, name: 'UI review material', unit: 'each', quantity: 12 } })
+  for (const path of ['assets', 'vendors', 'projects', 'inventory', 'contacts', 'settings', 'assets/work-orders', 'purchase-orders']) {
+    await page.goto(`/dashboard/${path}`)
+    await expect(page.locator('main.app-workspace')).toBeVisible()
+    await expect(page.locator('main h1').first()).toBeVisible({ timeout: 30000 })
+    expect(await page.locator('main h1').first().evaluate(node => getComputedStyle(node).fontSize)).toBe('24px')
+    if (path === 'vendors') await expect(page.getByText('UI review vendor').first()).toBeVisible({ timeout: 30000 })
+    if (path === 'inventory') await expect(page.getByText('UI review material').first()).toBeVisible({ timeout: 30000 })
+    const table = page.locator('main table').first()
+    if (await table.count()) expect(await table.evaluate(node => getComputedStyle(node).fontSize)).toBe('12px')
+    if (['vendors', 'inventory', 'settings'].includes(path)) {
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 })
+        await page.screenshot({ path: `${screenshots}/workspace-${path}-${width}.png`, fullPage: true })
+      }
+    }
+  }
+  await page.evaluate(() => {
+    const preview = document.createElement('section')
+    preview.setAttribute('data-ui-density', 'preserve')
+    preview.innerHTML = '<h1 style="font-size: 32px">Document title</h1><table style="font-size: 16px"><tbody><tr><td>Document content</td></tr></tbody></table>'
+    document.querySelector('main')!.append(preview)
+  })
+  expect(await page.locator('[data-ui-density="preserve"] h1').evaluate(node => getComputedStyle(node).fontSize)).toBe('32px')
+  expect(await page.locator('[data-ui-density="preserve"] table').evaluate(node => getComputedStyle(node).fontSize)).toBe('16px')
 })

@@ -1,0 +1,101 @@
+/* Shared compact UI for authenticated workspaces. Content editors and document
+   previews retain their authored typography. Use data-ui-density="preserve" for
+   other content whose physical dimensions or typography must stay independent. */
+.app-workspace {
+  --ui-text: 0.8125rem;
+  --ui-label: 0.75rem;
+  --ui-title: 1.5rem;
+  --ui-section: 1rem;
+  --ui-control-height: 2.25rem;
+  --ui-cell-x: 0.5rem;
+  --ui-cell-y: 0.375rem;
+  font-size: var(--ui-text);
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.app-workspace :is(h1, h2, h3, h4, p, label, button, input, select, textarea, table, th, td, a):not(:where(.prose, .prose *, [contenteditable], [contenteditable] *, [data-ui-density="preserve"], [data-ui-density="preserve"] *)) {
+  /* Forms, menus and dense grids share the system font used on Assets. */
+  font-family: inherit;
+}
+
+.app-workspace h1:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-title);
+  line-height: 1.3;
+  font-weight: 600;
+}
+/* Record names stay smaller than page titles. */
+.app-workspace h1.text-base { font-size: var(--ui-section); }
+.app-workspace h2:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-section);
+  line-height: 1.4;
+  font-weight: 600;
+}
+.app-workspace :is(h3, h4):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)),
+.app-workspace dialog h2 {
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.app-workspace label:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-label);
+  line-height: 1.5;
+}
+.app-workspace :is(button, select, textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]), a[class*="rounded"]):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-label);
+  line-height: 1.5;
+}
+.app-workspace :is(select, input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"])):not(:where([contenteditable] *, [data-ui-density="preserve"] *)) {
+  min-height: var(--ui-control-height);
+}
+.app-workspace :is(button, a[class*="rounded"]):not(:where([role="switch"], .prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  min-height: var(--ui-control-height);
+}
+.app-workspace :is(button, a[class*="rounded"]):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) > svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+.app-workspace :is(input, textarea) { caret-color: #2563eb; }
+.app-workspace ::selection { background: #dbeafe; color: #1e3a8a; }
+.app-workspace :is(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline-color: #2563eb;
+  outline-offset: 2px;
+}
+
+.app-workspace table:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-label);
+  line-height: 1.4;
+  border-collapse: collapse;
+}
+.app-workspace :is(th, td):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  padding: var(--ui-cell-y) var(--ui-cell-x);
+  font-size: var(--ui-label);
+  border-bottom: 1px solid #e5e7eb;
+}
+.app-workspace th:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: normal;
+}
+.app-workspace :is(th, td) :is(p, div, a, button):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  font-size: var(--ui-label);
+}
+.app-workspace tbody tr:not([class*="bg-"]):nth-child(even):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  background: #f9fafb;
+}
+.app-workspace tbody tr:hover:not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) { background: #eff6ff; }
+.app-workspace :is(.bg-white.border.rounded-lg, .bg-white.border.rounded-xl):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) {
+  box-shadow: none;
+  border-color: #e5e7eb;
+  border-radius: 0.5rem;
+}
+.app-workspace :is(.bg-white.border.p-6, .bg-white.border.p-8):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) { padding: 1.25rem; }
+
+@media (max-width: 639px), (pointer: coarse) {
+  .app-workspace { --ui-control-height: 2.75rem; }
+  /* Preserve comfortable touch targets while desktop tables remain compact. */
+  .app-workspace :is(.bg-white.border.p-6, .bg-white.border.p-8):not(:where(.prose *, [contenteditable] *, [data-ui-density="preserve"] *)) { padding: 1rem; }
+}

@@ -1,4 +1,5 @@
 'use client'
+import { assetButton, assetPrimary } from '@/components/assets/asset-request-dialog'
 import { AssetRequestPicker } from '@/components/assets/asset-request-picker'
 import { useAuthStore } from '@/store/auth'
 import { useAssetTypes } from '@/components/assets/asset-type-select'
@@ -114,14 +115,14 @@ export default function AssetRequestsPage() {
             <p className="text-sm text-gray-600">Review and manage asset requests</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setShowPicker(true)} aria-expanded={showPicker} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-white hover:bg-primary-700 focus-visible:ring-2 focus-visible:ring-primary-500"><Plus aria-hidden="true" className="h-4 w-4" />New Request</button>
-        <Link href="/dashboard/assets" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border bg-white px-4 py-2 text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500">
+        <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setShowPicker(true)} aria-expanded={showPicker} className={assetPrimary}><Plus aria-hidden="true" className="h-4 w-4" />New Request</button>
+        <Link href="/dashboard/assets" className={assetButton}>
           <ArrowLeft aria-hidden="true" className="h-4 w-4" />
           Back to assets
         </Link></div>
       </div>
 
-      {showPicker && <AssetRequestPicker close={() => setShowPicker(false)} />}
+      {showPicker && <AssetRequestPicker close={() => setShowPicker(false)} created={() => { setShowPicker(false); setFilterStatus('all'); setPage(1) }} />}
 
       <div className="bg-white rounded-lg shadow border p-6">
         <div className="space-y-2">

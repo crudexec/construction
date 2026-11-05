@@ -9,7 +9,8 @@ async function get(request: NextRequest) {
     const user = await assetUser(request), { page, take } = pageArgs(request)
     const status = request.nextUrl.searchParams.get('status')
     if (status && status !== 'all' && !Object.values(AssetRequestStatus).includes(status as AssetRequestStatus)) throw new PlatformError('Choose a valid request status.')
-    const scope = { asset: { companyId: user.companyId } }
+    const assetId = request.nextUrl.searchParams.get('assetId')
+    const scope = { asset: { companyId: user.companyId }, ...(assetId ? { assetId } : {}) }
     const where = { ...scope, ...(status && status !== 'all' ? { status: status as AssetRequestStatus } : {}) }
     const result = await prisma.$transaction(async tx => {
       const total = await tx.assetRequest.count({ where }), totalPages = Math.max(1, Math.ceil(total / take)), currentPage = Math.min(page, totalPages)

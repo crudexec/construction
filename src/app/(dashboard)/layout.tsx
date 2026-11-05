@@ -19,7 +19,7 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
         }`}
       >
         <Header />
-        <main className="py-3 px-3 sm:px-4 lg:px-6">
+        <main className="app-workspace py-3 px-3 sm:px-4 lg:px-6">
           {children}
         </main>
       </div>

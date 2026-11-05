@@ -2,7 +2,9 @@
 import { useAssetTypes } from '@/components/assets/asset-type-select'
 import { assetTypeLabel } from '@/lib/assets/type-options'
 
-import { format } from 'date-fns'
+import { AssetRequestDialog, assetButton, assetPrimary } from '@/components/assets/asset-request-dialog'
+import { ErrorMessage } from '@/components/feedback/shared'
+import { fetchAssetJson } from '@/lib/assets/client'
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
@@ -128,9 +130,10 @@ interface Asset {
   attachments: Attachment[]
   customFieldValues: CustomFieldValue[]
   requests: AssetRequest[]
+  pendingRequestCount: number
   maintenanceSchedules: any[]
   maintenanceRecords: any[]
-  _count?: { issues: number }
+  _count?: { issues: number; requests: number }
 }
 
 interface Project {
@@ -167,15 +170,6 @@ async function fetchAsset(id: string): Promise<Asset> {
   })
   if (!response.ok) throw new Error('Failed to fetch asset')
   return response.json()
-}
-
-async function fetchProjects(): Promise<Project[]> {
-  const response = await fetch('/api/project', {
-    headers: { 'Authorization': `Bearer ${getToken()}`, 'Cookie': document.cookie }
-  })
-  if (!response.ok) return []
-  const data = await response.json()
-  return Array.isArray(data) ? data : data.projects || []
 }
 
 async function fetchAssetStatuses(): Promise<AssetStatusDefinition[]> {
@@ -221,9 +215,9 @@ const getRequestStatusBadge = (status: string) => {
   const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800', icon: Clock }
   const Icon = config.icon
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${config.bg} ${config.text}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded ${config.bg} ${config.text}`}>
       <Icon className="h-3 w-3" />
-      {status}
+      {status.charAt(0) + status.slice(1).toLowerCase()}
     </span>
   )
 }
@@ -240,6 +234,12 @@ export default function AssetDetailPage() {
   const assetId = params.id as string
   const { format: formatCurrency } = useCurrency()
   const [activeTab, setActiveTab] = useState('overview')
+  const [requestPage, setRequestPage] = useState(1)
+  const requestsQuery = useQuery<{ items: AssetRequest[]; total: number; page: number; totalPages: number; pendingCount: number }>({
+    queryKey: ['asset-requests', currentUser?.id, assetId, requestPage],
+    queryFn: ({ signal }) => fetchAssetJson(`/api/asset-requests?assetId=${encodeURIComponent(assetId)}&page=${requestPage}`, signal),
+    enabled: !!currentUser?.id && activeTab === 'requests', retry: false,
+  })
   const [openMeterForm, setOpenMeterForm] = useState(false)
 
   useEffect(() => {
@@ -251,8 +251,6 @@ export default function AssetDetailPage() {
   const [editForm, setEditForm] = useState(emptyEditForm)
   const [customFieldEdits, setCustomFieldEdits] = useState<Record<string, string>>({})
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
-  const requestDialog = useRef<HTMLDialogElement>(null)
-  useEffect(() => { if (isRequestModalOpen) requestDialog.current?.showModal() }, [isRequestModalOpen])
   const requestLinkHandled = useRef(false)
   const [showQrModal, setShowQrModal] = useState(false)
   const [showCustomFieldModal, setShowCustomFieldModal] = useState(false)
@@ -266,10 +264,6 @@ export default function AssetDetailPage() {
     name: '',
     baseStatus: 'AVAILABLE' as Asset['status'],
     color: '#2563eb'
-  })
-
-  const [requestForm, setRequestForm] = useState({
-    purpose: '', projectId: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '', notes: ''
   })
 
   const isAdmin = currentUser?.role === 'ADMIN'
@@ -291,11 +285,7 @@ export default function AssetDetailPage() {
     }
   }, [asset])
 
-  const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
-    queryFn: fetchProjects,
-    enabled: isRequestModalOpen
-  })
+
 
   const { data: assetStatuses = [] } = useQuery({
     queryKey: ['asset-statuses'],
@@ -490,34 +480,6 @@ export default function AssetDetailPage() {
     onError: (err: Error) => toast.error(err.message)
   })
 
-  const createRequestMutation = useMutation({
-    mutationFn: async (data: typeof requestForm) => {
-      const response = await fetch(`/api/assets/${assetId}/requests`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          purpose: data.purpose,
-          projectId: data.projectId || undefined,
-          startDate: data.startDate || undefined,
-          endDate: data.endDate || undefined,
-          notes: data.notes || undefined
-        })
-      })
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to create request')
-      }
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
-      queryClient.invalidateQueries({ queryKey: ['asset-requests'] })
-      toast.success('Request submitted for approval.')
-      setIsRequestModalOpen(false)
-      setRequestForm({ purpose: '', projectId: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '', notes: '' })
-    }
-  })
-
   const approveMutation = useMutation({
     mutationFn: async (requestId: string) => {
       const response = await fetch(`/api/asset-requests/${requestId}/approve`, {
@@ -527,7 +489,7 @@ export default function AssetDetailPage() {
       if (!response.ok) throw new Error('Failed to approve request')
       return response.json()
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['asset', assetId] }); void queryClient.invalidateQueries({ queryKey: ['asset-requests'] }); void queryClient.invalidateQueries({ queryKey: ['assets'] }) }
   })
 
   const rejectMutation = useMutation({
@@ -540,7 +502,7 @@ export default function AssetDetailPage() {
       if (!response.ok) throw new Error('Failed to reject request')
       return response.json()
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['asset', assetId] }); void queryClient.invalidateQueries({ queryKey: ['asset-requests'] }); void queryClient.invalidateQueries({ queryKey: ['assets'] }) }
   })
 
   const returnMutation = useMutation({
@@ -553,7 +515,7 @@ export default function AssetDetailPage() {
       if (!response.ok) throw new Error('Failed to return asset')
       return response.json()
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+    onSuccess: () => { void queryClient.invalidateQueries({ queryKey: ['asset', assetId] }); void queryClient.invalidateQueries({ queryKey: ['asset-requests'] }); void queryClient.invalidateQueries({ queryKey: ['assets'] }) }
   })
 
   const handleCancelEdit = () => {
@@ -613,7 +575,9 @@ export default function AssetDetailPage() {
     )
   }
 
-  const pendingRequests = asset.requests.filter(r => r.status === 'PENDING')
+  const pendingRequestCount = asset.pendingRequestCount ?? asset.requests.filter(r => r.status === 'PENDING').length
+  const requestCount = asset._count?.requests ?? asset.requests.length
+  const displayedRequests = requestsQuery.data?.items || []
   const upcomingMaintenance = asset.maintenanceSchedules.filter((s: any) =>
     s.isActive && new Date(s.nextDueDate) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
   )
@@ -626,7 +590,7 @@ export default function AssetDetailPage() {
     { id: 'meter', label: 'Meter Reads' },
     { id: 'assignments', label: 'Locations' },
     { id: 'people', label: 'Assignments' },
-    { id: 'requests', label: `Requests (${asset.requests.length})` },
+    { id: 'requests', label: `Requests (${requestCount})` },
     { id: 'maintenance', label: 'Maintenance & Service' },
     { id: 'issues', label: asset._count?.issues ? `Issues (${asset._count.issues})` : 'Issues' },
     { id: 'attachments', label: 'Photos & Documents' }
@@ -664,17 +628,17 @@ export default function AssetDetailPage() {
   return (
     <div className="space-y-3">
       <div className="bg-white border rounded-lg px-4 py-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="text-gray-500 hover:text-gray-700 p-1">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex w-full min-w-0 items-center gap-3 sm:w-auto sm:flex-1">
+            <button aria-label="Back to assets" onClick={() => router.push('/dashboard/assets')} className="shrink-0 rounded p-2 text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary-500">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="h-8 w-8 rounded bg-gray-100 flex items-center justify-center text-gray-600">
+            <div className="h-8 w-8 shrink-0 rounded bg-gray-100 flex items-center justify-center text-gray-600">
               {getAssetTypeIcon(asset.type)}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-semibold text-gray-900">{asset.equipmentId ? `${asset.equipmentId} · ${asset.name}` : asset.name}</h1>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="break-words text-base font-semibold text-gray-900">{asset.equipmentId && asset.equipmentId !== asset.name ? `${asset.equipmentId} · ${asset.name}` : asset.name}</h1>
                 {getStatusBadge(asset.status, asset.statusDefinition)}
               </div>
               <p className="text-xs text-gray-500">
@@ -682,7 +646,7 @@ export default function AssetDetailPage() {
                 {asset.serialNumber ? ` | SN: ${asset.serialNumber}` : ''}
               </p>
             </div>
-            <div className="hidden md:flex items-center gap-4 ml-6 pl-6 border-l border-gray-200">
+            <div className="hidden 2xl:flex shrink-0 items-center gap-4 ml-6 pl-6 border-l border-gray-200">
               <div className="flex items-center gap-1.5 text-sm">
                 <DollarSign className="h-4 w-4 text-green-500" />
                 <span className="font-medium">{asset.purchaseCost ? formatCurrency(asset.purchaseCost) : '-'}</span>
@@ -690,7 +654,7 @@ export default function AssetDetailPage() {
               </div>
               <div className="flex items-center gap-1.5 text-sm">
                 <Clock className="h-4 w-4 text-purple-500" />
-                <span className="font-medium">{asset.requests.length}</span>
+                <span className="font-medium">{requestCount}</span>
                 <span className="text-gray-400 text-xs">requests</span>
               </div>
               <div className="flex items-center gap-1.5 text-sm">
@@ -705,17 +669,17 @@ export default function AssetDetailPage() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
           {isEditing ? (
             <>
-              <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+              <button onClick={handleCancelEdit} className="text-gray-600 hover:text-gray-900 min-h-11 sm:min-h-9 px-2 py-1 text-xs flex shrink-0 items-center gap-1 hover:bg-gray-100 rounded">
                 <X className="h-3.5 w-3.5" />
                 <span>Cancel</span>
               </button>
               <button
                 onClick={() => updateMutation.mutate()}
                 disabled={updateMutation.isPending || !fieldLayout.data || fieldLayout.isError}
-                className="text-primary-700 hover:text-primary-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-primary-50 rounded disabled:opacity-50"
+                className="text-primary-700 hover:text-primary-900 min-h-11 sm:min-h-9 px-2 py-1 text-xs flex shrink-0 items-center gap-1 hover:bg-primary-50 rounded disabled:opacity-50"
               >
                 <Save className="h-3.5 w-3.5" />
                 <span>{updateMutation.isPending ? 'Saving...' : 'Save Changes'}</span>
@@ -723,11 +687,11 @@ export default function AssetDetailPage() {
             </>
           ) : (
             <>
-              <button onClick={() => setShowQrModal(true)} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+              <button onClick={() => setShowQrModal(true)} className="text-gray-600 hover:text-gray-900 min-h-11 sm:min-h-9 px-2 py-1 text-xs flex shrink-0 items-center gap-1 hover:bg-gray-100 rounded">
                 <QrCode className="h-3.5 w-3.5" />
                 <span>QR Code</span>
               </button>
-              <button onClick={() => setIsEditing(true)} className="text-gray-600 hover:text-gray-900 px-2 py-1 text-sm flex items-center gap-1 hover:bg-gray-100 rounded">
+              <button onClick={() => setIsEditing(true)} className="text-gray-600 hover:text-gray-900 min-h-11 sm:min-h-9 px-2 py-1 text-xs flex shrink-0 items-center gap-1 hover:bg-gray-100 rounded">
                 <Edit className="h-3.5 w-3.5" />
                 <span>Edit</span>
               </button>
@@ -735,7 +699,7 @@ export default function AssetDetailPage() {
                 <button
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
-                  className="text-red-600 hover:text-red-700 px-2 py-1 text-sm flex items-center gap-1 hover:bg-red-50 rounded disabled:opacity-50"
+                  className="text-red-600 hover:text-red-700 min-h-11 sm:min-h-9 px-2 py-1 text-xs flex shrink-0 items-center gap-1 hover:bg-red-50 rounded disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   <span>Delete</span>
@@ -748,12 +712,12 @@ export default function AssetDetailPage() {
       </div>
 
       {/* Alerts */}
-      {(pendingRequests.length > 0 || upcomingMaintenance.length > 0) && (
+      {(pendingRequestCount > 0 || upcomingMaintenance.length > 0) && (
         <div className="space-y-3">
-          {pendingRequests.length > 0 && (
+          {pendingRequestCount > 0 && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-yellow-600" />
-              <span className="text-yellow-800">{pendingRequests.length} pending request(s) waiting for approval</span>
+              <span className="text-yellow-800">{pendingRequestCount} pending request(s) waiting for approval</span>
             </div>
           )}
           {upcomingMaintenance.length > 0 && (
@@ -771,7 +735,7 @@ export default function AssetDetailPage() {
             <button
               key={tab.id}
               onClick={() => { setOpenMeterForm(false); setActiveTab(tab.id) }}
-              className={`py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
+              className={`min-h-11 sm:min-h-9 py-1.5 px-3 text-xs font-medium whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-b-2 border-primary-500 text-primary-600'
                   : 'text-gray-500 hover:text-gray-700'
@@ -789,6 +753,11 @@ export default function AssetDetailPage() {
           <AssetOverviewTiles
             assetId={assetId}
             openIssueCount={asset._count?.issues || 0}
+            requestCount={requestCount}
+            pendingRequestCount={pendingRequestCount}
+            canRequest={asset.status === 'AVAILABLE'}
+            onViewRequests={() => setActiveTab('requests')}
+            onNewRequest={() => setIsRequestModalOpen(true)}
             onViewIssues={() => setActiveTab('issues')}
             onViewReadings={() => { setOpenMeterForm(false); setActiveTab('meter') }}
             onAddReading={() => { setOpenMeterForm(true); setActiveTab('meter') }}
@@ -864,63 +833,28 @@ export default function AssetDetailPage() {
       {activeTab === 'attachments' && <AssetAttachmentsTab assetId={assetId} attachments={asset.attachments} />}
 
       {activeTab === 'requests' && (
-        <div className="bg-white rounded-lg shadow border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-            <h3 className="text-lg font-medium text-gray-900">Asset Requests</h3>
-            {asset.status === 'AVAILABLE' && (
-              <button onClick={() => setIsRequestModalOpen(true)} className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span>New Request</span>
-              </button>
-            )}
+        <section aria-label="Asset requests" className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="text-sm font-semibold text-gray-900">Asset Requests</h2><p className="mt-1 text-xs text-gray-600">{requestCount} requests · {pendingRequestCount} pending approval</p></div>
+            {asset.status === 'AVAILABLE' && <button onClick={() => setIsRequestModalOpen(true)} className={assetPrimary}><Plus aria-hidden="true" className="h-3.5 w-3.5" />New Request</button>}
           </div>
-          {asset.requests.length === 0 ? (
-            <div className="p-12 text-center">
-              <Clock className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No requests yet</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Requester</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Purpose</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {asset.requests.map((request) => (
-                    <tr key={request.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{request.requester.firstName} {request.requester.lastName}</div>
-                        <div className="text-sm text-gray-500">{request.requester.email}</div>
-                      </td>
-                      <td className="px-6 py-4"><div className="text-sm text-gray-900">{request.purpose}</div></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{request.project?.title || '-'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">{getRequestStatusBadge(request.status)}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(request.createdAt).toLocaleDateString()}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {request.status === 'PENDING' && (
-                          <div className="flex space-x-2">
-                            <button onClick={() => approveMutation.mutate(request.id)} disabled={approveMutation.isPending} className="text-green-600 hover:text-green-900">Approve</button>
-                            <button onClick={() => rejectMutation.mutate(request.id)} disabled={rejectMutation.isPending} className="text-red-600 hover:text-red-900">Reject</button>
-                          </div>
-                        )}
-                        {request.status === 'APPROVED' && (
-                          <button onClick={() => returnMutation.mutate(request.id)} disabled={returnMutation.isPending} className="text-primary-600 hover:text-primary-900">Mark Returned</button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+          <ErrorMessage error={requestsQuery.error} retry={() => { void requestsQuery.refetch() }} />
+          <ErrorMessage error={approveMutation.error || rejectMutation.error || returnMutation.error} />
+          <div className="overflow-hidden rounded border border-gray-300"><div role="region" aria-label="Requests for this asset" tabIndex={0} className="overflow-x-auto focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500">
+            <table className="w-full min-w-[760px] border-collapse text-xs">
+              <thead><tr className="border-b border-gray-300 bg-gray-100">{['Requester', 'Purpose', 'Project', 'Status', 'Date', 'Actions'].map(label => <th scope="col" key={label} className="border-r border-gray-200 px-2 py-1.5 text-left font-semibold text-gray-700 last:border-r-0">{label}</th>)}</tr></thead>
+              <tbody>{requestsQuery.isPending || requestsQuery.isError ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-600">{requestsQuery.isPending ? 'Loading requests…' : 'Requests could not be loaded.'}</td></tr> : displayedRequests.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-600"><p className="font-medium">No requests yet</p><p className="mt-1">{asset.status === 'AVAILABLE' ? 'Select New Request to request this asset.' : 'This asset must be available before it can be requested.'}</p></td></tr> : displayedRequests.map((request, index) => <tr key={request.id} className={`border-b border-gray-200 hover:bg-blue-50 ${index % 2 ? 'bg-gray-50' : 'bg-white'}`}>
+                <td className="border-r border-gray-200 px-2 py-1"><p className="font-medium text-gray-900">{request.requester.firstName} {request.requester.lastName}</p><p className="text-[10px] text-gray-600">{request.requester.email}</p></td>
+                <td className="max-w-64 border-r border-gray-200 px-2 py-1 text-gray-900">{request.purpose}</td>
+                <td className="border-r border-gray-200 px-2 py-1 text-gray-600">{request.project?.title || '—'}</td>
+                <td className="border-r border-gray-200 px-2 py-1">{getRequestStatusBadge(request.status)}</td>
+                <td className="border-r border-gray-200 px-2 py-1 text-gray-600">{new Date(request.createdAt).toLocaleDateString()}</td>
+                <td className="px-2 py-1"><div className="flex gap-1">{request.status === 'PENDING' && <><button onClick={() => approveMutation.mutate(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending} className={`${assetButton} border-0 text-green-700`}>Approve</button><button onClick={() => rejectMutation.mutate(request.id)} disabled={approveMutation.isPending || rejectMutation.isPending} className={`${assetButton} border-0 text-red-700`}>Reject</button></>}{request.status === 'APPROVED' && <button onClick={() => returnMutation.mutate(request.id)} disabled={returnMutation.isPending} className={`${assetButton} border-0 text-primary-700`}>Mark Returned</button>}</div></td>
+              </tr>)}</tbody>
+            </table>
+          </div></div>
+          {requestsQuery.data && !requestsQuery.error && <nav aria-label="Asset request pages" className="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-600"><span>{requestsQuery.data.total} requests · Page {requestsQuery.data.page} of {requestsQuery.data.totalPages}</span><div className="flex gap-2"><button className={assetButton} disabled={requestsQuery.isFetching || requestsQuery.data.page === 1} onClick={() => setRequestPage(requestsQuery.data!.page - 1)}>Previous</button><button className={assetButton} disabled={requestsQuery.isFetching || requestsQuery.data.page >= requestsQuery.data.totalPages} onClick={() => setRequestPage(requestsQuery.data!.page + 1)}>Next</button></div></nav>}
+        </section>
       )}
 
       {/* New Request Modal */}
@@ -1004,59 +938,7 @@ export default function AssetDetailPage() {
         </div>
       )}
 
-      {isRequestModalOpen && (
-        <dialog ref={requestDialog} aria-label="Request Asset" onCancel={event => { event.preventDefault(); setIsRequestModalOpen(false) }} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-lg bg-white p-0 text-gray-900 shadow-xl backdrop:bg-black/50">
-          <div>
-            <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900">Request Asset</h3>
-              <button type="button" aria-label="Close request form" onClick={() => setIsRequestModalOpen(false)} className="flex h-11 w-11 items-center justify-center rounded text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary-500">
-                <XCircle className="h-6 w-6" />
-              </button>
-            </div>
-            <form onSubmit={(e) => { e.preventDefault(); createRequestMutation.mutate(requestForm) }} className="p-6 space-y-4">
-              <div>
-                <label htmlFor="request-purpose" className="block text-sm font-medium text-gray-700 mb-1">Purpose <span className="text-red-500">*</span></label>
-                <textarea autoFocus id="request-purpose" value={requestForm.purpose} onChange={(e) => setRequestForm({ ...requestForm, purpose: e.target.value })} placeholder="Describe how you'll use this asset..." rows={3} className="w-full border border-gray-300 rounded-md px-3 py-2" required />
-              </div>
-              <div>
-                <label htmlFor="request-project" className="block text-sm font-medium text-gray-700 mb-1">Project (Optional)</label>
-                <select id="request-project" value={requestForm.projectId} onChange={(e) => setRequestForm({ ...requestForm, projectId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
-                  <option value="">No project</option>
-                  {projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="request-start" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input id="request-start" type="date" value={requestForm.startDate} onChange={event => setRequestForm({ ...requestForm, startDate: event.target.value })} className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
-                </div>
-                <div>
-                  <label htmlFor="request-end" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <input id="request-end" type="date" min={requestForm.startDate || undefined} value={requestForm.endDate} onChange={event => setRequestForm({ ...requestForm, endDate: event.target.value })} className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
-                </div>
-              </div>
-              <div>
-                <label htmlFor="request-notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea id="request-notes" value={requestForm.notes} onChange={(e) => setRequestForm({ ...requestForm, notes: e.target.value })} placeholder="Any additional notes..." rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
-              </div>
-              {createRequestMutation.error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800 text-sm">{createRequestMutation.error.message}</div>
-              )}
-              <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsRequestModalOpen(false)} className="min-h-11 px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={createRequestMutation.isPending || !requestForm.purpose} className="min-h-11 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
-                  {createRequestMutation.isPending ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : <span>Submit Request</span>}
-                </button>
-              </div>
-            </form>
-          </div>
-        </dialog>
-      )}
+      {isRequestModalOpen && <AssetRequestDialog asset={asset} close={() => setIsRequestModalOpen(false)} />}
 
       {showQrModal && (
         <AssetQrShareModal

@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { AlertCircle, Gauge, Plus } from 'lucide-react'
+import { AlertCircle, Clock, Gauge, Plus } from 'lucide-react'
+import { assetButton } from './asset-request-dialog'
 import { fetchReadings } from './asset-meter-readings-tab'
 
 interface AssetOverviewTilesProps {
@@ -10,9 +11,14 @@ interface AssetOverviewTilesProps {
   onViewIssues: () => void
   onViewReadings: () => void
   onAddReading: () => void
+  requestCount: number
+  pendingRequestCount: number
+  canRequest: boolean
+  onViewRequests: () => void
+  onNewRequest: () => void
 }
 
-export function AssetOverviewTiles({ assetId, openIssueCount, onViewIssues, onViewReadings, onAddReading }: AssetOverviewTilesProps) {
+export function AssetOverviewTiles({ assetId, openIssueCount, onViewIssues, onViewReadings, onAddReading, requestCount, pendingRequestCount, canRequest, onViewRequests, onNewRequest }: AssetOverviewTilesProps) {
   const { data: readings = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['asset-meter-readings', assetId],
     queryFn: () => fetchReadings(assetId),
@@ -24,7 +30,13 @@ export function AssetOverviewTiles({ assetId, openIssueCount, onViewIssues, onVi
   })
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:col-span-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:col-span-2">
+      <section aria-label="Asset requests summary" className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-medium text-gray-700"><Clock aria-hidden="true" className="h-4 w-4" />Requests</h3><span className="text-xs text-gray-600">{requestCount} total</span></div>
+        <p className="mt-3 text-sm font-semibold text-gray-900">{pendingRequestCount} pending approval</p>
+        <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={onViewRequests} className={assetButton}>View requests</button>{canRequest && <button type="button" onClick={onNewRequest} className={`${assetButton} text-primary-700`}><Plus aria-hidden="true" className="h-3.5 w-3.5" />New Request</button>}</div>
+        {!canRequest && <p className="mt-2 text-xs text-gray-600">New requests are available when this asset is available.</p>}
+      </section>
       <button
         type="button"
         onClick={onViewIssues}
