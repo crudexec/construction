@@ -1,4 +1,6 @@
 'use client'
+import { useAssetTypes } from '@/components/assets/asset-type-select'
+import { assetTypeLabel } from '@/lib/assets/type-options'
 
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -87,7 +89,7 @@ interface Asset {
   category?: string | null
   name: string
   description?: string
-  type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
+  type: string
   serialNumber?: string
   status: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED'
   statusDefinitionId?: string | null
@@ -228,6 +230,7 @@ const getRequestStatusBadge = (status: string) => {
 const emptyEditForm = emptyAssetProfile()
 
 export default function AssetDetailPage() {
+  const typesQuery = useAssetTypes()
   const params = useParams()
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -625,7 +628,7 @@ export default function AssetDetailPage() {
     onNewStatus: isAdmin ? () => setShowStatusModal(true) : undefined,
   }
   const profileSummary = {
-    equipmentId: asset.equipmentId || 'Not assigned', name: asset.name, type: asset.type, category: asset.category,
+    equipmentId: asset.equipmentId || 'Not assigned', name: asset.name, type: assetTypeLabel(asset.type, typesQuery.data), category: asset.category,
     status: getStatusBadge(asset.status, asset.statusDefinition), customStatusNote: asset.customStatusNote,
     serialNumber: asset.serialNumber, make: asset.make, model: asset.model, year: asset.year, vin: asset.vin,
     licensePlate: asset.licensePlate, description: asset.description,
@@ -659,7 +662,7 @@ export default function AssetDetailPage() {
                 {getStatusBadge(asset.status, asset.statusDefinition)}
               </div>
               <p className="text-xs text-gray-500">
-                {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || asset.type}
+                {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || assetTypeLabel(asset.type, typesQuery.data)}
                 {asset.serialNumber ? ` | SN: ${asset.serialNumber}` : ''}
               </p>
             </div>

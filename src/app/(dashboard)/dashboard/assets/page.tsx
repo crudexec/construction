@@ -1,4 +1,6 @@
 'use client'
+import { useAssetTypes } from '@/components/assets/asset-type-select'
+import { assetTypeLabel, defaultAssetTypes } from '@/lib/assets/type-options'
 
 import { useEffect, useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
@@ -49,14 +51,7 @@ const getAssetTypeIcon = (type: string) => {
   }
 }
 
-const getAssetTypeLabel = (type: string) => {
-  switch (type) {
-    case 'VEHICLE': return 'Vehicle'
-    case 'EQUIPMENT': return 'Equipment'
-    case 'TOOL': return 'Tool'
-    default: return type
-  }
-}
+
 
 const getStatusBadge = (status: string, customStatus?: Asset['statusDefinition']) => {
   const statusConfig: Record<string, { bg: string, text: string, label: string }> = {
@@ -76,11 +71,7 @@ const getStatusBadge = (status: string, customStatus?: Asset['statusDefinition']
   )
 }
 
-const TYPE_OPTIONS = [
-  { value: 'VEHICLE', label: 'Vehicles' },
-  { value: 'EQUIPMENT', label: 'Equipment' },
-  { value: 'TOOL', label: 'Tools' },
-]
+
 const STATUS_OPTIONS = [
   { value: 'AVAILABLE', label: 'Available' },
   { value: 'IN_USE', label: 'In Use' },
@@ -91,6 +82,7 @@ const STATUS_OPTIONS = [
 const DEFAULT_STATUSES = STATUS_OPTIONS.filter(option => option.value !== 'RETIRED').map(option => option.value)
 
 export default function AssetsPage() {
+  const typesQuery = useAssetTypes(), types = typesQuery.data || defaultAssetTypes
   const router = useRouter()
   const user = useAuthStore(state => state.user)
   const [searchTerm, setSearchTerm] = useState('')
@@ -257,7 +249,7 @@ export default function AssetsPage() {
                 />
               </div>
               <AssetFilterSelect
-                label="Type" ariaLabel="Filter by asset type" options={TYPE_OPTIONS} selected={filterType}
+                label="Type" ariaLabel="Filter by asset type" options={types.map(type => ({ value: type.key, label: type.name + (!type.isActive ? " (archived)" : "") }))} selected={filterType}
                 onChange={values => { setFilterType(values); resetResults() }}
               />
               <AssetFilterSelect
@@ -393,7 +385,7 @@ export default function AssetsPage() {
                         <td className="px-2 py-1 border-r border-gray-200 text-gray-700 truncate">
                           {[asset.make, asset.model, asset.year].filter(Boolean).join(' ') || <span className="text-gray-400">-</span>}
                         </td>
-                        <td className="px-2 py-1 border-r border-gray-200 text-gray-600">{getAssetTypeLabel(asset.type)}</td>
+                        <td className="px-2 py-1 border-r border-gray-200 text-gray-600">{assetTypeLabel(asset.type, types)}</td>
                         <td className="px-2 py-1 border-r border-gray-200 text-gray-600">{asset.category || <span className="text-gray-400">—</span>}</td>
                         <td className="px-2 py-1 border-r border-gray-200">{getStatusBadge(asset.status, asset.statusDefinition)}</td>
                         <td className="px-2 py-1 border-r border-gray-200 text-gray-600 truncate">{asset.currentProject?.title || asset.currentYard?.name || asset.currentLocation || <span className="text-gray-400">-</span>}</td>

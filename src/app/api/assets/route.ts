@@ -1,3 +1,5 @@
+import { validateAssetType } from '@/lib/assets/types'
+import { PlatformError } from '@/lib/platform/server'
 import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { createProfileData, AssetProfileError } from '@/lib/assets/create-profile'
@@ -102,6 +104,7 @@ function getRequestToken(request: NextRequest) {
     return NextResponse.json(assets)
 
   } catch (error) {
+    if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetListValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
@@ -152,12 +155,7 @@ function getRequestToken(request: NextRequest) {
       return NextResponse.json({ error: 'Asset name is required' }, { status: 400 })
     }
 
-    if (!type || !['VEHICLE', 'EQUIPMENT', 'TOOL'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Valid asset type is required (VEHICLE, EQUIPMENT, or TOOL)' },
-        { status: 400 }
-      )
-    }
+    await validateAssetType(user.companyId, type)
 
     if (status && !['AVAILABLE', 'IN_USE', 'UNDER_MAINTENANCE', 'RETIRED', 'LOST_DAMAGED'].includes(status)) {
       return NextResponse.json(
@@ -237,6 +235,7 @@ function getRequestToken(request: NextRequest) {
     return NextResponse.json(asset, { status: 201 })
 
   } catch (error) {
+    if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetProfileError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetContextError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetIdentityValidationError) {

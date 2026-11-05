@@ -1,4 +1,5 @@
-import { AssetStatus, AssetType, Prisma } from '@prisma/client'
+import { AssetStatus, Prisma } from '@prisma/client'
+import { defaultAssetTypes } from './type-options'
 
 // Only authored SQL fragments may be used as sort expressions or directions.
 const sortExpressions = {
@@ -6,7 +7,7 @@ const sortExpressions = {
   name: Prisma.sql`LOWER(a.name)`,
   category: Prisma.sql`LOWER(COALESCE(a.category, ''))`,
   makeModel: Prisma.sql`LOWER(CONCAT_WS(' ', NULLIF(a.make, ''), NULLIF(a.model, ''), a.year))`,
-  type: Prisma.sql`a.type::text`,
+  type: Prisma.sql`LOWER(COALESCE(t.name, a.type))`,
   status: Prisma.sql`COALESCE(s.name, a.status::text)`,
   location: Prisma.sql`LOWER(COALESCE(c.title, y.name, NULLIF(a."currentLocation", ''), 'zzz'))`,
   assignee: Prisma.sql`LOWER(COALESCE(u."firstName" || ' ' || u."lastName", 'zzz'))`,
@@ -51,7 +52,7 @@ export function parseAssetListParams(params: URLSearchParams) {
   const search = params.get('search')?.trim() || ''
   const sortField = params.get('sortField') ?? 'equipmentId'
   const sortDirection = params.get('sortDirection') ?? 'asc'
-  if (types?.some(type => !Object.values(AssetType).includes(type as AssetType))) throw new AssetListValidationError('Invalid asset type')
+  if (types?.some(type => !/^[A-Z0-9_]{1,100}$/.test(type))) throw new AssetListValidationError('Invalid asset type')
   if (statuses.some(status => !Object.values(AssetStatus).includes(status as AssetStatus))) throw new AssetListValidationError('Invalid asset status')
   if (categories?.some(category => category.length > 100)) throw new AssetListValidationError('Category must be 100 characters or fewer')
   if (search.length > 200) throw new AssetListValidationError('Search must be 200 characters or fewer')
@@ -82,9 +83,14 @@ export interface AssetListResponse {
 }
 
 export async function listAssets(tx: Prisma.TransactionClient, companyId: string, params: AssetListParams): Promise<AssetListResponse> {
+  if (params.types?.length) {
+    const stored = await tx.assetTypeDefinition.findMany({ where: { companyId }, select: { key: true } })
+    const known = new Set([...defaultAssetTypes, ...stored].map(type => type.key))
+    if (params.types.some(type => !known.has(type))) throw new AssetListValidationError('Invalid asset type')
+  }
   const conditions = [Prisma.sql`a."companyId" = ${companyId}`]
   if (params.types) conditions.push(params.types.length
-    ? Prisma.sql`a.type IN (${Prisma.join(params.types.map(type => Prisma.sql`${type}::"AssetType"`))})` : Prisma.sql`FALSE`)
+    ? Prisma.sql`a.type IN (${Prisma.join(params.types.map(type => Prisma.sql`${type}`))})` : Prisma.sql`FALSE`)
   conditions.push(params.statuses.length
     ? Prisma.sql`a.status IN (${Prisma.join(params.statuses.map(status => Prisma.sql`${status}::"AssetStatus"`))})` : Prisma.sql`FALSE`)
   if (params.categories) conditions.push(params.categories.length
@@ -117,7 +123,7 @@ export async function listAssets(tx: Prisma.TransactionClient, companyId: string
   const pagination = { page, pageSize: params.pageSize, total, totalPages }
   if (total === 0) return { data: [], pagination, summary }
 
-  const joins = params.sortField === 'status'
+  const joins = params.sortField === 'type' ? Prisma.sql`LEFT JOIN "AssetTypeDefinition" t ON t."companyId" = a."companyId" AND t.key = a.type` : params.sortField === 'status'
     ? Prisma.sql`LEFT JOIN "AssetStatusDefinition" s ON s.id = a."statusDefinitionId"`
     : params.sortField === 'assignee'
       ? Prisma.sql`LEFT JOIN "User" u ON u.id = a."currentAssigneeId"`

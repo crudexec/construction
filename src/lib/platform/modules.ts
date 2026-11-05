@@ -9,6 +9,7 @@ export const auditModules = [
   "asset-issue-notification-settings",
   "asset-requests",
   "asset-statuses",
+  "asset-types",
   "asset-yards",
   "assets",
   "audit",

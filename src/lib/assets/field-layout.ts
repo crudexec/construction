@@ -38,7 +38,7 @@ export function resolveAssetFieldOrder(saved: string[], customFields: Pick<Asset
 }
 
 export type AssetProfileValues = Record<Exclude<StandardAssetField, 'type' | 'status' | 'financingType'>, string> & {
-  type: 'VEHICLE' | 'EQUIPMENT' | 'TOOL'
+  type: string
   status: 'AVAILABLE' | 'IN_USE' | 'UNDER_MAINTENANCE' | 'RETIRED' | 'LOST_DAMAGED'
   financingType: '' | 'CASH' | 'FINANCED' | 'LEASED'
   statusDefinitionId: string

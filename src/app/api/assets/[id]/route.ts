@@ -1,3 +1,5 @@
+import { validateAssetType } from '@/lib/assets/types'
+import { PlatformError } from '@/lib/platform/server'
 import { auditedRoute } from '@/lib/platform/route-audit'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
@@ -149,6 +151,7 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
     return NextResponse.json(asset)
 
   } catch (error) {
+    if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('Error fetching asset:', error)
     return NextResponse.json(
       { error: 'Failed to fetch asset' },
@@ -221,13 +224,7 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
       notes
     } = body
 
-    // Validate type if provided
-    if (type && !['VEHICLE', 'EQUIPMENT', 'TOOL'].includes(type)) {
-      return NextResponse.json(
-        { error: 'Invalid asset type' },
-        { status: 400 }
-      )
-    }
+    if (type !== undefined) await validateAssetType(user.companyId, type, existingAsset.type)
 
     let resolvedStatusDefinition: { id: string; baseStatus: typeof existingAsset.status } | null = null
     if (statusDefinitionId) {
@@ -369,6 +366,7 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
     return NextResponse.json(asset)
 
   } catch (error) {
+    if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })
     if (error instanceof AssetIdentityValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
@@ -429,6 +427,7 @@ import { applyAssetContext, AssetContextError } from '@/lib/assets/context'
     return NextResponse.json({ message: 'Asset deleted successfully' })
 
   } catch (error) {
+    if (error instanceof PlatformError) return NextResponse.json({ error: error.message }, { status: error.status })
     console.error('Error deleting asset:', error)
     return NextResponse.json(
       { error: 'Failed to delete asset' },

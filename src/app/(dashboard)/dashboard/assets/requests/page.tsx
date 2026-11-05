@@ -1,4 +1,8 @@
 'use client'
+import { useAuthStore } from '@/store/auth'
+import { useAssetTypes } from '@/components/assets/asset-type-select'
+import { assetTypeLabel } from '@/lib/assets/type-options'
+import { api, button, ErrorMessage } from '@/components/feedback/shared'
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -44,48 +48,12 @@ interface AssetRequest {
   }
 }
 
-async function fetchAllRequests(status?: string) {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('auth-token='))
-    ?.split('=')[1]
-
-  // We'll fetch all assets and collect their requests
-  const response = await fetch('/api/assets', {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Cookie': document.cookie
-    }
-  })
-
-  if (!response.ok) throw new Error('Failed to fetch assets')
-
-  const assets = await response.json()
-
-  // Fetch requests for each asset
-  const allRequests: AssetRequest[] = []
-  for (const asset of assets) {
-    const reqResponse = await fetch(`/api/assets/${asset.id}/requests`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Cookie': document.cookie
-      }
-    })
-    if (reqResponse.ok) {
-      const requests = await reqResponse.json()
-      allRequests.push(...requests.map((r: any) => ({ ...r, asset })))
-    }
-  }
-
-  // Sort by created date descending
-  allRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-  // Filter by status if specified
-  if (status && status !== 'all') {
-    return allRequests.filter(r => r.status === status)
-  }
-
-  return allRequests
+type RequestPage = { items: AssetRequest[]; total: number; page: number; pageSize: number; totalPages: number; pendingCount: number }
+async function fetchRequests(status: string, page: number, signal: AbortSignal): Promise<RequestPage> {
+  const response = await fetch(`/api/asset-requests?${new URLSearchParams({ status, page: String(page) })}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) })
+  const result = await response.json()
+  if (!response.ok) throw new Error(result.error || 'Could not load asset requests')
+  return result
 }
 
 const getRequestStatusBadge = (status: string) => {
@@ -111,101 +79,39 @@ export default function AssetRequestsPage() {
   const queryClient = useQueryClient()
   const [filterStatus, setFilterStatus] = useState<string>('all')
 
-  const { data: requests = [], isLoading } = useQuery({
-    queryKey: ['asset-requests', filterStatus],
-    queryFn: () => fetchAllRequests(filterStatus)
+  const userId = useAuthStore(state => state.user?.id), types = useAssetTypes()
+  const [page, setPage] = useState(1)
+  const { data, isPending: isLoading, error, refetch } = useQuery({
+    queryKey: ['asset-requests', userId, filterStatus, page],
+    queryFn: ({ signal }) => fetchRequests(filterStatus, page, signal), enabled: !!userId, retry: false,
+  })
+  const requests = data?.items || []
+  const action = useMutation({
+    mutationFn: ({ id, operation }: { id: string; operation: string }) => api(`/api/asset-requests/${id}/${operation}`, operation === 'return' ? { condition: 'GOOD' } : {}),
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['asset-requests'] }); await queryClient.invalidateQueries({ queryKey: ['assets'] }) },
   })
 
-  const approveMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/asset-requests/${requestId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) throw new Error('Failed to approve request')
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['asset-requests'] })
-      queryClient.invalidateQueries({ queryKey: ['assets'] })
-    }
-  })
-
-  const rejectMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/asset-requests/${requestId}/reject`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({})
-      })
-
-      if (!response.ok) throw new Error('Failed to reject request')
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['asset-requests'] })
-    }
-  })
-
-  const returnMutation = useMutation({
-    mutationFn: async (requestId: string) => {
-      const token = document.cookie
-        .split('; ')
-        .find(row => row.startsWith('auth-token='))
-        ?.split('=')[1]
-
-      const response = await fetch(`/api/asset-requests/${requestId}/return`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ condition: 'GOOD' })
-      })
-
-      if (!response.ok) throw new Error('Failed to return asset')
-      return response.json()
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['asset-requests'] })
-      queryClient.invalidateQueries({ queryKey: ['assets'] })
-    }
-  })
-
-  const pendingCount = requests.filter((r: AssetRequest) => r.status === 'PENDING').length
+  const pendingCount = data?.pendingCount || 0
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <p role="status" className="text-sm text-gray-600">Loading asset requests…</p>
       </div>
     )
   }
 
+  if (error) return <div className="space-y-4"><h1 className="text-2xl font-bold">Asset Requests</h1><ErrorMessage error={error} retry={() => { void refetch() }} /><Link href="/dashboard/assets" className="text-primary-700 underline">Back to assets</Link></div>
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24">
+      <ErrorMessage error={action.error} />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <Link
             href="/dashboard/assets"
+            aria-label="Back to assets"
             className="text-gray-600 hover:text-gray-900"
           >
             <ArrowLeft className="h-6 w-6" />
@@ -225,7 +131,7 @@ export default function AssetRequestsPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <span className="text-yellow-800">
-            {pendingCount} pending request(s) waiting for approval
+            {pendingCount} pending {pendingCount === 1 ? 'request' : 'requests'} waiting for approval
           </span>
         </div>
       )}
@@ -235,8 +141,9 @@ export default function AssetRequestsPage() {
         <div className="flex gap-3">
           <select
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            aria-label="Filter requests by status"
+            onChange={(e) => { setFilterStatus(e.target.value); setPage(1) }}
+            className="min-h-11 border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             <option value="all">All Status</option>
             <option value="PENDING">Pending</option>
@@ -295,7 +202,7 @@ export default function AssetRequestsPage() {
                       >
                         {request.asset.equipmentId ? `${request.asset.equipmentId} · ` : ''}{request.asset.name}
                       </Link>
-                      <div className="text-sm text-gray-500">{request.asset.type}</div>
+                      <div className="text-sm text-gray-500">{assetTypeLabel(request.asset.type, types.data)}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -328,16 +235,16 @@ export default function AssetRequestsPage() {
                       {request.status === 'PENDING' && (
                         <div className="flex space-x-2">
                           <button
-                            onClick={() => approveMutation.mutate(request.id)}
-                            disabled={approveMutation.isPending}
-                            className="text-green-600 hover:text-green-900"
+                            onClick={() => action.mutate({ id: request.id, operation: 'approve' })}
+                            disabled={action.isPending}
+                            className="min-h-11 px-2 text-green-700 hover:text-green-900 disabled:opacity-50"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => rejectMutation.mutate(request.id)}
-                            disabled={rejectMutation.isPending}
-                            className="text-red-600 hover:text-red-900"
+                            onClick={() => action.mutate({ id: request.id, operation: 'reject' })}
+                            disabled={action.isPending}
+                            className="min-h-11 px-2 text-red-700 hover:text-red-900 disabled:opacity-50"
                           >
                             Reject
                           </button>
@@ -345,9 +252,9 @@ export default function AssetRequestsPage() {
                       )}
                       {request.status === 'APPROVED' && (
                         <button
-                          onClick={() => returnMutation.mutate(request.id)}
-                          disabled={returnMutation.isPending}
-                          className="text-primary-600 hover:text-primary-900"
+                          onClick={() => action.mutate({ id: request.id, operation: 'return' })}
+                          disabled={action.isPending}
+                          className="min-h-11 px-2 text-primary-700 hover:text-primary-900 disabled:opacity-50"
                         >
                           Mark Returned
                         </button>
@@ -360,6 +267,7 @@ export default function AssetRequestsPage() {
           </table>
         </div>
       </div>
+      {data && <nav aria-label="Asset request pages" className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600"><span>{data.total} requests · Page {data.page} of {data.totalPages}</span><div className="flex gap-2"><button className={button} disabled={data.page <= 1} onClick={() => setPage(data.page - 1)}>Previous</button><button className={button} disabled={data.page >= data.totalPages} onClick={() => setPage(data.page + 1)}>Next</button></div></nav>}
     </div>
   )
 }

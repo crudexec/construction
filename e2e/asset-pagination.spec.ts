@@ -1,3 +1,4 @@
+import { defaultAssetTypes } from '../src/lib/assets/type-options'
 import { expect, test, type Page } from '@playwright/test'
 
 const assets = Array.from({ length: 61 }, (_, index) => ({
@@ -24,6 +25,7 @@ async function mockAssetsApi(page: Page, baseURL: string) {
     if (pathname === '/api/company/settings') response = { company }
     if (pathname === '/api/users') response = [user]
     if (pathname.includes('/notifications')) response = { notifications: [], unreadCount: 0 }
+    if (pathname === '/api/asset-types') response = defaultAssetTypes
     if (pathname === '/api/asset-categories') response = ['Excavator', 'Truck']
     if (pathname === '/api/assets') {
       expect(searchParams.has('page')).toBe(true)
@@ -215,7 +217,7 @@ test('sends multiple checkbox selections to the server and restores the retired-
   await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
   await expect(pagination.getByRole('status')).toHaveText('Showing 0–0 of 0 assets')
   await page.getByRole('checkbox', { name: 'Equipment', exact: true }).check()
-  await page.getByRole('checkbox', { name: 'Vehicles', exact: true }).check()
+  await page.getByRole('checkbox', { name: 'Vehicle', exact: true }).check()
   await expect(pagination.getByRole('status')).toContainText('of 61 assets')
   expect(JSON.parse(requests.at(-1)!.searchParams.get('types')!)).toEqual(['EQUIPMENT', 'VEHICLE'])
   // Opening another filter dismisses the first without losing its selection.

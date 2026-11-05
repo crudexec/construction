@@ -2068,5 +2068,25 @@
     "route": "/api/data-chat/[id]",
     "method": "GET",
     "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-requests",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-types",
+    "method": "GET",
+    "coverage": "authorization"
+  },
+  {
+    "route": "/api/asset-types",
+    "method": "POST",
+    "coverage": "attempt-and-outcome"
+  },
+  {
+    "route": "/api/asset-types/[key]",
+    "method": "PATCH",
+    "coverage": "attempt-and-outcome"
   }
 ]

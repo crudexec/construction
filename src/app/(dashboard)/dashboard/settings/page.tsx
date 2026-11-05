@@ -41,6 +41,7 @@ import { SMSConfigForm } from '@/components/settings/sms-config-form'
 import { VendorCategoryManager } from '@/components/settings/vendor-category-manager'
 import { CostCodeManager } from '@/components/settings/cost-code-manager'
 import { AssetCustomFieldManager } from '@/components/settings/asset-custom-field-manager'
+import { AssetTypeManager } from '@/components/settings/asset-type-manager'
 import { AssetStatusManager } from '@/components/settings/asset-status-manager'
 import { VendorServiceTagManager } from '@/components/settings/vendor-service-tag-manager'
 import { FileTagManager } from '@/components/settings/file-tag-manager'
@@ -70,7 +71,8 @@ const settingsGroups = [
     id: 'assets', name: 'Assets', icon: Wrench,
     sections: [
       { id: 'asset-custom-fields', name: 'Custom Fields' },
-      { id: 'asset-statuses', name: 'Statuses' }
+      { id: 'asset-statuses', name: 'Statuses' },
+      { id: 'asset-types', name: 'Types' }
     ]
   },
   { id: 'notifications', name: 'Notifications', icon: Bell, sections: [{ id: 'notifications', name: 'Notifications' }] },
@@ -1311,6 +1313,8 @@ function SettingsContent() {
         {activeTab === 'asset-custom-fields' && (
           <AssetCustomFieldManager />
         )}
+
+        {activeTab === 'asset-types' && <AssetTypeManager />}
 
         {activeTab === 'asset-statuses' && (
           <AssetStatusManager />

@@ -13,6 +13,7 @@ enum CompanyStatus {
 }
 
 model Company {
+  assetTypes AssetTypeDefinition[]
   id        String   @id @default(cuid())
   name      String
   status    CompanyStatus @default(ACTIVE)
@@ -2297,10 +2298,17 @@ enum ChangeOrderStatus {
 // ASSET MANAGEMENT
 // ===========================================
 
-enum AssetType {
-  VEHICLE
-  EQUIPMENT
-  TOOL
+model AssetTypeDefinition {
+  companyId String
+  key String
+  name String
+  nameKey String
+  isActive Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  @@id([companyId, key])
+  @@unique([companyId, nameKey])
 }
 
 enum AssetStatus {
@@ -2383,7 +2391,7 @@ model Asset {
   category           String?     @db.VarChar(100)
   name               String
   description        String?
-  type               AssetType
+  type               String
   serialNumber       String?
   status             AssetStatus @default(AVAILABLE)
   customStatusNote   String? // Free-text detail alongside the fixed status enum
@@ -2845,6 +2853,7 @@ model AssetRequest {
   @@index([requesterId])
   @@index([status])
   @@index([projectId])
+  @@index([status, createdAt, id])
 }
 
 model MaintenanceSchedule {

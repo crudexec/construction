@@ -59,6 +59,7 @@ async function resolveActor(request: NextRequest, route: string, params: Record<
 async function snapshot(route: string, params: Record<string, string>, actor: AuditActor) {
   if (actor.actorType !== 'USER') return {}
   if (route === '/api/company/settings') return safeSnapshot(await prisma.company.findUnique({ where: { id: actor.companyId } }))
+  if (route === '/api/asset-types/[key]') return safeSnapshot(await prisma.assetTypeDefinition.findUnique({ where: { companyId_key: { companyId: actor.companyId, key: params.key } } }))
   if (!params.id) return {}
   const where = { id: params.id, companyId: actor.companyId }
   if (/^\/api\/assets\/\[id\](?:\/|$)/.test(route)) return safeSnapshot(await prisma.asset.findFirst({ where }))

@@ -2,6 +2,7 @@
 
 import { type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { AssetTypeSelect } from './asset-type-select'
 import { AssetStatusSelect } from './asset-status-select'
 import { AssetCategoryField } from './asset-category-field'
 import { AssetLocationSelect, AssetPersonSelect } from './asset-context-fields'
@@ -47,7 +48,7 @@ export function AssetProfileFields({ values, onChange, customValues, onCustomCha
     const id = key === 'equipmentId' ? key : `profile-${key}`
     let control: ReactNode
     if (key === 'status') control = <AssetStatusSelect id={id} status={values.status} statusDefinitionId={values.statusDefinitionId} definitions={statuses} currentDefinition={currentStatus} onChange={onChange} />
-    else if (key === 'type') control = <select id={id} value={values.type} onChange={event => onChange({ type: event.target.value as AssetProfileValues['type'], category: '' })} className={inputClass} required><option value="VEHICLE">Vehicle</option><option value="EQUIPMENT">Equipment</option><option value="TOOL">Tool</option></select>
+    else if (key === 'type') control = <AssetTypeSelect id={id} value={values.type} creating={creating} onChange={type => onChange({ type, category: '' })} />
     else if (key === 'purchasedFromVendorId') control = <>
       <select id={id} value={values[key]} onChange={event => onChange({ [key]: event.target.value })} disabled={vendors.isPending || vendors.isError} className={inputClass}>
         <option value="">—</option>
