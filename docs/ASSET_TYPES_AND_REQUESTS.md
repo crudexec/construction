@@ -17,3 +17,15 @@ The migration was exercised against a disposable local PostgreSQL database. Prod
 ## Verification
 
 Three integration scenarios cover type permissions, company isolation, defaults, custom types, renaming, archiving/restoration, asset editing/filtering, request pagination, and approval. Nine existing asset pagination integration tests and the route audit coverage check pass. Eight existing pagination browser tests and five request/type browser scenarios pass, including a recoverable load failure and desktop/mobile layouts. TypeScript, Prisma schema validation, and the UI detector pass. The exact migration SQL also passed a rollback-only migration fixture that verified preservation of all three original enum values and the four seeded default options.
+
+## Creating requests and recovering failed asset loads
+
+The main Asset Requests page has a **New Request** action. It opens a searchable, server-paginated list of available assets (25 per page). Choosing one opens its existing request form automatically. Successful submissions refresh the request list cache and show confirmation. The dialog supports native focus containment and Escape; date fields use local calendar dates and stack on narrow screens. Unavailable assets are still rejected by the existing server route.
+
+Asset list/category reads have a 20-second timeout and preserve server errors. A 401 shows **Sign in again**, clears the stale local identity and query cache, and preserves the current page as the login return destination. These reads wait for the user identity, and list/category query caches are scoped by user. This improves recovery without changing server authorization rules or assuming every failed load is an authentication failure.
+
+The **Import reviews** link was removed from the Assets heading. Existing review routes remain available by direct URL.
+
+Validation: the ten asset-list browser scenarios and five existing request/type browser scenarios passed. The new request-entry scenario also passed after allowing for cold development compilation, including actual database persistence of the pending request and selected dates. Desktop/mobile picker and form captures were reviewed. TypeScript passed. No new database migration is required for these UI changes.
+
+For invitation-delay investigations, compare invitation creation with the provider's email creation timestamp. Provider acceptance and its latest event do not establish the exact time a message appeared in the recipient's inbox; that requires provider delivery history or recipient mail-system logs. No invitation emails are sent by the UI verification tests.

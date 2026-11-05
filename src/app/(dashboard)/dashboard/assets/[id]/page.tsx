@@ -2,7 +2,8 @@
 import { useAssetTypes } from '@/components/assets/asset-type-select'
 import { assetTypeLabel } from '@/lib/assets/type-options'
 
-import { useEffect, useState } from 'react'
+import { format } from 'date-fns'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import {
@@ -250,6 +251,9 @@ export default function AssetDetailPage() {
   const [editForm, setEditForm] = useState(emptyEditForm)
   const [customFieldEdits, setCustomFieldEdits] = useState<Record<string, string>>({})
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false)
+  const requestDialog = useRef<HTMLDialogElement>(null)
+  useEffect(() => { if (isRequestModalOpen) requestDialog.current?.showModal() }, [isRequestModalOpen])
+  const requestLinkHandled = useRef(false)
   const [showQrModal, setShowQrModal] = useState(false)
   const [showCustomFieldModal, setShowCustomFieldModal] = useState(false)
   const [showStatusModal, setShowStatusModal] = useState(false)
@@ -265,7 +269,7 @@ export default function AssetDetailPage() {
   })
 
   const [requestForm, setRequestForm] = useState({
-    purpose: '', projectId: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: ''
+    purpose: '', projectId: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '', notes: ''
   })
 
   const isAdmin = currentUser?.role === 'ADMIN'
@@ -276,6 +280,16 @@ export default function AssetDetailPage() {
     queryFn: () => fetchAsset(assetId),
     enabled: !!assetId
   })
+
+  useEffect(() => {
+    if (!asset || requestLinkHandled.current) return
+    requestLinkHandled.current = true
+    if (new URLSearchParams(window.location.search).get('request') === 'new') {
+      setActiveTab('requests')
+      if (asset.status === 'AVAILABLE') setIsRequestModalOpen(true)
+      else toast.error('This asset is no longer available. Choose another asset to request.')
+    }
+  }, [asset])
 
   const { data: projects = [] } = useQuery({
     queryKey: ['projects'],
@@ -497,8 +511,10 @@ export default function AssetDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['asset', assetId] })
+      queryClient.invalidateQueries({ queryKey: ['asset-requests'] })
+      toast.success('Request submitted for approval.')
       setIsRequestModalOpen(false)
-      setRequestForm({ purpose: '', projectId: '', startDate: new Date().toISOString().split('T')[0], endDate: '', notes: '' })
+      setRequestForm({ purpose: '', projectId: '', startDate: format(new Date(), 'yyyy-MM-dd'), endDate: '', notes: '' })
     }
   })
 
@@ -989,46 +1005,46 @@ export default function AssetDetailPage() {
       )}
 
       {isRequestModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+        <dialog ref={requestDialog} aria-label="Request Asset" onCancel={event => { event.preventDefault(); setIsRequestModalOpen(false) }} className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-lg bg-white p-0 text-gray-900 shadow-xl backdrop:bg-black/50">
+          <div>
             <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">Request Asset</h3>
-              <button onClick={() => setIsRequestModalOpen(false)} className="text-gray-400 hover:text-gray-500">
+              <button type="button" aria-label="Close request form" onClick={() => setIsRequestModalOpen(false)} className="flex h-11 w-11 items-center justify-center rounded text-gray-600 hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-primary-500">
                 <XCircle className="h-6 w-6" />
               </button>
             </div>
             <form onSubmit={(e) => { e.preventDefault(); createRequestMutation.mutate(requestForm) }} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Purpose <span className="text-red-500">*</span></label>
-                <textarea value={requestForm.purpose} onChange={(e) => setRequestForm({ ...requestForm, purpose: e.target.value })} placeholder="Describe how you'll use this asset..." rows={3} className="w-full border border-gray-300 rounded-md px-3 py-2" required />
+                <label htmlFor="request-purpose" className="block text-sm font-medium text-gray-700 mb-1">Purpose <span className="text-red-500">*</span></label>
+                <textarea autoFocus id="request-purpose" value={requestForm.purpose} onChange={(e) => setRequestForm({ ...requestForm, purpose: e.target.value })} placeholder="Describe how you'll use this asset..." rows={3} className="w-full border border-gray-300 rounded-md px-3 py-2" required />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project (Optional)</label>
-                <select value={requestForm.projectId} onChange={(e) => setRequestForm({ ...requestForm, projectId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
+                <label htmlFor="request-project" className="block text-sm font-medium text-gray-700 mb-1">Project (Optional)</label>
+                <select id="request-project" value={requestForm.projectId} onChange={(e) => setRequestForm({ ...requestForm, projectId: e.target.value })} className="w-full border border-gray-300 rounded-md px-3 py-2">
                   <option value="">No project</option>
                   {projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <DatePicker value={requestForm.startDate} onChange={(date) => setRequestForm({ ...requestForm, startDate: date })} placeholder="Select start date" />
+                  <label htmlFor="request-start" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                  <input id="request-start" type="date" value={requestForm.startDate} onChange={event => setRequestForm({ ...requestForm, startDate: event.target.value })} className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <DatePicker value={requestForm.endDate} onChange={(date) => setRequestForm({ ...requestForm, endDate: date })} placeholder="Select end date" />
+                  <label htmlFor="request-end" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                  <input id="request-end" type="date" min={requestForm.startDate || undefined} value={requestForm.endDate} onChange={event => setRequestForm({ ...requestForm, endDate: event.target.value })} className="min-h-11 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500" />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea value={requestForm.notes} onChange={(e) => setRequestForm({ ...requestForm, notes: e.target.value })} placeholder="Any additional notes..." rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
+                <label htmlFor="request-notes" className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea id="request-notes" value={requestForm.notes} onChange={(e) => setRequestForm({ ...requestForm, notes: e.target.value })} placeholder="Any additional notes..." rows={2} className="w-full border border-gray-300 rounded-md px-3 py-2" />
               </div>
               {createRequestMutation.error && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-3 text-red-800 text-sm">{createRequestMutation.error.message}</div>
               )}
               <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsRequestModalOpen(false)} className="px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={createRequestMutation.isPending || !requestForm.purpose} className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
+                <button type="button" onClick={() => setIsRequestModalOpen(false)} className="min-h-11 px-4 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={createRequestMutation.isPending || !requestForm.purpose} className="min-h-11 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2">
                   {createRequestMutation.isPending ? (
                     <>
                       <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
@@ -1039,7 +1055,7 @@ export default function AssetDetailPage() {
               </div>
             </form>
           </div>
-        </div>
+        </dialog>
       )}
 
       {showQrModal && (

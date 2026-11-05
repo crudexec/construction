@@ -1,9 +1,11 @@
 'use client'
+import { fetchAssetJson } from '@/lib/assets/client'
+import { AssetLoadError } from '@/components/assets/asset-load-error'
 import { useAssetTypes } from '@/components/assets/asset-type-select'
 import { assetTypeLabel, defaultAssetTypes } from '@/lib/assets/type-options'
 
 import { useEffect, useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Search, Package, Truck, Wrench, Settings, AlertTriangle, X, ChevronUp, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -37,9 +39,7 @@ async function fetchAssets(query: AssetQuery, signal: AbortSignal): Promise<Asse
   if (query.categories !== null) params.set('categories', JSON.stringify(query.categories))
   if (query.search) params.set('search', query.search)
 
-  const response = await fetch(`/api/assets?${params}`, { credentials: 'include', signal })
-  if (!response.ok) throw new Error('Failed to fetch assets')
-  return response.json()
+  return fetchAssetJson<AssetListResponse>(`/api/assets?${params}`, signal)
 }
 
 const getAssetTypeIcon = (type: string) => {
@@ -98,10 +98,11 @@ export default function AssetsPage() {
   const { format: formatCurrency } = useCurrency()
 
   const query: AssetQuery = { types: filterType, statuses: filterStatus, categories: filterCategory, search, sortField, sortDirection, page, pageSize }
-  const { data, isLoading, isFetching, isPlaceholderData, isError, refetch } = useQuery({
-    queryKey: ['assets', 'list', query],
+  const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
+    queryKey: ['assets', 'list', user?.id, query],
     queryFn: ({ signal }) => fetchAssets(query, signal),
-    placeholderData: keepPreviousData,
+    placeholderData: (previous, previousQuery) => previousQuery?.queryKey[2] === user?.id ? previous : undefined,
+    enabled: !!user?.id, retry: false,
   })
   const searchPending = searchTerm.trim() !== search
   const isUpdating = isFetching || searchPending
@@ -116,9 +117,9 @@ export default function AssetsPage() {
     return () => clearTimeout(timer)
   }, [searchTerm, search])
 
-  const { data: categories = [], isError: categoriesError } = useQuery({
-    queryKey: ['asset-categories', 'all'],
-    queryFn: () => fetchAssetCategories()
+  const { data: categories = [], error: categoriesError, refetch: refetchCategories } = useQuery({
+    queryKey: ['asset-categories', user?.id, 'all'],
+    queryFn: () => fetchAssetCategories(), enabled: !!user?.id, retry: false
   })
 
   const retiredHidden = filterStatus !== null && !filterStatus.includes('RETIRED')
@@ -197,7 +198,6 @@ export default function AssetsPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Assets</h1>
             <p className="text-sm text-gray-600">Manage equipment, vehicles, tools, and service history</p>
-            {user?.role === 'ADMIN' && <Link href="/dashboard/assets/import-reviews" className="inline-flex min-h-8 items-center text-xs text-primary-700 underline underline-offset-2">Import reviews</Link>}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -286,8 +286,8 @@ export default function AssetsPage() {
           </div>
 
           {retiredHidden && <p className="px-1 text-xs text-gray-600">Retired assets hidden. Include them using the Status filter.</p>}
-          {categoriesError && <p role="alert" className="text-xs text-red-600">Category filters could not be loaded.</p>}
-          {isError && <p role="alert" className="text-sm text-red-600">Could not load assets. <button onClick={() => refetch()} className="underline">Retry</button></p>}
+          {!isError && <AssetLoadError error={categoriesError} retry={() => { void refetchCategories() }} />}
+          <AssetLoadError error={error} retry={() => { void refetch(); void refetchCategories() }} />
 
           <div className="border border-gray-300 rounded overflow-hidden">
             <div className="overflow-x-auto">

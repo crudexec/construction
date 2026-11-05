@@ -80,3 +80,35 @@ for (const width of [1440, 390]) test(`settings and request list fit ${width}px`
   await page.screenshot({ path: `${screenshots}/requests-${width}.png`, fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
 })
+
+
+test('new request entry searches available assets and opens the existing submission form', async ({ page }) => {
+  await page.goto('/dashboard/assets/requests')
+  await page.getByRole('button', { name: 'New Request', exact: true }).click()
+  await page.getByRole('textbox', { name: 'Search available assets' }).fill('IT-001')
+  const choice = page.getByRole('link').filter({ hasText: 'IT-001' })
+  await expect(choice).toBeVisible()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.getByRole('region', { name: 'New asset request' }).screenshot({ path: `${screenshots}/new-request-picker-${width}.png` })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+  }
+  await choice.click()
+  const dialog = page.getByRole('dialog', { name: 'Request Asset', exact: true })
+  await expect(dialog).toBeVisible({ timeout: 30000 })
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await dialog.screenshot({ path: `${screenshots}/new-request-form-${width}.png` })
+  }
+  await dialog.getByLabel('Purpose').fill('New request entry regression')
+  await dialog.getByLabel('Start Date', { exact: true }).fill('2026-11-10')
+  await dialog.getByLabel('End Date', { exact: true }).fill('2026-11-12')
+  await dialog.getByRole('button', { name: 'Submit Request', exact: true }).click()
+  await expect(dialog).not.toBeVisible()
+  await expect(page.getByText('Request submitted for approval.', { exact: true })).toBeVisible()
+  const saved = await prisma.assetRequest.findFirstOrThrow({ where: { assetId, purpose: 'New request entry regression' } })
+  expect(saved.status).toBe('PENDING')
+  expect(saved.requesterId).toBe(user.id)
+  expect(saved.startDate?.toISOString().slice(0, 10)).toBe('2026-11-10')
+  expect(saved.endDate?.toISOString().slice(0, 10)).toBe('2026-11-12')
+})

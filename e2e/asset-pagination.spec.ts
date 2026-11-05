@@ -264,3 +264,23 @@ for (const width of [1440, 390]) {
     await expect(status).toBeFocused()
   })
 }
+
+
+test('expired asset sessions offer sign-in and clear stale browser identity', async ({ page }) => {
+  await page.route('**/api/assets?*', route => route.fulfill({ status: 401, json: { error: 'Unauthorized' } }))
+  await page.goto('/dashboard/assets')
+  await expect(page.getByRole('alert').filter({ hasText: 'Your session has expired or changed' })).toBeVisible()
+  await page.getByRole('button', { name: 'Sign in again', exact: true }).click()
+  await expect(page).toHaveURL(/\/login\?redirect=/)
+  expect((await page.context().cookies()).some(cookie => cookie.name === 'auth-token')).toBe(false)
+})
+
+test('asset failures retain server error details and retry both list and categories', async ({ page }) => {
+  let fail = true
+  await page.route('**/api/assets?*', route => fail ? route.fulfill({ status: 503, json: { error: 'Assets temporarily unavailable' } }) : route.fallback())
+  await page.goto('/dashboard/assets')
+  await expect(page.getByRole('alert').filter({ hasText: 'Assets temporarily unavailable' })).toBeVisible()
+  fail = false
+  await page.getByRole('button', { name: 'Try again', exact: true }).click()
+  await expect(page.locator('tbody tr')).toHaveCount(25)
+})

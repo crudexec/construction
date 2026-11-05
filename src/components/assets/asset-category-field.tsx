@@ -1,14 +1,13 @@
 'use client'
 
+import { fetchAssetJson } from '@/lib/assets/client'
 import { useId } from 'react'
 import { useQuery } from '@tanstack/react-query'
 
 export async function fetchAssetCategories(type?: string): Promise<string[]> {
   const params = new URLSearchParams()
   if (type && type !== 'all') params.set('type', type)
-  const response = await fetch(`/api/asset-categories?${params}`, { credentials: 'include' })
-  if (!response.ok) throw new Error('Could not load asset categories')
-  return response.json()
+  return fetchAssetJson<string[]>(`/api/asset-categories?${params}`)
 }
 
 export function AssetCategoryField({ type, value, onChange }: { type: string; value: string; onChange: (value: string) => void }) {
