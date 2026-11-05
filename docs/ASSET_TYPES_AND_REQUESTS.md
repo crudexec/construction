@@ -2,6 +2,8 @@
 
 The asset request screen loads `/api/asset-requests` once per page instead of downloading all assets and fetching their requests sequentially. Filtering, totals, and stable pagination run in PostgreSQL, scoped to the signed-in user's company. Each page contains at most 25 requests. The pending count covers the company, independent of the selected status. Failed loads show a retry action; the browser request times out after 20 seconds. Approval, rejection, and return errors are visible, and the pagination has room below it for the chat launcher.
 
+The request list follows the Assets grid: compact bordered columns, alternating rows, separate equipment IDs, inline status filtering and pending counts, and a range-based pagination footer in one panel. The table scrolls horizontally on small screens, and loading/error states retain the surrounding layout.
+
 Company administrators manage types in **Settings → Assets → Types**. Vehicle, Equipment, Tool, and Technology are available by default, including for newly created companies. Administrators can add types, rename labels, archive options, and restore them. Staff can read the options but cannot change them. Names are unique within a company, ignoring case; stable internal keys retain existing asset assignments when labels change.
 
 Archived types remain visible on existing assets and in filters. Existing assignments can be retained when editing other fields; creating or switching to an archived type is rejected. New and edit forms, category lookup, asset lists and filters, asset detail displays, and the request list use the company-managed types. Audit entries record changes.

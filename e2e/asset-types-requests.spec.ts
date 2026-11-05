@@ -27,7 +27,7 @@ test('request screen uses one paginated list and supports approval and return', 
   const legacyCalls: string[] = []
   page.on('request', request => { const path = new URL(request.url()).pathname; if (path === '/api/assets' || /^\/api\/assets\/[^/]+\/requests$/.test(path)) legacyCalls.push(path) })
   await page.goto('/dashboard/assets/requests')
-  await expect(page.getByText('31 requests · Page 1 of 2')).toBeVisible()
+  await expect(page.getByText('Showing 1–25 of 31 requests')).toBeVisible()
   await expect(page.locator('tbody tr')).toHaveCount(25)
   await page.getByRole('button', { name: 'Next', exact: true }).click(); await expect(page.locator('tbody tr')).toHaveCount(6)
   await page.getByRole('button', { name: 'Previous', exact: true }).click()
@@ -45,7 +45,7 @@ test('failed request loads show a recoverable error rather than an endless spinn
   await page.goto('/dashboard/assets/requests')
   await expect(page.getByRole('alert').filter({ hasText: 'Requests temporarily unavailable' })).toBeVisible()
   fail = false; await page.getByRole('button', { name: 'Try again', exact: true }).click()
-  await expect(page.getByText('31 requests · Page 1 of 2')).toBeVisible()
+  await expect(page.getByText('Showing 1–25 of 31 requests')).toBeVisible()
 })
 test('admins add and rename types, use them on assets, and archive without losing records', async ({ page }) => {
   await page.goto('/dashboard/settings?tab=asset-types')
@@ -76,7 +76,7 @@ for (const width of [1440, 390]) test(`settings and request list fit ${width}px`
   await expect(page.getByRole('button', { name: 'Rename IT equipment' })).toBeVisible()
   await page.screenshot({ path: `${screenshots}/types-${width}.png`, fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
-  await page.goto('/dashboard/assets/requests'); await expect(page.getByText('31 requests · Page 1 of 2')).toBeVisible()
+  await page.goto('/dashboard/assets/requests'); await expect(page.getByText('Showing 1–25 of 31 requests')).toBeVisible()
   await page.screenshot({ path: `${screenshots}/requests-${width}.png`, fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
 })
