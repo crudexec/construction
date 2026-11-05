@@ -156,3 +156,32 @@ for (const width of [1440, 390]) test(`platform overview and company activity fi
   await expect(page.getByRole('button', { name: 'Improve equipment search', exact: true })).toBeVisible()
   await capture(page, `company-feedback-${width}.png`)
 })
+
+
+test('company deletion confirms the exact name, removes the account and returns to the list', async ({ page }) => {
+  const company = await prisma.company.create({ data: { name: 'Delete demo company' } })
+  companyIds.push(company.id)
+  await prisma.user.create({ data: { companyId: company.id, email: `${randomUUID()}@example.test`, firstName: 'Delete', lastName: 'User', password: 'unused' } })
+  await signIn(page, owner, true)
+  await page.goto(`/dashboard/platform?company=${company.id}&tab=settings`)
+  await page.getByRole('button', { name: 'Delete company', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete Delete demo company?' })
+  await expect(dialog).toBeVisible()
+  const confirm = dialog.getByRole('button', { name: 'Permanently delete company' })
+  await expect(confirm).toBeDisabled()
+  await dialog.getByLabel('Company name to confirm').fill('Wrong name')
+  await expect(confirm).toBeDisabled()
+  await dialog.getByLabel('Company name to confirm').fill(company.name)
+  await dialog.getByLabel('Reason for deletion').fill('Remove duplicate demo account')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await dialog.screenshot({ path: join(review, `delete-company-${width}.png`) })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+  }
+  await confirm.click()
+  await expect(page).toHaveURL(/view=companies/)
+  await expect(page.getByRole('link', { name: company.name, exact: true })).toHaveCount(0)
+  expect(await prisma.company.findUnique({ where: { id: company.id } })).toBeNull()
+  expect(await prisma.user.count({ where: { companyId: company.id } })).toBe(0)
+  expect(await prisma.auditEvent.count({ where: { companyId: company.id, action: 'deleted' } })).toBe(1)
+})

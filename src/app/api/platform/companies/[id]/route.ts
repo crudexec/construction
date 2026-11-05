@@ -1,10 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
+import { deleteCompanyRecords } from '@/lib/platform/delete-company'
 import { auditData } from '@/lib/platform/audit'
 import { companySelect, lockCompany } from '@/lib/platform/companies'
 import { actorFor, email, failure, input, PlatformError, privateHeaders, requirePlatform, text } from '@/lib/platform/server'
 
 type Context = { params: Promise<{ id: string }> }
+export async function DELETE(request: NextRequest, context: Context) {
+  try {
+    const user = await requirePlatform(request), { id } = await context.params
+    const body = await input(request), reason = text(body.reason, 'Reason', 500)
+    await prisma.$transaction(async tx => {
+      const company = await lockCompany(tx, id)
+      if (body.confirmationName !== company.name) throw new PlatformError('Type the exact company name to confirm deletion.')
+      // Serialize against platform grants (which reference these user rows).
+      await tx.$queryRaw(Prisma.sql`SELECT id FROM "User" WHERE "companyId"=${id} FOR UPDATE`)
+      if (id === user.companyId || await tx.platformAdmin.count({ where: { user: { companyId: id } } })) {
+        throw new PlatformError('A company containing a platform administrator cannot be deleted.', 409)
+      }
+      await deleteCompanyRecords(tx, id)
+      await tx.auditEvent.create({ data: auditData({ ...actorFor(user), companyId: id, companyName: company.name, module: 'companies', action: 'deleted', resourceId: id, summary: `Deleted ${company.name} and its company records`, reason, before: company }) })
+    }, { timeout: 60000 })
+    return NextResponse.json({ deleted: true }, { headers: privateHeaders })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') return failure(new PlatformError('Linked records prevented deletion. No changes were saved. Review this company’s relationships before trying again.', 409))
+    return failure(error)
+  }
+}
 export async function GET(request: NextRequest, context: Context) {
   try {
     await requirePlatform(request); const { id } = await context.params

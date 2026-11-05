@@ -68,3 +68,11 @@ Overview shows company counts, active/suspended accounts, users signed in over s
 Desktop/mobile screenshots are local review artifacts under `.impeccable/review/super-admin/`. No production data or messages are created by these tests.
 
 Before the company data assistant extension, local verification completed on the feature branch: 11 platform integration tests, 10 existing feedback integration tests, 19 browser workflow/regression tests, and two desktop/mobile smoke tests against the production standalone build passed. `npx tsc --noEmit`, `npm run build`, and whitespace checks passed. The UI finish review is recorded separately in the local review artifacts; these checks do not deploy or grant production access.
+
+## Company deletion
+
+Open **Companies → company → Settings → Delete company**. A verified platform administrator must type the exact current company name and provide a reason. The operation permanently removes the account, users, invitations and owned business records. It invalidates access by removing the underlying identities; deleted emails can be used for a new account. Companies containing any platform administrator, including the acting administrator, are protected.
+
+`DELETE /api/platform/companies/[id]` accepts `{ confirmationName, reason }`. It enforces the existing MFA/session and same-origin guards, locks the company and its users, removes dependent records in foreign-key order, and records the deletion audit event in the same transaction. Any dependency failure rolls everything back and returns a recoverable conflict. No new migration is needed. Legacy subcontractor access lists lose only the deleted company's project IDs.
+
+Audit history remains immutable and searchable in the platform Audit view. Backups and separately stored uploaded files are retained; this feature removes application accounts and database records, not a physical-storage or backup purge. No real companies are deleted during implementation or tests.
