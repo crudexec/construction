@@ -3,7 +3,12 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
-import { AlertCircle, Wrench, CheckCircle, ClipboardList, MessageSquare } from 'lucide-react'
+import { AlertCircle, Wrench, CheckCircle, ClipboardList, MessageSquare, Plus } from 'lucide-react'
+
+import { AssetRequestPicker } from '@/components/assets/asset-request-picker'
+import { assetButton, assetPrimary } from '@/components/assets/asset-request-dialog'
+import { AssetLoadError } from '@/components/assets/asset-load-error'
+import { useAuthStore } from '@/store/auth'
 
 interface Issue {
   id: string
@@ -53,10 +58,12 @@ const TABS = [
 ]
 
 export default function AssetIssuesDashboardPage() {
+  const userId = useAuthStore(state => state.user?.id)
+  const [showPicker, setShowPicker] = useState(false)
   const [statusFilter, setStatusFilter] = useState('OPEN')
 
-  const { data: issues = [], isLoading } = useQuery({
-    queryKey: ['all-asset-issues', statusFilter],
+  const { data: issues = [], isLoading, error, refetch } = useQuery({
+    queryKey: ['all-asset-issues', userId, statusFilter],
     queryFn: () => fetchIssues(statusFilter)
   })
 
@@ -68,19 +75,24 @@ export default function AssetIssuesDashboardPage() {
       <Link href="/dashboard/assets" className="inline-flex text-sm font-medium text-primary-600 hover:text-primary-800">
         ← Back to Assets
       </Link>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Equipment Issues</h1>
           <p className="text-sm text-gray-600">All reported issues across your fleet</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
         <Link
           href="/dashboard/assets/work-orders"
-          className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 flex items-center gap-2"
+          className={assetButton}
         >
           <ClipboardList className="h-4 w-4" />
           Work Orders
         </Link>
+        <button type="button" className={assetPrimary} onClick={() => setShowPicker(true)}><Plus aria-hidden="true" className="h-4 w-4" />Add issue</button>
+        </div>
       </div>
+
+      {showPicker && <AssetRequestPicker purpose="issue" close={() => setShowPicker(false)} created={() => { setShowPicker(false); setStatusFilter('ALL') }} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow border">
@@ -113,7 +125,7 @@ export default function AssetIssuesDashboardPage() {
       </div>
 
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-6">
+        <nav className="-mb-px flex flex-wrap gap-x-6">
           {TABS.map((tab) => (
             <button
               key={tab.id}
@@ -129,7 +141,7 @@ export default function AssetIssuesDashboardPage() {
       </div>
 
       <div className="bg-white rounded-lg shadow border overflow-hidden">
-        {isLoading ? (
+        {error ? <AssetLoadError error={error} retry={() => { void refetch() }} /> : isLoading ? (
           <div className="flex justify-center items-center h-32">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>

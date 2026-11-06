@@ -659,7 +659,7 @@ test('drives rental, meter, job assignment, maintenance, DOT, and issue tabs fro
 
   await page.getByRole('button', { name: 'Issues' }).click()
   await page.getByRole('button', { name: 'Log Issue' }).click()
-  modal = modalByTitle(page, 'Log an Issue')
+  modal = page.getByRole('dialog', { name: 'Log an Issue' })
   await fieldByLabel(modal, 'Title').fill('UI hydraulic leak')
   await fieldByLabel(modal, 'Description').fill('Hydraulic fluid visible under machine')
   await fieldByLabel(modal, 'Urgency').selectOption('URGENT')
