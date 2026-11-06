@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { AlertCircle, Wrench, CheckCircle, ClipboardList, MessageSquare, Plus } from 'lucide-react'
 
-import { AssetRequestPicker } from '@/components/assets/asset-request-picker'
+import { AssetIssueDialog } from '@/components/assets/asset-issue-dialog'
 import { assetButton, assetPrimary } from '@/components/assets/asset-request-dialog'
 import { AssetLoadError } from '@/components/assets/asset-load-error'
 import { useAuthStore } from '@/store/auth'
@@ -59,7 +59,7 @@ const TABS = [
 
 export default function AssetIssuesDashboardPage() {
   const userId = useAuthStore(state => state.user?.id)
-  const [showPicker, setShowPicker] = useState(false)
+  const [showForm, setShowForm] = useState(false)
   const [statusFilter, setStatusFilter] = useState('OPEN')
 
   const { data: issues = [], isLoading, error, refetch } = useQuery({
@@ -88,11 +88,11 @@ export default function AssetIssuesDashboardPage() {
           <ClipboardList className="h-4 w-4" />
           Work Orders
         </Link>
-        <button type="button" className={assetPrimary} onClick={() => setShowPicker(true)}><Plus aria-hidden="true" className="h-4 w-4" />Add issue</button>
+        <button type="button" className={assetPrimary} onClick={() => setShowForm(true)}><Plus aria-hidden="true" className="h-4 w-4" />Add issue</button>
         </div>
       </div>
 
-      {showPicker && <AssetRequestPicker purpose="issue" close={() => setShowPicker(false)} created={() => { setShowPicker(false); setStatusFilter('ALL') }} />}
+      {showForm && <AssetIssueDialog close={() => setShowForm(false)} created={() => { setShowForm(false); setStatusFilter('ALL') }} />}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-lg shadow border">

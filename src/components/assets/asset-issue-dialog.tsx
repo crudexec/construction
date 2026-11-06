@@ -6,6 +6,7 @@ import { X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAuthStore } from '@/store/auth'
 import { ErrorMessage } from '@/components/feedback/shared'
+import { AssetIssueSelect } from './asset-issue-select'
 import { assetButton, assetControl, assetPrimary } from './asset-request-dialog'
 
 interface NotificationSettings {
@@ -45,7 +46,9 @@ async function fetchUsers(): Promise<UserOption[]> {
   return response.json()
 }
 
-export function AssetIssueDialog({ assetId, assetName, close, created }: { assetId: string; assetName?: string; close: () => void; created?: () => void }) {
+export function AssetIssueDialog({ assetId: fixedAssetId, assetName, close, created }: { assetId?: string; assetName?: string; close: () => void; created?: () => void }) {
+  const [selectedAsset, setSelectedAsset] = useState<{ id: string; name: string; equipmentId: string | null } | null>(null)
+  const assetId = fixedAssetId || selectedAsset?.id
   const queryClient = useQueryClient()
   const user = useAuthStore(state => state.user)
   const dialog = useRef<HTMLDialogElement>(null)
@@ -73,6 +76,7 @@ export function AssetIssueDialog({ assetId, assetName, close, created }: { asset
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof form) => {
+      if (!assetId) throw new Error('Choose an asset before logging an issue.')
       const response = await fetch(`/api/assets/${assetId}/issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
@@ -125,7 +129,7 @@ export function AssetIssueDialog({ assetId, assetName, close, created }: { asset
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!form.title.trim()) return
+    if (!assetId || !form.title.trim()) return
     if (!form.meterReadingType || !form.meterReadingValue) {
       toast.error('Meter type and reading are required when logging an issue')
       return
@@ -149,9 +153,10 @@ export function AssetIssueDialog({ assetId, assetName, close, created }: { asset
     </div>
             <form onSubmit={handleSubmit} className="p-4 space-y-4 text-xs">
               <fieldset disabled={createMutation.isPending} className="space-y-4">
+              {!fixedAssetId && <AssetIssueSelect value={selectedAsset} onChange={setSelectedAsset} disabled={createMutation.isPending} />}
               <div>
                 <label htmlFor="issue-title" className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
-                <input id="issue-title" autoFocus type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={`${assetControl} w-full`} placeholder="e.g., Hydraulic leak on left arm" />
+                <input id="issue-title" autoFocus={!!fixedAssetId} type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className={`${assetControl} w-full`} placeholder="e.g., Hydraulic leak on left arm" />
               </div>
               <div>
                 <label htmlFor="issue-description" className="block text-xs font-medium text-gray-700 mb-1">Description</label>
@@ -242,7 +247,7 @@ export function AssetIssueDialog({ assetId, assetName, close, created }: { asset
               <ErrorMessage error={createMutation.error} />
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={close} disabled={createMutation.isPending} className={assetButton}>Cancel</button>
-                <button type="submit" disabled={createMutation.isPending || updateNotificationMutation.isPending || !form.title.trim()} className={assetPrimary}>
+                <button type="submit" disabled={createMutation.isPending || updateNotificationMutation.isPending || !assetId || !form.title.trim()} className={assetPrimary}>
                   {createMutation.isPending ? 'Logging...' : 'Log Issue'}
                 </button>
               </div>

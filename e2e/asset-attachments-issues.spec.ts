@@ -16,6 +16,7 @@ test.beforeAll(async () => {
   companyId = (await prisma.company.create({ data: { name: 'Asset workflow test' } })).id
   user = await prisma.user.create({ data: { companyId, firstName: 'Alex', lastName: 'Morgan', email: `${randomUUID()}@example.test`, role: 'ADMIN', password: 'unused' }, include: { company: true } })
   assetId = (await prisma.asset.create({ data: { companyId, name: 'Site excavator', equipmentId: 'EX-009', type: 'EQUIPMENT', status: 'UNDER_MAINTENANCE' } })).id
+  await prisma.asset.createMany({ data: Array.from({ length: 27 }, (_, index) => ({ companyId, name: `Spare machine ${index + 1}`, equipmentId: `ZZ-${String(index + 1).padStart(3, '0')}`, type: 'EQUIPMENT' })) })
   await prisma.assetIssueNotificationSetting.create({ data: { companyId, notifyAdmins: false, notifyStaff: false } })
 })
 test.afterAll(async () => {
@@ -88,17 +89,25 @@ test('multiple dropped attachments persist; partial failures retry only failed f
 test('Add issue finds unavailable assets, retains failed drafts, and saves issue and meter reading in place', async ({ page }) => {
   await page.goto('/dashboard/assets/issues')
   await page.getByRole('button', { name: 'Add issue', exact: true }).click()
-  await page.getByRole('textbox', { name: 'Search assets', exact: true }).fill('EX-009')
-  const select = page.getByRole('button', { name: 'Select EX-009', exact: true })
-  await expect(select).toBeEnabled()
-  await expect(page.getByRole('cell', { name: 'Under maintenance', exact: true })).toBeVisible()
+  const dialog = page.getByRole('dialog', { name: 'Log an Issue' })
+  const assetSelect = dialog.getByRole('combobox', { name: 'Asset', exact: false })
+  await expect(dialog).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Add issue', exact: true })).toHaveCount(0)
+  await assetSelect.fill('no-match-for-this-asset')
+  await expect(dialog.getByText('No assets match your search.')).toBeVisible()
+  await assetSelect.fill('EX-009')
+  const option = dialog.getByRole('option', { name: /EX-009.*Site excavator/ })
+  await expect(option).toBeVisible()
+  await expect(option).toContainText('under maintenance')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.screenshot({ path: `${screenshots}/issue-picker-${width}.png`, fullPage: true })
+    await dialog.screenshot({ path: `${screenshots}/issue-dropdown-${width}.png` })
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
   }
-  await select.click()
-  const dialog = page.getByRole('dialog', { name: 'Log an Issue' })
+  await assetSelect.press('ArrowDown')
+  await assetSelect.press('Enter')
+  await expect(assetSelect).toHaveValue('EX-009 · Site excavator')
+  await expect(dialog.getByRole('listbox')).toHaveCount(0)
   await dialog.getByLabel('Title').fill('Hydraulic hose leak')
   await dialog.getByLabel('Description', { exact: true }).fill('Fluid visible beside the left track.')
   await dialog.getByLabel('Urgency', { exact: true }).selectOption('HIGH')
@@ -140,4 +149,39 @@ test('asset detail keeps the shared creation flow and dialog keyboard dismissal'
   await expect(dialog).toHaveCount(0)
   await expect(page.getByText('Track inspection', { exact: true })).toBeVisible()
   expect(await prisma.assetIssue.count({ where: { assetId, title: 'Track inspection' } })).toBe(1)
+})
+
+
+test('issue dropdown pages assets, recovers a failed load, and Escape closes the dropdown before the modal', async ({ page }) => {
+  await page.goto('/dashboard/assets/issues')
+  let fail = true
+  const requestedPages: string[] = []
+  await page.route('**/api/assets?*', route => {
+    const params = new URL(route.request().url()).searchParams
+    requestedPages.push(`${params.get('page')}:${params.get('pageSize')}`)
+    return fail ? route.fulfill({ status: 503, json: { error: 'Assets temporarily unavailable' } }) : route.continue()
+  })
+  const opener = page.getByRole('button', { name: 'Add issue', exact: true })
+  await opener.click()
+  const dialog = page.getByRole('dialog', { name: 'Log an Issue' })
+  await dialog.getByRole('combobox', { name: 'Asset', exact: false }).click()
+  await expect(dialog.getByRole('alert')).toContainText('Assets temporarily unavailable')
+  fail = false
+  await dialog.getByRole('button', { name: 'Try again' }).click()
+  await expect(dialog.getByRole('listbox', { name: 'Assets' }).getByRole('option')).toHaveCount(25)
+  await dialog.getByRole('button', { name: 'Load more' }).click()
+  await expect(dialog.getByRole('listbox', { name: 'Assets' }).getByRole('option')).toHaveCount(28)
+  expect(requestedPages).toContain('2:25')
+  await expect(dialog.getByRole('button', { name: 'Load more' })).toHaveCount(0)
+  await dialog.getByRole('option', { name: /ZZ-027/ }).click()
+  const field = dialog.getByRole('combobox', { name: 'Asset', exact: false })
+  await expect(field).toHaveValue('ZZ-027 · Spare machine 27')
+  await expect(dialog.getByRole('listbox')).toHaveCount(0)
+  await field.click()
+  await field.press('Escape')
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('listbox')).toHaveCount(0)
+  await field.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(opener).toBeFocused()
 })
